@@ -2,7 +2,7 @@ use crate::net::packets::packet_deserialize::PacketDeserializable;
 use crate::net::packets::packet_serialize::PacketSerializable;
 use crate::server::utils::nbt::deserialize::deserialize_nbt;
 use crate::server::utils::nbt::nbt::NBT;
-use crate::server::utils::nbt::serialize::serialize_nbt;
+use crate::server::utils::nbt::serialize::{nbt_write_size, serialize_nbt};
 use bytes::{Buf, BytesMut};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -13,17 +13,38 @@ pub struct ItemStack {
     pub tag_compound: Option<NBT>,
 }
 
-impl PacketSerializable for Option<ItemStack> {
-    fn write(&self, buf: &mut Vec<u8>) {
-        if let Some(item_stack) = self {
-            item_stack.item.write(buf);
-            item_stack.stack_size.write(buf);
-            item_stack.metadata.write(buf);
+impl PacketSerializable for ItemStack {
+    fn write_size(&self) -> usize {
+        self.item.write_size() +
+        self.stack_size.write_size() +
+        self.metadata.write_size() +
+        match &self.tag_compound {
+            None => const { size_of::<u8>() },
+            Some(nbt) => nbt_write_size(nbt),
+        }
+    }
+    fn write(&self, buf: &mut BytesMut) {
+        self.item.write(buf);
+        self.stack_size.write(buf);
+        self.metadata.write(buf);
 
-            match &item_stack.tag_compound {
-                None => 0u8.write(buf),
-                Some(nbt) => buf.extend(serialize_nbt(nbt)),
-            }
+        match &self.tag_compound {
+            None => 0u8.write(buf),
+            Some(nbt) => buf.extend(serialize_nbt(nbt)),
+        }
+    }
+}
+
+impl PacketSerializable for Option<ItemStack> {
+    fn write_size(&self) -> usize {
+        match self { 
+            Some(item_stack) => item_stack.write_size(),
+            None => const { size_of::<i16>() }
+        }
+    }
+    fn write(&self, buf: &mut BytesMut) {
+        if let Some(item_stack) = self {
+            item_stack.write(buf)
         } else {
             (-1i16).write(buf)
         }

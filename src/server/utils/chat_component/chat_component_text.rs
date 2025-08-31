@@ -1,5 +1,6 @@
 use crate::net::packets::packet_serialize::PacketSerializable;
 use crate::server::utils::color::MCColors;
+use bytes::BytesMut;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -35,7 +36,10 @@ impl ChatComponentText {
 }
 
 impl PacketSerializable for ChatComponentText {
-    fn write(&self, buf: &mut Vec<u8>) {
+    fn write_size(&self) -> usize {
+        self.serialize().write_size()
+    }
+    fn write(&self, buf: &mut BytesMut) {
         self.serialize().write(buf);
     }
 }

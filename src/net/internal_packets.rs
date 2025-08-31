@@ -1,12 +1,13 @@
 use crate::net::protocol::play::serverbound::Play;
 use crate::server::player::player::{ClientId, GameProfile};
+use bytes::Bytes;
 
 // too many comments because theres 4 different client disconnect related messages and theyre all needed and do different things...
 
 pub enum NetworkThreadMessage {
     SendPackets {
         client_id: ClientId,
-        buffer: Vec<u8>,
+        buffer: Bytes,
     },
     
     /// received when the client's handler is closed.
@@ -24,7 +25,7 @@ pub enum NetworkThreadMessage {
 }
 
 pub enum ClientHandlerMessage {
-    Send(Vec<u8>),
+    Send(Bytes),
     /// Closes the handler for this client. This then sends a connection closed message to the network thread.
     CloseHandler,
 }

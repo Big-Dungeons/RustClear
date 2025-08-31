@@ -4,6 +4,7 @@ use crate::register_packets;
 use base64::engine::general_purpose;
 use base64::Engine;
 use blocks::packet_serializable;
+use bytes::BytesMut;
 use once_cell::sync::Lazy;
 
 register_packets! {

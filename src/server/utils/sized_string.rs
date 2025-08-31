@@ -1,4 +1,5 @@
 use crate::net::packets::packet_serialize::PacketSerializable;
+use bytes::BytesMut;
 use std::ops::Deref;
 
 /// [String] with a character size limit of N.
@@ -52,8 +53,11 @@ impl<const N: usize> From<String> for SizedString<N> {
 }
 
 impl<const N: usize> PacketSerializable for SizedString<N> {
-    fn write(&self, writer: &mut Vec<u8>) {
-        self.0.write(writer);
+    fn write_size(&self) -> usize {
+        self.0.write_size()
+    }
+    fn write(&self, buf: &mut BytesMut) {
+        self.0.write(buf);
     }
 }
 

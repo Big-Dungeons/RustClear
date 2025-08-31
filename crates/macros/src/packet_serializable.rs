@@ -98,6 +98,16 @@ pub fn packet_serializable_macro(input: TokenStream) -> TokenStream {
         }
     });
 
+    let write_size_fields = fields.iter().map(|f| {
+        let size_expr = if let Some((_, expr)) = &f.transform {
+            quote! { #expr.write_size() }
+        } else {
+            let name = &f.name;
+            quote! { self.#name.write_size() }
+        };
+        quote! { #size_expr }
+    });
+
     let write_fields = fields.iter().map(|f| {
         let write_expr = if let Some((_, expr)) = &f.transform {
             quote! { #expr }
@@ -116,7 +126,10 @@ pub fn packet_serializable_macro(input: TokenStream) -> TokenStream {
         }
 
         impl #impl_generics crate::net::packets::packet_serialize::PacketSerializable for #name #ty_generics #where_clause {
-            fn write(&self, buf: &mut Vec<u8>) {
+            fn write_size(&self) -> usize {
+                #(#write_size_fields)+*
+            }
+            fn write(&self, buf: &mut BytesMut) {
                 #(#write_fields)*
             }
         }

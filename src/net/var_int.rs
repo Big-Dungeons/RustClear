@@ -1,4 +1,4 @@
-use bytes::{Buf, BytesMut};
+use bytes::{Buf, BufMut, BytesMut};
 
 #[derive(PartialEq, Eq)]
 pub struct VarInt(pub i32);
@@ -31,13 +31,23 @@ pub fn read_var_int(buf: &mut BytesMut) -> Option<i32> {
     Some(int)
 }
 
-pub fn write_var_int(buf: &mut Vec<u8>, mut value: i32) {
+pub fn write_var_int(buf: &mut BytesMut, mut value: i32) {
     loop {
         if (value & !0x7F) == 0 {
-            buf.push(value as u8);
+            // buf.reserve(1);
+            buf.put_u8(value as u8);
             return;
         }
-        buf.push(((value & 0x7F) | 0x80) as u8);
+        // buf.reserve(1);
+        buf.put_u8(((value & 0x7F) | 0x80) as u8);
         value >>= 7;
     }
+}
+
+pub fn var_int_size(value: i32) -> usize {
+    if value == 0 {
+        1
+    } else {
+        (31 - value.leading_zeros() as usize) / 7 + 1
+    } 
 }

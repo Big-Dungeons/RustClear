@@ -2,6 +2,7 @@ use crate::net::packets::packet::IdentifiedPacket;
 use crate::net::packets::packet_serialize::PacketSerializable;
 use crate::register_packets;
 use blocks::packet_serializable;
+use bytes::BytesMut;
 
 register_packets! {
     // LoginDisconnect = 0x00;

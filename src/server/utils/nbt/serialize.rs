@@ -166,3 +166,46 @@ fn write_string(vec: &mut Vec<u8>, name: &str) {
     vec.extend_from_slice(&(name.len() as u16).to_be_bytes());
     vec.extend_from_slice(name.as_bytes());
 }
+
+fn string_size(s: &str) -> usize {
+    2 + s.as_bytes().len()
+}
+
+pub fn nbt_write_size(nbt: &NBT) -> usize {
+    let mut size = 1;
+    size += string_size(&nbt.root_name);
+    for (name, node) in &nbt.nodes {
+        size += 1 + string_size(name) + entry_size(node);
+    }
+    size += 1;
+    size
+}
+fn entry_size(node: &NBTNode) -> usize {
+    match node {
+        NBTNode::Byte(_) => 1,
+        NBTNode::Short(_) => 2,
+        NBTNode::Int(_) => 4,
+        NBTNode::Long(_) => 8,
+        NBTNode::Float(_) => 4,
+        NBTNode::Double(_) => 8,
+        NBTNode::ByteArray(bytes) => 4 + bytes.len(),
+        NBTNode::String(s) => string_size(s),
+        NBTNode::List { type_id: _, children } => {
+            let mut size = 1 + 4;
+            for child in children {
+                size += entry_size(child);
+            }
+            size
+        }
+        NBTNode::Compound(nodes) => {
+            let mut size = 0;
+            for (name, node) in nodes {
+                size += 1 + string_size(name) + entry_size(node);
+            }
+            size += 1;
+            size
+        }
+        NBTNode::IntArray(values) => 4 + (values.len() * 4),
+        NBTNode::LongArray(values) => 4 + (values.len() * 8),
+    }
+}

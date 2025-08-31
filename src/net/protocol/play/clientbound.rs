@@ -1,6 +1,6 @@
 use crate::net::packets::packet::IdentifiedPacket;
 use crate::net::packets::packet_serialize::PacketSerializable;
-use crate::net::var_int::{write_var_int, VarInt};
+use crate::net::var_int::{var_int_size, write_var_int, VarInt};
 use crate::register_packets;
 use crate::server::block::block_position::BlockPos;
 use crate::server::entity::entity_metadata::EntityMetadata;
@@ -10,6 +10,7 @@ use crate::server::utils::chat_component::chat_component_text::ChatComponentText
 use crate::server::utils::player_list::player_profile::PlayerData;
 use crate::server::utils::sized_string::SizedString;
 use blocks::packet_serializable;
+use bytes::BytesMut;
 use uuid::Uuid;
 
 register_packets! {
@@ -163,35 +164,19 @@ packet_serializable! {
 
 const MOTION_CLAMP: f64 = 3.9;
 
-pub struct SpawnObject {
-    pub entity_id: VarInt,
-    pub entity_variant: i8,
-    pub x: f64,
-    pub y: f64,
-    pub z: f64,
-    pub yaw: f32,
-    pub pitch: f32,
-    pub data: i32,
-    pub velocity_x: f64,
-    pub velocity_y: f64,
-    pub velocity_z: f64,
-}
-
-impl PacketSerializable for SpawnObject {
-    fn write(&self, buf: &mut Vec<u8>) {
-        self.entity_id.write(buf);
-        self.entity_variant.write(buf);
-        ((self.x * 32.0).floor() as i32).write(buf);
-        ((self.y * 32.0).floor() as i32).write(buf);
-        ((self.z * 32.0).floor() as i32).write(buf);
-        ((self.pitch * 256.0 / 360.0) as i8).write(buf);
-        ((self.yaw * 256.0 / 360.0) as i8).write(buf);
-        self.data.write(buf);
-        if self.data > 0 {
-            ((self.velocity_x.clamp(-MOTION_CLAMP, MOTION_CLAMP) * 8000.0) as i16).write(buf);
-            ((self.velocity_y.clamp(-MOTION_CLAMP, MOTION_CLAMP) * 8000.0) as i16).write(buf);
-            ((self.velocity_z.clamp(-MOTION_CLAMP, MOTION_CLAMP) * 8000.0) as i16).write(buf);
-        }
+packet_serializable!{
+    pub struct SpawnObject {
+        pub entity_id: VarInt,
+        pub entity_variant: i8,
+        pub x: f64 => &((self.x * 32.0).floor() as i32),
+        pub y: f64 => &((self.y * 32.0).floor() as i32),
+        pub z: f64 => &((self.z * 32.0).floor() as i32),
+        pub pitch: f32 => &((self.pitch * 256.0 / 360.0) as i8),
+        pub yaw: f32 => &((self.yaw * 256.0 / 360.0) as i8),
+        pub data: i32,
+        pub velocity_x: f64 => &((self.velocity_x.clamp(-MOTION_CLAMP, MOTION_CLAMP) * 8000.0) as i16),
+        pub velocity_y: f64 => &((self.velocity_y.clamp(-MOTION_CLAMP, MOTION_CLAMP) * 8000.0) as i16),
+        pub velocity_z: f64 => &((self.velocity_z.clamp(-MOTION_CLAMP, MOTION_CLAMP) * 8000.0) as i16),
     }
 }
 
@@ -400,6 +385,7 @@ packet_serializable! {
     }
 }
 
+#[derive(Debug)]
 pub struct WindowItems {
     pub window_id: i8,
     pub items: Vec<Option<ItemStack>>,
@@ -407,7 +393,14 @@ pub struct WindowItems {
 
 // why couldnt mojang use var int for length :(
 impl PacketSerializable for WindowItems {
-    fn write(&self, buf: &mut Vec<u8>) {
+    fn write_size(&self) -> usize {
+        let mut size = self.window_id.write_size() + (self.items.len() as i16).write_size();
+        for item in self.items.iter() {
+            size += item.write_size()
+        }
+        size
+    }
+    fn write(&self, buf: &mut BytesMut) {
         self.window_id.write(buf);
         (self.items.len() as i16).write(buf);
         for item in self.items.iter() {
@@ -424,6 +417,7 @@ packet_serializable! {
     }
 }
 
+#[derive(Debug)]
 pub struct PlayerAbilities {
     pub invulnerable: bool,
     pub flying: bool,
@@ -434,7 +428,10 @@ pub struct PlayerAbilities {
 }
 
 impl PacketSerializable for PlayerAbilities {
-    fn write(&self, buf: &mut Vec<u8>) {
+    fn write_size(&self) -> usize {
+        1 + self.fly_speed.write_size() + self.walk_speed.write_size()
+    }
+    fn write(&self, buf: &mut BytesMut) {
         let byte = (self.invulnerable as i8) | ((self.flying as i8) << 1) | ((self.allow_flying as i8) << 2) | ((self.creative_mode as i8) << 3);
         byte.write(buf);
         self.fly_speed.write(buf);
@@ -442,6 +439,7 @@ impl PacketSerializable for PlayerAbilities {
     }
 }
 
+#[derive(Debug)]
 pub struct Maps {
     pub id: i32,
     pub scale: i8,
@@ -454,19 +452,27 @@ pub struct Maps {
 }
 
 impl PacketSerializable for Maps {
-    fn write(&self, buf: &mut Vec<u8>) {
-        PacketSerializable::write(&VarInt(self.id), buf);
-        PacketSerializable::write(&self.scale, buf);
-
+    fn write_size(&self) -> usize {
+        let mut size = 0;
+        size += var_int_size(self.id) + self.scale.write_size() + var_int_size(0) + self.columns.write_size();
+        if self.columns > 0 { 
+            size += self.rows.write_size() + self.x.write_size() + self.z.write_size() + self.map_data.write_size()
+        }
+        size
+    }
+    fn write(&self, buf: &mut BytesMut) {
+        VarInt(self.id).write(buf);
+        self.scale.write(buf);
+        
         // todo visible players
-        PacketSerializable::write(&VarInt(0), buf);
+        VarInt(0).write(buf);
 
-        PacketSerializable::write(&self.columns, buf);
+        self.columns.write(buf);
         if self.columns > 0 {
-            PacketSerializable::write(&self.rows, buf);
-            PacketSerializable::write(&self.x, buf);
-            PacketSerializable::write(&self.z, buf);
-            PacketSerializable::write(&self.map_data, buf);
+            self.rows.write(buf);
+            self.x.write(buf);
+            self.z.write(buf);
+            self.map_data.write(buf);
         }
     }
 }
@@ -477,6 +483,7 @@ packet_serializable! {
     }
 }
 
+#[derive(Debug)]
 pub struct ScoreboardObjective<'a> {
     pub objective_name: SizedString<16>,
     pub objective_value: SizedString<32>,
@@ -485,7 +492,20 @@ pub struct ScoreboardObjective<'a> {
 }
 
 impl<'a> PacketSerializable for ScoreboardObjective<'a> {
-    fn write(&self, buf: &mut Vec<u8>) {
+    fn write_size(&self) -> usize {
+        let mut size = 0;
+        size += self.objective_name.write_size() + self.mode.write_size();
+
+        const ADD_OBJECTIVE: i8 = 0;
+        const UPDATE_NAME: i8 = 2;
+
+        if self.mode == ADD_OBJECTIVE || self.mode == UPDATE_NAME {
+            size += self.objective_value.write_size() + self.render_type.write_size();
+        }
+        
+        size
+    }
+    fn write(&self, buf: &mut BytesMut) {
         self.objective_name.write(buf);
         self.mode.write(buf);
 
@@ -507,7 +527,15 @@ pub struct UpdateScore {
 }
 
 impl PacketSerializable for UpdateScore {
-    fn write(&self, buf: &mut Vec<u8>) {
+    fn write_size(&self) -> usize {
+        let mut size = 0;
+        size += self.name.write_size() + self.action.write_size() + self.objective.write_size();
+        if self.action.0 == 0 {
+            size += self.value.write_size()
+        }
+        size 
+    }
+    fn write(&self, buf: &mut BytesMut) {
         self.name.write(buf);
         self.action.write(buf);
         self.objective.write(buf);
@@ -525,6 +553,7 @@ packet_serializable! {
     }
 }
 
+#[derive(Debug)]
 pub struct Teams {
     pub name: SizedString<16>,
     pub display_name: SizedString<32>,
@@ -538,7 +567,30 @@ pub struct Teams {
 }
 
 impl PacketSerializable for Teams {
-    fn write(&self, buf: &mut Vec<u8>) {
+    fn write_size(&self) -> usize {
+        pub const CREATE_TEAM: i8 = 0;
+        pub const REMOVE_TEAM: i8 = 1;
+        pub const UPDATE_TEAM: i8 = 2;
+        pub const ADD_PLAYER: i8 = 3;
+        pub const REMOVE_PLAYER: i8 = 4;
+        
+        let mut size = self.name.write_size() + self.action.write_size();
+        
+        if self.action == CREATE_TEAM || self.action == UPDATE_TEAM {
+            size += 
+                self.display_name.write_size() +
+                self.prefix.write_size() + 
+                self.suffix.write_size() +
+                self.friendly_flags.write_size() +
+                self.name_tag_visibility.write_size() +
+                self.color.write_size()
+        }
+        if self.action == CREATE_TEAM || self.action == ADD_PLAYER || self.action == REMOVE_PLAYER {
+            size += self.players.write_size();
+        }
+        size
+    }
+    fn write(&self, buf: &mut BytesMut) {
         pub const CREATE_TEAM: i8 = 0;
         pub const REMOVE_TEAM: i8 = 1;
         pub const UPDATE_TEAM: i8 = 2;
@@ -559,10 +611,6 @@ impl PacketSerializable for Teams {
 
         if self.action == CREATE_TEAM || self.action == ADD_PLAYER || self.action == REMOVE_PLAYER {
             self.players.write(buf);
-            // VarInt(self.players.len() as i32).write(buf);
-            // for player in self.players.iter() {
-            //     player.write(buf);
-            // }
         }
     }
 }
@@ -594,15 +642,65 @@ pub struct PlayerListItem<'a> {
 }
 
 impl PacketSerializable for PlayerListItem<'_> {
-    fn write(&self, buf: &mut Vec<u8>) {
-        self.action.write(buf);
-        write_var_int(buf, self.players.len() as i32);
-
+    
+    fn write_size(&self) -> usize {
         const ADD_PLAYER: i32 = 0;
         const UPDATE_GAME_MODE: i32 = 1;
         const UPDATE_LATENCY: i32 = 2;
         const UPDATE_NAME: i32 = 3;
         const REMOVE_PLAYER: i32 = 4;
+        
+        let mut size = self.action.write_size() + var_int_size(self.players.len() as i32);
+
+        for player in self.players.iter() {
+            match self.action.0 {
+                ADD_PLAYER => {
+                    size += player.profile.uuid.write_size() + player.profile.username.write_size();
+                    
+                    let properties = &player.profile.properties;
+                    size += 
+                        var_int_size(properties.len() as i32) +
+                        var_int_size(player.game_mode.id()) + 
+                        var_int_size(player.ping);
+                    
+                    for (key, property) in properties.iter() {
+                        size += key.write_size() + property.value.write_size() + 1;
+                        
+                        if let Some(signature) = &property.signature {
+                            size += signature.write_size();
+                        }
+                    }
+                }
+                UPDATE_GAME_MODE => {
+                    size += player.profile.uuid.write_size() + var_int_size(player.game_mode.id());
+                }
+                UPDATE_LATENCY => {
+                    size += player.profile.uuid.write_size() + var_int_size(player.ping);
+                }
+                UPDATE_NAME | REMOVE_PLAYER => {
+                    size += player.profile.uuid.write_size();
+                }
+                _ => unreachable!()
+            }
+            if self.action.0 == ADD_PLAYER || self.action.0 == UPDATE_NAME {
+                size += 1;
+                if let Some(name) = &player.display_name {
+                    size += name.write_size();
+                }
+            }
+        }
+        
+        size
+    }
+    fn write(&self, buf: &mut BytesMut) {
+        const ADD_PLAYER: i32 = 0;
+        const UPDATE_GAME_MODE: i32 = 1;
+        const UPDATE_LATENCY: i32 = 2;
+        const UPDATE_NAME: i32 = 3;
+        const REMOVE_PLAYER: i32 = 4;
+        
+        self.action.write(buf);
+        write_var_int(buf, self.players.len() as i32);
 
         for player in self.players.iter() {
             match self.action.0 {

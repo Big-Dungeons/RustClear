@@ -1,5 +1,6 @@
 use crate::net::packets::packet_serialize::PacketSerializable;
 use crate::server::items::item_stack::ItemStack;
+use bytes::{BufMut, BytesMut};
 
 /// Represents an entity type in Minecraft.
 #[derive(Debug, Clone)]
@@ -75,13 +76,30 @@ const FLOAT: u8 = 3;
 const STRING: u8 = 4;
 const ITEM_STACK: u8 = 5;
 
-fn write_data(buf: &mut Vec<u8>, data_type: u8, id: u8, data: impl PacketSerializable) {
-    buf.push((data_type << 5 | id & 31) & 255);
+fn write_data(buf: &mut BytesMut, data_type: u8, id: u8, data: impl PacketSerializable) {
+    buf.put_u8((data_type << 5 | id & 31) & 255);
     data.write(buf);
 }
 
 impl PacketSerializable for EntityMetadata {
-    fn write(&self, buf: &mut Vec<u8>) {
+    fn write_size(&self) -> usize {
+        const BYTE_SIZE: usize = const { size_of::<u8>() };
+        let mut size = BYTE_SIZE * 3;
+        match &self.variant {
+            EntityVariant::DroppedItem { item } => {
+                size += item.write_size() + BYTE_SIZE;
+            }
+            EntityVariant::Zombie { is_child, is_villager } => {
+                size += is_child.write_size() + is_villager.write_size() + BYTE_SIZE + BYTE_SIZE;
+            }
+            EntityVariant::Bat { hanging } => {
+                size += hanging.write_size() + BYTE_SIZE
+            }
+            _ => {}
+        }
+        size
+    }
+    fn write(&self, buf: &mut BytesMut) {
         let mut flags: u8 = 0;
 
         if self.is_invisible {
@@ -103,6 +121,6 @@ impl PacketSerializable for EntityMetadata {
             }
             _ => {}
         }
-        buf.push(127)
+        buf.put_u8(127)
     }
 }

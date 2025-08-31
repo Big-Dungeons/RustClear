@@ -120,7 +120,10 @@ const Y_MASK: i64 = 0xFFF;
 
 
 impl PacketSerializable for BlockPos {
-    fn write(&self, buf: &mut Vec<u8>) {
+    fn write_size(&self) -> usize {
+        const { size_of::<i64>() }
+    }
+    fn write(&self, buf: &mut BytesMut) {
         let long: i64 = (self.x as i64 & XZ_MASK) << X_SHIFT | (self.y as i64 & Y_MASK) << Y_SHIFT | (self.z as i64 & XZ_MASK);
         long.write(buf);
     }
