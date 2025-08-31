@@ -31,7 +31,7 @@ use crate::server::utils::dvec3::DVec3;
 use crate::server::world::VIEW_DISTANCE;
 use crate::utils::hasher::deterministic_hasher::DeterministicHashMap;
 use crate::utils::seeded_rng::SeededRng;
-use anyhow::Result;
+use anyhow::{bail, Result};
 use chrono::Local;
 use include_dir::include_dir;
 use indoc::formatdoc;
@@ -41,6 +41,7 @@ use std::env;
 use std::ops::Add;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::mpsc::unbounded_channel;
+use tokio::sync::mpsc::error::TryRecvError;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -165,7 +166,7 @@ async fn main() -> Result<()> {
 
             // test
             pub struct MortImpl;
-            
+
             impl EntityImpl for MortImpl {
                 fn tick(&mut self, _: &mut Entity, _: &mut PacketBuffer) {
                     // rotate
@@ -177,7 +178,7 @@ async fn main() -> Result<()> {
                     player.open_ui(UI::MortReadyUpMenu);
                 }
             }
-            
+
             let id = server.world.spawn_entity(
                 room.get_world_block_pos(&BlockPos { x: 15, y: 69, z: 4 })
                     .as_dvec3()
@@ -225,10 +226,14 @@ async fn main() -> Result<()> {
         tick_interval.tick().await;
         // let start = std::time::Instant::now();
 
-        while let Ok(message) = main_rx.try_recv() {
-            server.process_event(message).unwrap_or_else(|err| eprintln!("Error processing event: {err}"));
+        loop {
+            match main_rx.try_recv() {
+                Ok(message) => server.process_event(message).unwrap_or_else(|err| eprintln!("Error processing event: {err}")),
+                Err(TryRecvError::Empty) => break,
+                Err(TryRecvError::Disconnected) => bail!("Network thread dropped its reciever."),
+            }
         }
-
+        
         server.dungeon.tick()?;
         server.world.tick()?;
 
