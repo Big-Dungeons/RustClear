@@ -31,7 +31,7 @@ use crate::server::utils::dvec3::DVec3;
 use crate::server::world::VIEW_DISTANCE;
 use crate::utils::hasher::deterministic_hasher::DeterministicHashMap;
 use crate::utils::seeded_rng::SeededRng;
-use anyhow::Result;
+use anyhow::{bail, Result};
 use chrono::Local;
 use include_dir::include_dir;
 use indoc::formatdoc;
@@ -41,6 +41,7 @@ use std::env;
 use std::ops::Add;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::mpsc::unbounded_channel;
+use tokio::sync::mpsc::error::TryRecvError;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -130,7 +131,7 @@ async fn main() -> Result<()> {
     println!("Rng Seed: {}", rng_seed);
     SeededRng::set_seed(rng_seed);
 
-    let dungeon = Dungeon::from_string(dungeon_str, &room_data_storage)?;
+    let dungeon = Dungeon::from_str(dungeon_str, &room_data_storage)?;
     let mut server = Server::initialize_with_dungeon(network_tx, dungeon);
     server.world.server = &mut server;
     server.dungeon.server = &mut server;
@@ -145,7 +146,6 @@ async fn main() -> Result<()> {
     let dungeon = &server.dungeon;
 
     for room in &dungeon.rooms {
-        let room = room.borrow();
         // println!("Room: {:?} type={:?} rotation={:?} shape={:?} corner={:?}", room.segments, room.room_data.room_type, room.rotation, room.room_data.shape, room.get_corner_pos());
         room.load_into_world(&mut server.world);
 
@@ -166,7 +166,7 @@ async fn main() -> Result<()> {
 
             // test
             pub struct MortImpl;
-            
+
             impl EntityImpl for MortImpl {
                 fn tick(&mut self, _: &mut Entity, _: &mut PacketBuffer) {
                     // rotate
@@ -178,7 +178,7 @@ async fn main() -> Result<()> {
                     player.open_ui(UI::MortReadyUpMenu);
                 }
             }
-            
+
             let id = server.world.spawn_entity(
                 room.get_world_block_pos(&BlockPos { x: 15, y: 69, z: 4 })
                     .as_dvec3()
@@ -192,7 +192,7 @@ async fn main() -> Result<()> {
     }
 
     for door in &dungeon.doors {
-        door.borrow().load_into_world(&mut server.world, &door_type_blocks);
+        door.load_into_world(&mut server.world, &door_type_blocks);
     }
 
     // let zombie_spawn_pos = DVec3 {
@@ -226,10 +226,14 @@ async fn main() -> Result<()> {
         tick_interval.tick().await;
         // let start = std::time::Instant::now();
 
-        while let Ok(message) = main_rx.try_recv() {
-            server.process_event(message).unwrap_or_else(|err| eprintln!("Error processing event: {err}"));
+        loop {
+            match main_rx.try_recv() {
+                Ok(message) => server.process_event(message).unwrap_or_else(|err| eprintln!("Error processing event: {err}")),
+                Err(TryRecvError::Empty) => break,
+                Err(TryRecvError::Disconnected) => bail!("Network thread dropped its reciever."),
+            }
         }
-
+        
         server.dungeon.tick()?;
         server.world.tick()?;
 
@@ -356,8 +360,8 @@ async fn main() -> Result<()> {
                 format!("{} {}{}", SKYBLOCK_MONTHS[month], day_of_month, suffix)
             };
 
-            let room_id = if let Some(room) = player.server_mut().dungeon.get_player_room(player) {
-                &room.borrow().room_data.id
+            let room_id = if let Some(room) = server.dungeon.get_player_room(player) {
+                &server.dungeon.rooms[room].room_data.id
             } else {
                 ""
             };

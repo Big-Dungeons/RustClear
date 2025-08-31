@@ -42,7 +42,7 @@ impl RoomShape {
         }
     }
 
-    pub fn from_segments(segments: &Vec<RoomSegment>, dungeon_doors: &Vec<Door>) -> RoomShape {
+    pub fn from_segments(segments: &[RoomSegment], dungeon_doors: &[Door]) -> RoomShape {
 
         let unique_x = segments.iter()
             .map(|segment| segment.x)

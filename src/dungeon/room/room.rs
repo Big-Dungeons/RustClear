@@ -7,21 +7,22 @@ use crate::server::block::blocks::Blocks;
 use crate::server::block::rotatable::Rotatable;
 use crate::server::utils::direction::Direction;
 use crate::server::world::World;
-use std::cell::RefCell;
 use std::collections::HashSet;
-use std::rc::Rc;
 
+#[derive(Debug)]
 pub struct RoomSegment {
     pub x: usize,
     pub z: usize,
     pub neighbours: [Option<RoomNeighbour>; 4]
 }
 
+#[derive(Debug)]
 pub struct RoomNeighbour {
-    pub door: Rc<RefCell<Door>>,
-    pub room: Rc<RefCell<Room>>,
+    pub door_index: usize,
+    pub room_index: usize,
 }
 
+#[derive(Debug)]
 pub struct Room {
     pub segments: Vec<RoomSegment>,
     pub room_data: RoomData,
@@ -37,7 +38,7 @@ impl Room {
 
     pub fn new(
         mut segments: Vec<RoomSegment>,
-        dungeon_doors: &Vec<Door>,
+        dungeon_doors: &[Door],
         room_data: RoomData
     ) -> Room {
         // Sort room segments by z and then x
@@ -87,7 +88,7 @@ impl Room {
         Room::get_corner_pos_from(&self.segments, &self.rotation, &self.room_data)
     }
 
-    pub fn get_corner_pos_from(segments: &Vec<RoomSegment>, rotation: &Direction, room_data: &RoomData) -> BlockPos {
+    pub fn get_corner_pos_from(segments: &[RoomSegment], rotation: &Direction, room_data: &RoomData) -> BlockPos {
         let min_x = segments.iter().min_by(|a, b| a.x.cmp(&b.x)).unwrap().x;
         let min_z = segments.iter().min_by(|a, b| a.z.cmp(&b.z)).unwrap().z;
 
@@ -108,7 +109,7 @@ impl Room {
         self.tick_amount += 1;
     }
 
-    pub fn get_1x1_shape_and_type(segments: &Vec<RoomSegment>, dungeon_doors: &Vec<Door>) -> (RoomShape, Direction) {
+    pub fn get_1x1_shape_and_type(segments: &[RoomSegment], dungeon_doors: &[Door]) -> (RoomShape, Direction) {
         let center_x = segments[0].x as i32 * 32 + 15 + DUNGEON_ORIGIN.0;
         let center_z = segments[0].z as i32 * 32 + 15 + DUNGEON_ORIGIN.1;
 
@@ -158,7 +159,7 @@ impl Room {
         }
     }
 
-    pub fn get_rotation_from_segments(segments: &Vec<RoomSegment>, dungeon_doors: &Vec<Door>) -> Direction {
+    pub fn get_rotation_from_segments(segments: &[RoomSegment], dungeon_doors: &[Door]) -> Direction {
         let unique_x = segments.iter()
             .map(|segment| segment.x)
             .collect::<HashSet<usize>>();

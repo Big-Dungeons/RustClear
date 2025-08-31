@@ -1,4 +1,4 @@
-use crate::dungeon::door::DoorType;
+use crate::dungeon::door::{Door, DoorType};
 use crate::dungeon::room::room::Room;
 use crate::dungeon::room::room_data::{RoomData, RoomShape, RoomType::*};
 use crate::server::block::block_parameter::Axis;
@@ -121,36 +121,36 @@ impl DungeonMap {
             }
         }
     }
-
-    pub fn draw_room(&mut self, room: &Room) {
-
+    
+    pub fn draw_room(&mut self, rooms: &[Room], doors: &[Door], room_index: usize) {
+        let room = &rooms[room_index];
         let color = get_room_color(&room.room_data);
-
+        
         for segment in room.segments.iter() {
             let x = segment.x * 20;
             let y = segment.z * 20;
-
+            
             self.fill_px(x, y, 16, 16, color);
-
             if room.segments.iter().find(|seg| seg.x == segment.x + 1 && seg.z == segment.z).is_some() {
                 self.fill_px(x + 16, y, 4, 16, color);
             }
             if room.segments.iter().find(|seg| seg.x == segment.x && seg.z == segment.z + 1).is_some() {
                 self.fill_px(x, y + 16, 16, 4, color);
             }
-
+            
             for (index, neighbour) in segment.neighbours.iter().enumerate() {
                 if neighbour.is_none() {
                     continue;
                 }
-                let (neighbour, door) = {
+                
+                let (neighbour_room, door) = {
                     let neighbour = neighbour.as_ref().unwrap();
-                    (neighbour.room.borrow(), neighbour.door.borrow())
+                    (&rooms[neighbour.room_index], &doors[neighbour.door_index])
                 };
-
+                
                 let mut x = segment.x * 20 + 6;
                 let mut y = segment.z * 20 + 6;
-
+                
                 match index {
                     0 => y -= 10,
                     1 => x += 10,
@@ -158,15 +158,15 @@ impl DungeonMap {
                     3 => x -= 10,
                     _ => unreachable!()
                 }
-
+                
                 let (width, height) = match door.direction {
                     Axis::X => (4, 5),
                     Axis::Z => (5, 4),
                     _ => unreachable!()
                 };
-
-                if neighbour.entered {
-                    let color = get_door_color(room, &*neighbour);
+                
+                if neighbour_room.entered {
+                    let color = get_door_color(room, neighbour_room);
                     self.fill_px(x, y, width, height, color);
                 } else {
                     let color = match door.door_type {
@@ -195,7 +195,7 @@ impl DungeonMap {
                 }
             }
         }
-
+        
         // fill in hole
         if room.room_data.shape == RoomShape::TwoByTwo {
             let x = room.segments[0].x * 20 + 16;

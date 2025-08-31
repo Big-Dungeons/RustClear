@@ -29,6 +29,9 @@ impl Client {
     }
 }
 
+// main thread tx errors can be ignored since the network/client threads will close eachother properly regardless of client status, 
+// which will in turn close the client handlers.
+
 pub async fn handle_client(
     client_id: ClientId,
     mut socket: TcpStream,

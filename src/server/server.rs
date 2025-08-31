@@ -1,7 +1,7 @@
 use crate::dungeon::dungeon::Dungeon;
 use crate::net::internal_packets::{MainThreadMessage, NetworkThreadMessage};
 use crate::net::packets::packet::ProcessPacket;
-use crate::net::protocol::play::clientbound::{AddEffect, EntityProperties, JoinGame, PlayerAbilities, PlayerListHeaderFooter, PositionLook};
+use crate::net::protocol::play::clientbound::{AddEffect, CustomPayload, EntityProperties, JoinGame, PlayerAbilities, PlayerListHeaderFooter, PositionLook};
 use crate::net::var_int::VarInt;
 use crate::server::items::Item;
 use crate::server::player::attribute::{Attribute, AttributeMap, AttributeModifier};
@@ -103,7 +103,7 @@ impl Server {
                 
                 player.sidebar.write_init_packets(&mut player.packet_buffer);
 
-                // player.send_packet(self.world.player_info.new_packet())?;
+                // player.write_packet(&self.world.player_info.new_packet());
 
                 player.write_packet(&PlayerListHeaderFooter {
                     header: header(),
@@ -172,6 +172,14 @@ impl Server {
                     walk_speed: playerspeed,
                 });
                 
+                // let mut buf = Vec::new();
+                // "hypixel".write(&mut buf);
+                
+                // player.write_packet(&CustomPayload {
+                //     channel: "MC|Brand".into(),
+                //     data: &buf,
+                // });
+                
                 player.flush_packets();
 
                 self.world.players.insert(client_id, player);
@@ -183,9 +191,6 @@ impl Server {
             MainThreadMessage::PacketReceived { client_id, packet } => {
                 let player = self.world.players.get_mut(&client_id).context(format!("Player not found for id {client_id}"))?;
                 packet.process_with_player(player);
-            },
-            MainThreadMessage::Abort { reason } => {
-                panic!("Network called for shutdown: {}", reason);
             },
         }
         Ok(())

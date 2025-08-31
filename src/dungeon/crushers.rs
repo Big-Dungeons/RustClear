@@ -5,6 +5,7 @@ use crate::server::utils::direction::Direction;
 use crate::server::world::World;
 use serde_json::Value;
 
+#[derive(Debug)]
 pub struct Crusher {
     pub block_pos: BlockPos,
     pub direction: Direction,
