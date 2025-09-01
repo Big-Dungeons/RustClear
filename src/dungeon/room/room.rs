@@ -25,13 +25,17 @@ pub struct RoomNeighbour {
 }
 
 #[derive(Debug)]
+pub struct RoomBounds {
+    pub aabb: AABB,
+    pub segment_index: Option<usize>
+}
+
+#[derive(Debug)]
 pub struct Room {
     pub segments: Vec<RoomSegment>,
+    pub room_bounds: Vec<RoomBounds>,
     pub room_data: RoomData,
     pub rotation: Direction,
-
-    // instead of using tuple maybe have a struct for better readability
-    pub room_bounds: Vec<(AABB, Option<usize>)>,
 
     pub tick_amount: u32,
     pub crushers: Vec<Crusher>,
@@ -79,38 +83,50 @@ impl Room {
             crusher
         }).collect::<Vec<Crusher>>();
         
-        let mut room_bounds: Vec<(AABB, Option<usize>)> = Vec::new();
+        let mut room_bounds: Vec<RoomBounds> = Vec::new();
 
         for (index, segment) in segments.iter().enumerate() {
             let x = (segment.x as i32 * 32 + DUNGEON_ORIGIN.0) as f64;
             let y = room_data.bottom as f64;
             let z = (segment.z as i32 * 32 + DUNGEON_ORIGIN.1) as f64;
             let max_y = (room_data.bottom + room_data.height) as f64;
-            
-            room_bounds.push((AABB::new(DVec3::new(x, y, z), DVec3::new(x + 31.0, max_y, z + 31.0)), Some(index)));
+
+            room_bounds.push(RoomBounds {
+                aabb: AABB::new(DVec3::new(x, y, z), DVec3::new(x + 31.0, max_y, z + 31.0)),
+                segment_index: Some(index),
+            });
 
             if segments.iter().find(|seg| seg.x == segment.x + 1 && seg.z == segment.z).is_some() {
                 let x = x + 31.0;
                 let z = z;
-                room_bounds.push((AABB::new(DVec3::new(x, y, z), DVec3::new(x + 1.0, max_y, z + 31.0)), None))
+                room_bounds.push(RoomBounds {
+                    aabb: AABB::new(DVec3::new(x, y, z), DVec3::new(x + 1.0, max_y, z + 31.0)),
+                    segment_index: None,
+                });
             }
             if segments.iter().find(|seg| seg.x == segment.x && seg.z == segment.z + 1).is_some() {
                 let x = x;
                 let z = z + 31.0;
-                room_bounds.push((AABB::new(DVec3::new(x, y, z), DVec3::new(x + 31.0, max_y, z + 1.0)), None))
+                room_bounds.push(RoomBounds {
+                    aabb: AABB::new(DVec3::new(x, y, z), DVec3::new(x + 31.0, max_y, z + 1.0)),
+                    segment_index: None,
+                });
             }
             if segments.iter().find(|seg| seg.x == segment.x + 1 && seg.z == segment.z + 1).is_some() {
                 let x = x + 31.0;
                 let z = z + 31.0;
-                room_bounds.push((AABB::new(DVec3::new(x, y, z), DVec3::new(x + 1.0, max_y, z + 1.0)), None))
+                room_bounds.push(RoomBounds {
+                    aabb: AABB::new(DVec3::new(x, y, z), DVec3::new(x + 1.0, max_y, z + 1.0)),
+                    segment_index: None,
+                });
             }
         }
 
         Room {
             segments,
+            room_bounds,
             room_data,
             rotation,
-            room_bounds,
             tick_amount: 0,
             crushers,
             entered: false,

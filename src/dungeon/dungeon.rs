@@ -244,17 +244,20 @@ impl Dungeon {
         let entry = self.room_grid.get(grid_x + (grid_z * 6));
         entry.and_then(|e| *e)
     }
-    
+
+    /// returns the index of the room the player is in,
+    /// and the index of the segment containing the player.
     pub fn get_player_room(&mut self, player: &Player) -> Option<(usize, Option<usize>)> {
-        let room = self.get_room_at(
+        let room_index = self.get_room_at(
             player.position.x as i32,
             player.position.z as i32
         );
-        if let Some(index) = room {
+        if let Some(index) = room_index {
             let player_aabb = player.collision_aabb();
-            for (aabb, segment_index) in self.rooms[index].room_bounds.iter() {
-                if player_aabb.intersects(aabb) {
-                    return Some((index, *segment_index))
+            
+            for room_bounds in self.rooms[index].room_bounds.iter() {
+                if player_aabb.intersects(&room_bounds.aabb) {
+                    return Some((index, room_bounds.segment_index))
                 }
             }
         }
