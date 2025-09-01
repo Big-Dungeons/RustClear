@@ -6,7 +6,7 @@ mod utils;
 use crate::dungeon::door::DoorType;
 use crate::dungeon::dungeon::Dungeon;
 use crate::dungeon::dungeon_state::DungeonState;
-use crate::dungeon::room::room_data::{RoomData, RoomType};
+use crate::dungeon::room::room_data::RoomData;
 use crate::net::internal_packets::{MainThreadMessage, NetworkThreadMessage};
 use crate::net::packets::packet_buffer::PacketBuffer;
 use crate::net::protocol::play::clientbound;
@@ -146,53 +146,52 @@ async fn main() -> Result<()> {
     let dungeon = &server.dungeon;
 
     for room in &dungeon.rooms {
-        // println!("Room: {:?} type={:?} rotation={:?} shape={:?} corner={:?}", room.segments, room.room_data.room_type, room.rotation, room.room_data.shape, room.get_corner_pos());
         room.load_into_world(&mut server.world);
+    }
+    for door in &dungeon.doors {
+        door.load_into_world(&mut server.world, &door_type_blocks);
+    }
 
-        // Set the spawn point to be inside of the spawn room
-        if room.room_data.room_type == RoomType::Entrance {
-            server.world.set_spawn_point(
-                room.get_world_block_pos(&BlockPos {
-                    x: 15,
-                    y: 72,
-                    z: 18,
-                })
+    {
+        let entrance = dungeon.entrance_room();
+
+        server.world.set_spawn_point(
+            entrance.get_world_block_pos(&BlockPos {
+                x: 15,
+                y: 72,
+                z: 18,
+            })
                 .as_dvec3()
                 .add_x(0.5)
                 .add_z(0.5),
-                180.0.rotate(room.rotation),
-                0.0,
-            );
+            180.0.rotate(entrance.rotation),
+            0.0,
+        );
 
-            // test
-            pub struct MortImpl;
+        // test
+        pub struct MortImpl;
 
-            impl EntityImpl for MortImpl {
-                fn tick(&mut self, _: &mut Entity, _: &mut PacketBuffer) {
-                    // rotate
-                }
-                fn interact(&mut self, _: &mut Entity, player: &mut Player, action: &EntityInteractionType) {
-                    if action == &EntityInteractionType::InteractAt {
-                        return;
-                    }
-                    player.open_ui(UI::MortReadyUpMenu);
-                }
+        impl EntityImpl for MortImpl {
+            fn tick(&mut self, _: &mut Entity, _: &mut PacketBuffer) {
+                // rotate
             }
-
-            let id = server.world.spawn_entity(
-                room.get_world_block_pos(&BlockPos { x: 15, y: 69, z: 4 })
-                    .as_dvec3()
-                    .add(DVec3::new(0.5, 0.0, 0.5)),
-                EntityMetadata::new(EntityVariant::Zombie { is_child: false, is_villager: false }),
-                MortImpl,
-            )?;
-            let (entity, _)= &mut server.world.entities.get_mut(&id).unwrap();
-            entity.yaw = 0.0.rotate(room.rotation);
+            fn interact(&mut self, _: &mut Entity, player: &mut Player, action: &EntityInteractionType) {
+                if action == &EntityInteractionType::InteractAt {
+                    return;
+                }
+                player.open_ui(UI::MortReadyUpMenu);
+            }
         }
-    }
 
-    for door in &dungeon.doors {
-        door.load_into_world(&mut server.world, &door_type_blocks);
+        let id = server.world.spawn_entity(
+            entrance.get_world_block_pos(&BlockPos { x: 15, y: 69, z: 4 })
+                .as_dvec3()
+                .add(DVec3::new(0.5, 0.0, 0.5)),
+            EntityMetadata::new(EntityVariant::Zombie { is_child: false, is_villager: false }),
+            MortImpl,
+        )?;
+        let (entity, _)= &mut server.world.entities.get_mut(&id).unwrap();
+        entity.yaw = 0.0.rotate(entrance.rotation);
     }
 
     // let zombie_spawn_pos = DVec3 {
@@ -234,7 +233,7 @@ async fn main() -> Result<()> {
             }
         }
         
-        server.dungeon.tick()?;
+        server.dungeon.tick();
         server.world.tick()?;
 
         // for entity_id in server.world.entities.keys().cloned().collect::<Vec<_>>() {

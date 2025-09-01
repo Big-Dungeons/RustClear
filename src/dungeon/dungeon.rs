@@ -27,6 +27,7 @@ pub struct Dungeon {
     pub server: *mut Server,
     pub doors: Vec<Door>,
     pub rooms: Vec<Room>,
+    entrance_room: usize,
 
     pub room_grid: [Option<usize>; 36],
     pub state: DungeonState,
@@ -34,7 +35,7 @@ pub struct Dungeon {
 }
 
 impl Dungeon {
-    
+
     pub fn from_layout(doors: Vec<Door>, mut rooms: Vec<Room>) -> anyhow::Result<Dungeon> {
         let mut room_grid: [Option<usize>; 36] = [const { None }; 36];
         let mut grid_max_x = 0;
@@ -62,7 +63,7 @@ impl Dungeon {
                 }
             }
         }
-        
+
         // i hate this
         for room in rooms.iter_mut() {
             let segments = &mut room.segments;
@@ -102,6 +103,20 @@ impl Dungeon {
                 }
             }
         }
+
+        // idk if we should error if no entrance room
+        // also could do basically all of this function is one loop but im too lazy
+        
+        let mut entrance_room_index: Option<usize> = None;
+        for (index, room) in rooms.iter().enumerate() {
+            if room.room_data.room_type == RoomType::Entrance {
+                entrance_room_index = Some(index);
+                break
+            }
+        }
+        if entrance_room_index.is_none() { 
+            bail!("No entrance room found.")
+        }
         
         let map_offset_x = (128 - (grid_max_x + 1) * 20) / 2;
         let map_offset_y = (128 - (grid_max_y + 1) * 20) / 2;
@@ -110,7 +125,8 @@ impl Dungeon {
             server: std::ptr::null_mut(),
             doors,
             rooms,
-            room_grid: room_grid,
+            entrance_room: entrance_room_index.unwrap(),
+            room_grid,
             state: DungeonState::NotReady,
             map: DungeonMap::new(map_offset_x, map_offset_y),
         })
@@ -233,6 +249,10 @@ impl Dungeon {
         unsafe { self.server.as_mut().expect("server is null") }
     }
 
+    pub fn entrance_room(&self) -> &Room {
+        &self.rooms[self.entrance_room]
+    }
+    
     pub fn get_room_at(&mut self, x: i32, z: i32) -> Option<usize> {
         if x < DUNGEON_ORIGIN.0 || z < DUNGEON_ORIGIN.1 {
             return None;
@@ -254,7 +274,7 @@ impl Dungeon {
         );
         if let Some(index) = room_index {
             let player_aabb = player.collision_aabb();
-            
+
             for room_bounds in self.rooms[index].room_bounds.iter() {
                 if player_aabb.intersects(&room_bounds.aabb) {
                     return Some((index, room_bounds.segment_index))
@@ -292,7 +312,7 @@ impl Dungeon {
         // probably mark room connected to entrance as entered
     }
 
-    pub fn tick(&mut self) -> anyhow::Result<()> {
+    pub fn tick(&mut self) {
         let server = self.server_mut();
 
         match &mut self.state {
@@ -350,6 +370,5 @@ impl Dungeon {
                 }
             }
         }
-        Ok(())
     }
 }
