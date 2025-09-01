@@ -7,8 +7,8 @@ use crate::server::items::item_stack::ItemStack;
 use crate::server::player::player::Player;
 use crate::server::utils::aabb::AABB;
 use crate::server::utils::direction::Direction;
-use crate::server::utils::dvec3::DVec3;
 use crate::server::world::World;
+use glam::DVec3;
 use std::cell::{RefCell, RefMut};
 use std::rc::Rc;
 
@@ -91,7 +91,7 @@ impl DungeonSecret {
             }
             SecretType::Item { item } => {
                 world.spawn_entity(
-                    DVec3::from_centered(&secret.block_pos),
+                    secret.block_pos.as_dvec3_centered(),
                     EntityMetadata::new(EntityVariant::DroppedItem {
                         item: item.clone()
                     }),

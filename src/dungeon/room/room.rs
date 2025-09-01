@@ -7,8 +7,8 @@ use crate::server::block::blocks::Blocks;
 use crate::server::block::rotatable::Rotatable;
 use crate::server::utils::aabb::AABB;
 use crate::server::utils::direction::Direction;
-use crate::server::utils::dvec3::DVec3;
 use crate::server::world::World;
+use glam::DVec3;
 use std::collections::HashSet;
 
 #[derive(Debug)]
@@ -86,9 +86,9 @@ impl Room {
         let mut room_bounds: Vec<RoomBounds> = Vec::new();
 
         for (index, segment) in segments.iter().enumerate() {
-            let x = (segment.x as i32 * 32 + DUNGEON_ORIGIN.0) as f64;
+            let x = (segment.x as i32 * 32 + DUNGEON_ORIGIN.x) as f64;
             let y = room_data.bottom as f64;
-            let z = (segment.z as i32 * 32 + DUNGEON_ORIGIN.1) as f64;
+            let z = (segment.z as i32 * 32 + DUNGEON_ORIGIN.y) as f64;
             let max_y = (room_data.bottom + room_data.height) as f64;
 
             room_bounds.push(RoomBounds {
@@ -141,9 +141,9 @@ impl Room {
         let min_x = segments.iter().min_by(|a, b| a.x.cmp(&b.x)).unwrap().x;
         let min_z = segments.iter().min_by(|a, b| a.z.cmp(&b.z)).unwrap().z;
 
-        let x = min_x as i32 * 32 + DUNGEON_ORIGIN.0;
+        let x = min_x as i32 * 32 + DUNGEON_ORIGIN.x;
         let y = 68;
-        let z = min_z as i32 * 32 + DUNGEON_ORIGIN.1;
+        let z = min_z as i32 * 32 + DUNGEON_ORIGIN.y;
         
         match rotation {
             Direction::North => BlockPos { x, y, z },
@@ -159,8 +159,8 @@ impl Room {
     }
 
     pub fn get_1x1_shape_and_type(segments: &[RoomSegment], dungeon_doors: &[Door]) -> (RoomShape, Direction) {
-        let center_x = segments[0].x as i32 * 32 + 15 + DUNGEON_ORIGIN.0;
-        let center_z = segments[0].z as i32 * 32 + 15 + DUNGEON_ORIGIN.1;
+        let center_x = segments[0].x as i32 * 32 + 15 + DUNGEON_ORIGIN.x;
+        let center_z = segments[0].z as i32 * 32 + 15 + DUNGEON_ORIGIN.y;
 
         // Actual doors found in the world
         let doors_opt = [
@@ -290,14 +290,14 @@ impl Room {
             world.fill_blocks(
                 block,
                 BlockPos {
-                    x: segment.x as i32 * 32 + DUNGEON_ORIGIN.0,
+                    x: segment.x as i32 * 32 + DUNGEON_ORIGIN.x,
                     y: self.room_data.bottom,
-                    z: segment.z as i32 * 32 + DUNGEON_ORIGIN.1,
+                    z: segment.z as i32 * 32 + DUNGEON_ORIGIN.y,
                 },
                 BlockPos {
-                    x: segment.x as i32 * 32 + DUNGEON_ORIGIN.0 + 30,
+                    x: segment.x as i32 * 32 + DUNGEON_ORIGIN.x + 30,
                     y: self.room_data.bottom,
-                    z: segment.z as i32 * 32 + DUNGEON_ORIGIN.1 + 30,
+                    z: segment.z as i32 * 32 + DUNGEON_ORIGIN.y + 30,
                 }
             );
 

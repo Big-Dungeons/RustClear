@@ -6,11 +6,11 @@ use crate::net::var_int::VarInt;
 use crate::register_serverbound_packets;
 use crate::server::block::block_position::BlockPos;
 use crate::server::items::item_stack::ItemStack;
-use crate::server::utils::fvec3::FVec3;
 use crate::server::utils::sized_string::SizedString;
 use anyhow::bail;
 use blocks::packet_deserializable;
 use bytes::BytesMut;
+use glam::Vec3;
 
 register_serverbound_packets! {
     Play;
@@ -66,7 +66,7 @@ packet_deserializable! {
 pub struct UseEntity {
     pub entity_id: VarInt,
     pub action: EntityInteractionType,
-    pub hit_vec: Option<FVec3>
+    pub hit_vec: Option<Vec3>
 }
 
 impl PacketDeserializable for UseEntity {
@@ -74,7 +74,7 @@ impl PacketDeserializable for UseEntity {
         let entity_id: VarInt = PacketDeserializable::read(buffer)?;
         let action: EntityInteractionType = PacketDeserializable::read(buffer)?;
         let hit_vec = if action == EntityInteractionType::InteractAt { 
-            Some(FVec3::new(
+            Some(Vec3::new(
                 PacketDeserializable::read(buffer)?,
                 PacketDeserializable::read(buffer)?,
                 PacketDeserializable::read(buffer)?,

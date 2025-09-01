@@ -1,8 +1,8 @@
 use crate::net::protocol::play::clientbound::{Particles, PositionLook, SoundEffect};
 use crate::server::player::player::Player;
-use crate::server::utils::dvec3::DVec3;
 use crate::server::world::World;
 use crate::utils::bitset::BitSet;
+use glam::DVec3;
 use std::f64::consts::PI;
 
 const VALID_ETHER_WARP_BLOCK_IDS: BitSet<3> = BitSet::new(
@@ -20,7 +20,7 @@ enum EtherResult {
 pub fn handle_ether_warp(
     player: &mut Player,
     world: &World,
-) -> anyhow::Result<()> {
+) {
     let mut start_pos = player.position.clone();
     start_pos.y += 1.54; // assume always sneaking
 
@@ -32,12 +32,7 @@ pub fn handle_ether_warp(
 
         let f2 = -rad_pitch.cos();
 
-        let mut pos = DVec3 {
-            x: rad_yaw.sin() * f2,
-            y: rad_pitch.sin(),
-            z: rad_yaw.cos() * f2,
-        }.normalize();
-
+        let mut pos = DVec3::new(rad_yaw.sin() * f2, rad_pitch.sin(), rad_yaw.cos() * f2).normalize();
         pos.x *= 61.0;
         pos.y *= 61.0;
         pos.z *= 61.0;
@@ -78,7 +73,6 @@ pub fn handle_ether_warp(
             pos_z: z as f64 + 0.5,
         });
     }
-    Ok(())
 }
 
 fn traverse_voxels(world: &World, start: DVec3, end: DVec3) -> EtherResult {

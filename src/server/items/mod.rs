@@ -26,13 +26,10 @@ impl Item {
     pub fn on_right_click(&self, player: &mut Player) -> anyhow::Result<()> {
         match self {
             Item::AspectOfTheVoid => {
-                let server = &player.server_mut();
-                let world = &server.world;
-
                 if player.is_sneaking {
-                    handle_ether_warp(player, world)?;
+                    handle_ether_warp(player, player.world_mut());
                 } else {
-                    handle_teleport(player, &server.network_tx)?;
+                    handle_teleport(player);
                 }
             }
             Item::SpiritSceptre => {

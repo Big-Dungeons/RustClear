@@ -5,8 +5,8 @@ use crate::net::var_int::VarInt;
 use crate::server::chunk::chunk::Chunk;
 use crate::server::entity::entity_metadata::EntityMetadata;
 use crate::server::player::player::Player;
-use crate::server::utils::dvec3::DVec3;
 use crate::server::world::World;
+use glam::DVec3;
 
 pub type EntityId = i32;
 

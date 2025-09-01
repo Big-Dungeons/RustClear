@@ -6,10 +6,10 @@ use crate::server::block::block_position::BlockPos;
 use crate::server::block::blocks::Blocks;
 use crate::server::entity::entity::{Entity, EntityImpl};
 use crate::server::entity::entity_metadata::{EntityMetadata, EntityVariant};
-use crate::server::utils::dvec3::DVec3;
 use crate::server::world;
 use crate::server::world::World;
 use crate::utils::seeded_rng::seeded_rng;
+use glam::DVec3;
 use rand::prelude::IndexedRandom;
 use std::collections::HashMap;
 

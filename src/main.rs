@@ -27,12 +27,12 @@ use crate::server::player::scoreboard::ScoreboardLines;
 use crate::server::server::Server;
 use crate::server::utils::chat_component::chat_component_text::ChatComponentTextBuilder;
 use crate::server::utils::color::MCColors;
-use crate::server::utils::dvec3::DVec3;
 use crate::server::world::VIEW_DISTANCE;
 use crate::utils::hasher::deterministic_hasher::DeterministicHashMap;
 use crate::utils::seeded_rng::SeededRng;
 use anyhow::{bail, Result};
 use chrono::Local;
+use glam::DVec3;
 use include_dir::include_dir;
 use indoc::formatdoc;
 use rand::seq::IndexedRandom;
@@ -154,19 +154,8 @@ async fn main() -> Result<()> {
 
     {
         let entrance = dungeon.entrance_room();
-
-        server.world.set_spawn_point(
-            entrance.get_world_block_pos(&BlockPos {
-                x: 15,
-                y: 72,
-                z: 18,
-            })
-                .as_dvec3()
-                .add_x(0.5)
-                .add_z(0.5),
-            180.0.rotate(entrance.rotation),
-            0.0,
-        );
+        let position = entrance.get_world_block_pos(&BlockPos::new(15, 72, 18)).as_dvec3_centered();
+        server.world.set_spawn_point(position, 180.0.rotate(entrance.rotation), 0.0);
 
         // test
         pub struct MortImpl;

@@ -12,12 +12,13 @@ use crate::server::server::Server;
 use crate::server::world;
 use crate::utils::hasher::deterministic_hasher::DeterministicHashMap;
 use anyhow::bail;
+use glam::IVec2;
 
-// The top leftmost corner of the dungeon
-pub const DUNGEON_ORIGIN: (i32, i32) = (-200, -200);
+/// The top leftmost corner of the dungeon
+pub const DUNGEON_ORIGIN: IVec2 = IVec2::new(-200, -200);
 
 // The positions of the doors in the world
-pub const DOOR_POSITIONS: [(i32, i32); 60] = [(DUNGEON_ORIGIN.0 + 31, DUNGEON_ORIGIN.1 + 15), (DUNGEON_ORIGIN.0 + 63, DUNGEON_ORIGIN.1 + 15), (DUNGEON_ORIGIN.0 + 95, DUNGEON_ORIGIN.1 + 15), (DUNGEON_ORIGIN.0 + 127, DUNGEON_ORIGIN.1 + 15), (DUNGEON_ORIGIN.0 + 159, DUNGEON_ORIGIN.1 + 15), (DUNGEON_ORIGIN.0 + 15, DUNGEON_ORIGIN.1 + 31), (DUNGEON_ORIGIN.0 + 47, DUNGEON_ORIGIN.1 + 31), (DUNGEON_ORIGIN.0 + 79, DUNGEON_ORIGIN.1 + 31), (DUNGEON_ORIGIN.0 + 111, DUNGEON_ORIGIN.1 + 31), (DUNGEON_ORIGIN.0 + 143, DUNGEON_ORIGIN.1 + 31), (DUNGEON_ORIGIN.0 + 175, DUNGEON_ORIGIN.1 + 31), (DUNGEON_ORIGIN.0 + 31, DUNGEON_ORIGIN.1 + 47), (DUNGEON_ORIGIN.0 + 63, DUNGEON_ORIGIN.1 + 47), (DUNGEON_ORIGIN.0 + 95, DUNGEON_ORIGIN.1 + 47), (DUNGEON_ORIGIN.0 + 127, DUNGEON_ORIGIN.1 + 47), (DUNGEON_ORIGIN.0 + 159, DUNGEON_ORIGIN.1 + 47), (DUNGEON_ORIGIN.0 + 15, DUNGEON_ORIGIN.1 + 63), (DUNGEON_ORIGIN.0 + 47, DUNGEON_ORIGIN.1 + 63), (DUNGEON_ORIGIN.0 + 79, DUNGEON_ORIGIN.1 + 63), (DUNGEON_ORIGIN.0 + 111, DUNGEON_ORIGIN.1 + 63), (DUNGEON_ORIGIN.0 + 143, DUNGEON_ORIGIN.1 + 63), (DUNGEON_ORIGIN.0 + 175, DUNGEON_ORIGIN.1 + 63), (DUNGEON_ORIGIN.0 + 31, DUNGEON_ORIGIN.1 + 79), (DUNGEON_ORIGIN.0 + 63, DUNGEON_ORIGIN.1 + 79), (DUNGEON_ORIGIN.0 + 95, DUNGEON_ORIGIN.1 + 79), (DUNGEON_ORIGIN.0 + 127, DUNGEON_ORIGIN.1 + 79), (DUNGEON_ORIGIN.0 + 159, DUNGEON_ORIGIN.1 + 79), (DUNGEON_ORIGIN.0 + 15, DUNGEON_ORIGIN.1 + 95), (DUNGEON_ORIGIN.0 + 47, DUNGEON_ORIGIN.1 + 95), (DUNGEON_ORIGIN.0 + 79, DUNGEON_ORIGIN.1 + 95), (DUNGEON_ORIGIN.0 + 111, DUNGEON_ORIGIN.1 + 95), (DUNGEON_ORIGIN.0 + 143, DUNGEON_ORIGIN.1 + 95), (DUNGEON_ORIGIN.0 + 175, DUNGEON_ORIGIN.1 + 95), (DUNGEON_ORIGIN.0 + 31, DUNGEON_ORIGIN.1 + 111), (DUNGEON_ORIGIN.0 + 63, DUNGEON_ORIGIN.1 + 111), (DUNGEON_ORIGIN.0 + 95, DUNGEON_ORIGIN.1 + 111), (DUNGEON_ORIGIN.0 + 127, DUNGEON_ORIGIN.1 + 111), (DUNGEON_ORIGIN.0 + 159, DUNGEON_ORIGIN.1 + 111), (DUNGEON_ORIGIN.0 + 15, DUNGEON_ORIGIN.1 + 127), (DUNGEON_ORIGIN.0 + 47, DUNGEON_ORIGIN.1 + 127), (DUNGEON_ORIGIN.0 + 79, DUNGEON_ORIGIN.1 + 127), (DUNGEON_ORIGIN.0 + 111, DUNGEON_ORIGIN.1 + 127), (DUNGEON_ORIGIN.0 + 143, DUNGEON_ORIGIN.1 + 127), (DUNGEON_ORIGIN.0 + 175, DUNGEON_ORIGIN.1 + 127), (DUNGEON_ORIGIN.0 + 31, DUNGEON_ORIGIN.1 + 143), (DUNGEON_ORIGIN.0 + 63, DUNGEON_ORIGIN.1 + 143), (DUNGEON_ORIGIN.0 + 95, DUNGEON_ORIGIN.1 + 143), (DUNGEON_ORIGIN.0 + 127, DUNGEON_ORIGIN.1 + 143), (DUNGEON_ORIGIN.0 + 159, DUNGEON_ORIGIN.1 + 143), (DUNGEON_ORIGIN.0 + 15, DUNGEON_ORIGIN.1 + 159), (DUNGEON_ORIGIN.0 + 47, DUNGEON_ORIGIN.1 + 159), (DUNGEON_ORIGIN.0 + 79, DUNGEON_ORIGIN.1 + 159), (DUNGEON_ORIGIN.0 + 111, DUNGEON_ORIGIN.1 + 159), (DUNGEON_ORIGIN.0 + 143, DUNGEON_ORIGIN.1 + 159), (DUNGEON_ORIGIN.0 + 175, DUNGEON_ORIGIN.1 + 159), (DUNGEON_ORIGIN.0 + 31, DUNGEON_ORIGIN.1 + 175), (DUNGEON_ORIGIN.0 + 63, DUNGEON_ORIGIN.1 + 175), (DUNGEON_ORIGIN.0 + 95, DUNGEON_ORIGIN.1 + 175), (DUNGEON_ORIGIN.0 + 127, DUNGEON_ORIGIN.1 + 175), (DUNGEON_ORIGIN.0 + 159, DUNGEON_ORIGIN.1 + 175)];
+pub const DOOR_POSITIONS: [(i32, i32); 60] = [(DUNGEON_ORIGIN.x + 31, DUNGEON_ORIGIN.y + 15), (DUNGEON_ORIGIN.x + 63, DUNGEON_ORIGIN.y + 15), (DUNGEON_ORIGIN.x + 95, DUNGEON_ORIGIN.y + 15), (DUNGEON_ORIGIN.x + 127, DUNGEON_ORIGIN.y + 15), (DUNGEON_ORIGIN.x + 159, DUNGEON_ORIGIN.y + 15), (DUNGEON_ORIGIN.x + 15, DUNGEON_ORIGIN.y + 31), (DUNGEON_ORIGIN.x + 47, DUNGEON_ORIGIN.y + 31), (DUNGEON_ORIGIN.x + 79, DUNGEON_ORIGIN.y + 31), (DUNGEON_ORIGIN.x + 111, DUNGEON_ORIGIN.y + 31), (DUNGEON_ORIGIN.x + 143, DUNGEON_ORIGIN.y + 31), (DUNGEON_ORIGIN.x + 175, DUNGEON_ORIGIN.y + 31), (DUNGEON_ORIGIN.x + 31, DUNGEON_ORIGIN.y + 47), (DUNGEON_ORIGIN.x + 63, DUNGEON_ORIGIN.y + 47), (DUNGEON_ORIGIN.x + 95, DUNGEON_ORIGIN.y + 47), (DUNGEON_ORIGIN.x + 127, DUNGEON_ORIGIN.y + 47), (DUNGEON_ORIGIN.x + 159, DUNGEON_ORIGIN.y + 47), (DUNGEON_ORIGIN.x + 15, DUNGEON_ORIGIN.y + 63), (DUNGEON_ORIGIN.x + 47, DUNGEON_ORIGIN.y + 63), (DUNGEON_ORIGIN.x + 79, DUNGEON_ORIGIN.y + 63), (DUNGEON_ORIGIN.x + 111, DUNGEON_ORIGIN.y + 63), (DUNGEON_ORIGIN.x + 143, DUNGEON_ORIGIN.y + 63), (DUNGEON_ORIGIN.x + 175, DUNGEON_ORIGIN.y + 63), (DUNGEON_ORIGIN.x + 31, DUNGEON_ORIGIN.y + 79), (DUNGEON_ORIGIN.x + 63, DUNGEON_ORIGIN.y + 79), (DUNGEON_ORIGIN.x + 95, DUNGEON_ORIGIN.y + 79), (DUNGEON_ORIGIN.x + 127, DUNGEON_ORIGIN.y + 79), (DUNGEON_ORIGIN.x + 159, DUNGEON_ORIGIN.y + 79), (DUNGEON_ORIGIN.x + 15, DUNGEON_ORIGIN.y + 95), (DUNGEON_ORIGIN.x + 47, DUNGEON_ORIGIN.y + 95), (DUNGEON_ORIGIN.x + 79, DUNGEON_ORIGIN.y + 95), (DUNGEON_ORIGIN.x + 111, DUNGEON_ORIGIN.y + 95), (DUNGEON_ORIGIN.x + 143, DUNGEON_ORIGIN.y + 95), (DUNGEON_ORIGIN.x + 175, DUNGEON_ORIGIN.y + 95), (DUNGEON_ORIGIN.x + 31, DUNGEON_ORIGIN.y + 111), (DUNGEON_ORIGIN.x + 63, DUNGEON_ORIGIN.y + 111), (DUNGEON_ORIGIN.x + 95, DUNGEON_ORIGIN.y + 111), (DUNGEON_ORIGIN.x + 127, DUNGEON_ORIGIN.y + 111), (DUNGEON_ORIGIN.x + 159, DUNGEON_ORIGIN.y + 111), (DUNGEON_ORIGIN.x + 15, DUNGEON_ORIGIN.y + 127), (DUNGEON_ORIGIN.x + 47, DUNGEON_ORIGIN.y + 127), (DUNGEON_ORIGIN.x + 79, DUNGEON_ORIGIN.y + 127), (DUNGEON_ORIGIN.x + 111, DUNGEON_ORIGIN.y + 127), (DUNGEON_ORIGIN.x + 143, DUNGEON_ORIGIN.y + 127), (DUNGEON_ORIGIN.x + 175, DUNGEON_ORIGIN.y + 127), (DUNGEON_ORIGIN.x + 31, DUNGEON_ORIGIN.y + 143), (DUNGEON_ORIGIN.x + 63, DUNGEON_ORIGIN.y + 143), (DUNGEON_ORIGIN.x + 95, DUNGEON_ORIGIN.y + 143), (DUNGEON_ORIGIN.x + 127, DUNGEON_ORIGIN.y + 143), (DUNGEON_ORIGIN.x + 159, DUNGEON_ORIGIN.y + 143), (DUNGEON_ORIGIN.x + 15, DUNGEON_ORIGIN.y + 159), (DUNGEON_ORIGIN.x + 47, DUNGEON_ORIGIN.y + 159), (DUNGEON_ORIGIN.x + 79, DUNGEON_ORIGIN.y + 159), (DUNGEON_ORIGIN.x + 111, DUNGEON_ORIGIN.y + 159), (DUNGEON_ORIGIN.x + 143, DUNGEON_ORIGIN.y + 159), (DUNGEON_ORIGIN.x + 175, DUNGEON_ORIGIN.y + 159), (DUNGEON_ORIGIN.x + 31, DUNGEON_ORIGIN.y + 175), (DUNGEON_ORIGIN.x + 63, DUNGEON_ORIGIN.y + 175), (DUNGEON_ORIGIN.x + 95, DUNGEON_ORIGIN.y + 175), (DUNGEON_ORIGIN.x + 127, DUNGEON_ORIGIN.y + 175), (DUNGEON_ORIGIN.x + 159, DUNGEON_ORIGIN.y + 175)];
 
 // contains a vec of rooms,
 // also contains a grid, containing indices pointing towards the rooms,
@@ -75,8 +76,8 @@ impl Dungeon {
             for segment in room.segments.iter_mut() {
                 let x = segment.x as isize;
                 let z = segment.z as isize;
-                let center_x = segment.x as i32 * 32 + 15 + DUNGEON_ORIGIN.0;
-                let center_z = segment.z as i32 * 32 + 15 + DUNGEON_ORIGIN.1;
+                let center_x = segment.x as i32 * 32 + 15 + DUNGEON_ORIGIN.x;
+                let center_z = segment.z as i32 * 32 + 15 + DUNGEON_ORIGIN.y;
                 
                 let neighbour_options = [
                     (x, z - 1, center_x, center_z - 16),
@@ -106,7 +107,7 @@ impl Dungeon {
 
         // idk if we should error if no entrance room
         // also could do basically all of this function is one loop but im too lazy
-        
+
         let mut entrance_room_index: Option<usize> = None;
         for (index, room) in rooms.iter().enumerate() {
             if room.room_data.room_type == RoomType::Entrance {
@@ -114,7 +115,7 @@ impl Dungeon {
                 break
             }
         }
-        if entrance_room_index.is_none() { 
+        if entrance_room_index.is_none() {
             bail!("No entrance room found.")
         }
         
@@ -150,7 +151,7 @@ impl Dungeon {
             };
 
             if let Some(door_type) = door_type {
-                let direction = match ((x - DUNGEON_ORIGIN.0) / 16) % 2 {
+                let direction = match ((x - DUNGEON_ORIGIN.x) / 16) % 2 {
                     0 => Axis::Z,
                     1 => Axis::X,
                     _ => unreachable!(),
@@ -252,14 +253,14 @@ impl Dungeon {
     pub fn entrance_room(&self) -> &Room {
         &self.rooms[self.entrance_room]
     }
-    
+
     pub fn get_room_at(&mut self, x: i32, z: i32) -> Option<usize> {
-        if x < DUNGEON_ORIGIN.0 || z < DUNGEON_ORIGIN.1 {
+        if x < DUNGEON_ORIGIN.x || z < DUNGEON_ORIGIN.y {
             return None;
         }
 
-        let grid_x = ((x - DUNGEON_ORIGIN.0) / 32) as usize;
-        let grid_z = ((z - DUNGEON_ORIGIN.1) / 32) as usize;
+        let grid_x = ((x - DUNGEON_ORIGIN.x) / 32) as usize;
+        let grid_z = ((z - DUNGEON_ORIGIN.y) / 32) as usize;
 
         let entry = self.room_grid.get(grid_x + (grid_z * 6));
         entry.and_then(|e| *e)

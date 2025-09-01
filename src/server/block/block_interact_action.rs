@@ -6,7 +6,7 @@ use crate::server::block::blocks::Blocks;
 use crate::server::entity::entity::NoEntityImpl;
 use crate::server::entity::entity_metadata::{EntityMetadata, EntityVariant};
 use crate::server::player::player::Player;
-use crate::server::utils::dvec3::DVec3;
+use glam::DVec3;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -89,7 +89,7 @@ impl BlockInteractAction {
                 world.interactable_blocks.remove(block_pos);
 
                 world.spawn_entity(
-                    DVec3::from(block_pos).add_x(0.5).add_y(-1.4).add_z(0.5),
+                    DVec3::from(block_pos) + DVec3::new(0.5, -1.4, 0.5),
                     EntityMetadata {
                         variant: EntityVariant::ArmorStand,
                         is_invisible: true,

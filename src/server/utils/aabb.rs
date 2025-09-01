@@ -1,4 +1,4 @@
-use crate::server::utils::dvec3::DVec3;
+use glam::DVec3;
 
 #[derive(Debug, Clone)]
 pub struct AABB {

@@ -1,14 +1,9 @@
-use crate::net::internal_packets::NetworkThreadMessage;
 use crate::net::protocol::play::clientbound::PositionLook;
 use crate::server::player::player::Player;
-use crate::server::utils::dvec3::DVec3;
+use glam::DVec3;
 use std::f64::consts::PI;
-use tokio::sync::mpsc::UnboundedSender;
 
-pub fn handle_teleport(
-    player: &mut Player,
-    network_tx: &UnboundedSender<NetworkThreadMessage>,
-) -> anyhow::Result<()> {
+pub fn handle_teleport(player: &mut Player) {
     let mut start_pos = player.position.clone();
     start_pos.y += 1.54; // assume always sneaking
 
@@ -19,12 +14,7 @@ pub fn handle_teleport(
         let rad_pitch = -pitch.to_radians();
 
         let f2 = -rad_pitch.cos();
-        let mut pos = DVec3 {
-            x: rad_yaw.sin() * f2,
-            y: rad_pitch.sin(),
-            z: rad_yaw.cos() * f2,
-        }.normalize();
-
+        let mut pos = DVec3::new(rad_yaw.sin() * f2, rad_pitch.sin(), rad_yaw.cos() * f2).normalize();
         pos.x *= 10.0;
         pos.y *= 10.0;
         pos.z *= 10.0;
@@ -42,6 +32,4 @@ pub fn handle_teleport(
         // since yaw and pitch is 0, it doesn't rotate the player
         flags: 24,
     });
-
-    Ok(())
 }

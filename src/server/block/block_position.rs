@@ -1,8 +1,8 @@
 use crate::net::packets::packet_deserialize::PacketDeserializable;
 use crate::net::packets::packet_serialize::PacketSerializable;
 use crate::server::utils::direction::Direction;
-use crate::server::utils::dvec3::DVec3;
 use bytes::{Buf, BytesMut};
+use glam::DVec3;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
 pub struct BlockPos {
@@ -18,6 +18,12 @@ impl From<DVec3> for BlockPos {
             y: vec.y as i32,
             z: vec.z as i32,
         }
+    }
+}
+
+impl From<&BlockPos> for DVec3 {
+    fn from(pos: &BlockPos) -> Self {
+        Self::new(pos.x as f64, pos.y as f64, pos.z as f64)
     }
 }
 
@@ -100,12 +106,20 @@ impl BlockPos {
         }
     }
 
-    pub fn as_dvec3(&self) -> DVec3 {
-            DVec3 {
-                x: self.x as f64,
-                y: self.y as f64,
-                z: self.z as f64
-            }
+    pub const fn as_dvec3(&self) -> DVec3 {
+        DVec3 {
+            x: self.x as f64,
+            y: self.y as f64,
+            z: self.z as f64
+        }
+    }
+    
+    pub const fn as_dvec3_centered(&self) -> DVec3 {
+        DVec3 {
+            x: self.x as f64 + 0.5,
+            y: self.y as f64,
+            z: self.z as f64 + 0.5
+        }
     }
 }
 

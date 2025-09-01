@@ -9,8 +9,8 @@ use crate::server::entity::entity::{Entity, EntityId, EntityImpl};
 use crate::server::entity::entity_metadata::EntityMetadata;
 use crate::server::player::player::{ClientId, Player};
 use crate::server::server::Server;
-use crate::server::utils::dvec3::DVec3;
 use crate::server::utils::player_list::PlayerList;
+use glam::DVec3;
 use std::collections::HashMap;
 use std::mem::take;
 
