@@ -5,7 +5,9 @@ use crate::dungeon::room::room_data::{RoomData, RoomShape, RoomType};
 use crate::server::block::block_position::BlockPos;
 use crate::server::block::blocks::Blocks;
 use crate::server::block::rotatable::Rotatable;
+use crate::server::utils::aabb::AABB;
 use crate::server::utils::direction::Direction;
+use crate::server::utils::dvec3::DVec3;
 use crate::server::world::World;
 use std::collections::HashSet;
 
@@ -27,6 +29,9 @@ pub struct Room {
     pub segments: Vec<RoomSegment>,
     pub room_data: RoomData,
     pub rotation: Direction,
+
+    // instead of using tuple maybe have a struct for better readability
+    pub room_bounds: Vec<(AABB, Option<usize>)>,
 
     pub tick_amount: u32,
     pub crushers: Vec<Crusher>,
@@ -73,11 +78,22 @@ impl Room {
 
             crusher
         }).collect::<Vec<Crusher>>();
+        
+        let mut room_bounds: Vec<(AABB, Option<usize>)> = Vec::new();
+
+        for (index, segment) in segments.iter().enumerate() {
+            let x = (segment.x as i32 * 32 + DUNGEON_ORIGIN.0) as f64;
+            let y = room_data.bottom as f64;
+            let z = (segment.z as i32 * 32 + DUNGEON_ORIGIN.1) as f64;
+            let max_y = (room_data.bottom + room_data.height) as f64;
+            room_bounds.push((AABB::new(DVec3::new(x, y, z), DVec3::new(x + 31.0, y + max_y, z + 31.0)), Some(index)))
+        }
 
         Room {
             segments,
             room_data,
             rotation,
+            room_bounds,
             tick_amount: 0,
             crushers,
             entered: false,

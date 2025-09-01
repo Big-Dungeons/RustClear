@@ -449,11 +449,20 @@ impl Dungeon {
         entry.and_then(|e| *e)
     }
     
-    pub fn get_player_room(&mut self, player: &Player) -> Option<usize> {
-        self.get_room_at(
+    pub fn get_player_room(&mut self, player: &Player) -> Option<(usize, Option<usize>)> {
+        let room = self.get_room_at(
             player.position.x as i32,
             player.position.z as i32
-        )
+        );
+        if let Some(index) = room {
+            let player_aabb = player.collision_aabb();
+            for (aabb, segment_index) in self.rooms[index].room_bounds.iter() {
+                if player_aabb.intersects(aabb) {
+                    return Some((index, *segment_index))
+                }
+            }
+        }
+        None
     }
 
     pub fn start_dungeon(&mut self) {
@@ -510,7 +519,7 @@ impl Dungeon {
             DungeonState::Started { current_ticks } => {
                 *current_ticks += 1;
                 for (_, player) in &mut server.world.players  {
-                    if let Some(room_index) = self.get_player_room(player) {
+                    if let Some((room_index, segment_index)) = self.get_player_room(player) {
                         let room = self.rooms.get_mut(room_index).unwrap();
 
                         for crusher in room.crushers.iter_mut() {

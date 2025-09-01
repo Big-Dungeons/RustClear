@@ -40,8 +40,8 @@ use std::collections::HashMap;
 use std::env;
 use std::ops::Add;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use tokio::sync::mpsc::unbounded_channel;
 use tokio::sync::mpsc::error::TryRecvError;
+use tokio::sync::mpsc::unbounded_channel;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -360,8 +360,8 @@ async fn main() -> Result<()> {
                 format!("{} {}{}", SKYBLOCK_MONTHS[month], day_of_month, suffix)
             };
 
-            let room_id = if let Some(room) = server.dungeon.get_player_room(player) {
-                &server.dungeon.rooms[room].room_data.id
+            let room_id = if let Some((index, _)) = server.dungeon.get_player_room(player) {
+                &server.dungeon.rooms[index].room_data.id
             } else {
                 ""
             };
