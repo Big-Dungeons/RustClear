@@ -44,7 +44,7 @@ impl Dungeon {
             for segment in room.segments.iter() {
                 let x = segment.x;
                 let z = segment.z;
-                let segment_index = (x + z * 6) as usize;
+                let segment_index = x + z * 6;
     
                 if segment_index > room_grid.len() - 1 {
                     bail!("Segment index for {},{} out of bounds: {}", x, z, segment_index);
@@ -63,6 +63,7 @@ impl Dungeon {
             }
         }
         
+        // i hate this
         for room in rooms.iter_mut() {
             let segments = &mut room.segments;
             

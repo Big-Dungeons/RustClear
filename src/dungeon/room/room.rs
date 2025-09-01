@@ -86,7 +86,24 @@ impl Room {
             let y = room_data.bottom as f64;
             let z = (segment.z as i32 * 32 + DUNGEON_ORIGIN.1) as f64;
             let max_y = (room_data.bottom + room_data.height) as f64;
-            room_bounds.push((AABB::new(DVec3::new(x, y, z), DVec3::new(x + 31.0, y + max_y, z + 31.0)), Some(index)))
+            
+            room_bounds.push((AABB::new(DVec3::new(x, y, z), DVec3::new(x + 31.0, max_y, z + 31.0)), Some(index)));
+
+            if segments.iter().find(|seg| seg.x == segment.x + 1 && seg.z == segment.z).is_some() {
+                let x = x + 31.0;
+                let z = z;
+                room_bounds.push((AABB::new(DVec3::new(x, y, z), DVec3::new(x + 1.0, max_y, z + 31.0)), None))
+            }
+            if segments.iter().find(|seg| seg.x == segment.x && seg.z == segment.z + 1).is_some() {
+                let x = x;
+                let z = z + 31.0;
+                room_bounds.push((AABB::new(DVec3::new(x, y, z), DVec3::new(x + 31.0, max_y, z + 1.0)), None))
+            }
+            if segments.iter().find(|seg| seg.x == segment.x + 1 && seg.z == segment.z + 1).is_some() {
+                let x = x + 31.0;
+                let z = z + 31.0;
+                room_bounds.push((AABB::new(DVec3::new(x, y, z), DVec3::new(x + 1.0, max_y, z + 1.0)), None))
+            }
         }
 
         Room {
