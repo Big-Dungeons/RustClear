@@ -1,7 +1,7 @@
 use crate::dungeon::dungeon::Dungeon;
 use crate::net::internal_packets::{MainThreadMessage, NetworkThreadMessage};
 use crate::net::packets::packet::ProcessPacket;
-use crate::net::protocol::play::clientbound::{AddEffect, CustomPayload, EntityProperties, JoinGame, PlayerAbilities, PlayerListHeaderFooter, PositionLook};
+use crate::net::protocol::play::clientbound::{AddEffect, EntityProperties, JoinGame, PlayerAbilities, PlayerListHeaderFooter, PositionLook};
 use crate::net::var_int::VarInt;
 use crate::server::items::Item;
 use crate::server::player::attribute::{Attribute, AttributeMap, AttributeModifier};
@@ -93,9 +93,8 @@ impl Server {
     
                         for entity_id in chunk.entities.iter_mut() {
                             let (entity, entity_impl) = &mut self.world.entities.get_mut(&entity_id).unwrap();
-                            let buffer = &mut chunk.packet_buffer;
-                            entity.write_spawn_packet(buffer);
-                            entity_impl.spawn(entity, buffer);
+                            entity.write_spawn_packet(&mut player.packet_buffer);
+                            entity_impl.spawn(entity, &mut player.packet_buffer);
                         } 
                     }
                 );
