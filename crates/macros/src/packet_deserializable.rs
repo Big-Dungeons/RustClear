@@ -10,12 +10,12 @@ pub fn packet_deserializable_macro(input: TokenStream) -> TokenStream {
             let name = &item_struct.ident;
             let fields = item_struct.fields.iter().map(|field| {
                 let ident = &field.ident;
-                quote! { #ident: crate::net::packets::packet_deserialize::PacketDeserializable::read(buffer)?, }
+                quote! { #ident: crate::network::packets::packet_deserialize::PacketDeserializable::read(buffer)?, }
             });
             quote! {
                 #input
 
-                impl crate::net::packets::packet_deserialize::PacketDeserializable for #name {
+                impl crate::network::packets::packet_deserialize::PacketDeserializable for #name {
                    fn read(buffer: &mut bytes::BytesMut) -> anyhow::Result<Self> {
                         Ok(Self {
                             #(#fields)*
@@ -42,9 +42,9 @@ pub fn packet_deserializable_macro(input: TokenStream) -> TokenStream {
             quote! {
                 #input
 
-                impl crate::net::packets::packet_deserialize::PacketDeserializable for #name {
+                impl crate::network::packets::packet_deserialize::PacketDeserializable for #name {
                    fn read(buffer: &mut bytes::BytesMut) -> anyhow::Result<Self> {
-                        let id: i8 = crate::net::packets::packet_deserialize::PacketDeserializable::read(buffer)?;
+                        let id: i8 = crate::network::packets::packet_deserialize::PacketDeserializable::read(buffer)?;
                         match id {
                             #(#variants)*
                             _ => Err(anyhow::anyhow!("Invalid id ({}) for enum {}", id, stringify!(#name)))

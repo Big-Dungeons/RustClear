@@ -125,7 +125,7 @@ pub fn packet_serializable_macro(input: TokenStream) -> TokenStream {
             #(#struct_fields)*
         }
 
-        impl #impl_generics crate::net::packets::packet_serialize::PacketSerializable for #name #ty_generics #where_clause {
+        impl #impl_generics crate::network::packets::packet_serialize::PacketSerializable for #name #ty_generics #where_clause {
             fn write_size(&self) -> usize {
                 #(#write_size_fields)+*
             }

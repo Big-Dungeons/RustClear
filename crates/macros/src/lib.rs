@@ -1,11 +1,23 @@
 mod packet_serializable;
 mod packet_deserializable;
+mod derive_deref;
 
+use crate::derive_deref::{derive_deref_macro, derive_deref_mut_macro};
 use crate::packet_deserializable::packet_deserializable_macro;
 use crate::packet_serializable::packet_serializable_macro;
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput, Fields, Ident, ItemEnum};
+
+#[proc_macro_derive(Deref)]
+pub fn derive_deref(input: TokenStream) -> TokenStream {
+    derive_deref_macro(input)
+}
+
+#[proc_macro_derive(DerefMut)]
+pub fn derive_deref_mut(input: TokenStream) -> TokenStream {
+    derive_deref_mut_macro(input)
+}
 
 #[proc_macro]
 pub fn packet_serializable(input: TokenStream) -> TokenStream {
@@ -46,8 +58,8 @@ pub fn block_macro(input: TokenStream) -> TokenStream {
     let rotate_arms = build_rotate(enum_name, &input_enum);
 
     let expanded = quote! {
-        use crate::server::block::metadata::BlockMetadata;
-        use crate::server::block::rotatable::Rotatable;
+        use crate::block::metadata::BlockMetadata;
+        use crate::block::rotatable::Rotatable;
 
         #input_enum
 

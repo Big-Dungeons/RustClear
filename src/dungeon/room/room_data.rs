@@ -1,6 +1,5 @@
-use crate::dungeon::door::Door;
+use crate::block::blocks::Blocks;
 use crate::dungeon::room::room::{Room, RoomSegment};
-use crate::server::block::blocks::Blocks;
 use crate::utils::hasher::deterministic_hasher::DeterministicHashMap;
 use crate::utils::seeded_rng::seeded_rng;
 use rand::seq::IteratorRandom;
@@ -9,12 +8,12 @@ use std::collections::HashSet;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RoomShape {
-    OneByOne, // Fairy room, doors can vary
-    OneByOneEnd, // A dead end, only one door
-    OneByOneCross, // Four doors
+    OneByOne,         // Fairy room, doors can vary
+    OneByOneEnd,      // A dead end, only one door
+    OneByOneCross,    // Four doors
     OneByOneStraight, // Two doors opposite each other
-    OneByOneBend, // Two doors making an L bend
-    OneByOneTriple, // Two opposite with one in the middle
+    OneByOneBend,     // Two doors making an L bend
+    OneByOneTriple,   // Two opposite with one in the middle
 
     OneByTwo,
     OneByThree,
@@ -42,13 +41,14 @@ impl RoomShape {
         }
     }
 
-    pub fn from_segments(segments: &[RoomSegment], dungeon_doors: &[Door]) -> RoomShape {
-
-        let unique_x = segments.iter()
+    pub fn from_segments(segments: &[RoomSegment]) -> RoomShape {
+        let unique_x = segments
+            .iter()
             .map(|segment| segment.x)
             .collect::<HashSet<usize>>();
 
-        let unique_z = segments.iter()
+        let unique_z = segments
+            .iter()
             .map(|segment| segment.z)
             .collect::<HashSet<usize>>();
 
@@ -57,10 +57,37 @@ impl RoomShape {
         // Impossible for rooms to have < 1 or > 4 segments
         match segments.len() {
             1 => {
-                let (shape, _) = Room::get_1x1_shape_and_type(segments, dungeon_doors);
-
-                shape
-            },
+                let segment = &segments[0];
+                let mut bitmask: u8 = 0;
+                for index in 0..4 {
+                    bitmask <<= 1;
+                    bitmask |= segment.neighbours[index].is_some() as u8 
+                }
+                match bitmask {
+                    // Doors on all sides, never changes
+                    0b1111 => RoomShape::OneByOneCross,
+                    // Dead end 1x1
+                    0b1000 => RoomShape::OneByOneEnd,
+                    0b0100 => RoomShape::OneByOneEnd,
+                    0b0010 => RoomShape::OneByOneEnd,
+                    0b0001 => RoomShape::OneByOneEnd,
+                    // Opposite doors
+                    0b0101 => RoomShape::OneByOneStraight,
+                    0b1010 => RoomShape::OneByOneStraight,
+                    // L bend
+                    0b0011 => RoomShape::OneByOneBend,
+                    0b1001 => RoomShape::OneByOneBend,
+                    0b1100 => RoomShape::OneByOneBend,
+                    0b0110 => RoomShape::OneByOneBend,
+                    // Triple door
+                    0b1011 => RoomShape::OneByOneTriple,
+                    0b1101 => RoomShape::OneByOneTriple,
+                    0b1110 => RoomShape::OneByOneTriple,
+                    0b0111 => RoomShape::OneByOneTriple,
+                    
+                    _ => RoomShape::OneByOne,
+                }
+            }
             2 => RoomShape::OneByTwo,
             3 => match not_long {
                 true => RoomShape::L,
@@ -130,18 +157,21 @@ impl RoomData {
         let length = json_data["length"].as_number().unwrap().as_u64().unwrap() as i32;
         let height = json_data["height"].as_number().unwrap().as_u64().unwrap() as i32;
 
-        let crusher_data: Vec<Value> = json_data["crushers"].as_array().unwrap_or(&Vec::new()).to_vec();
+        let crusher_data: Vec<Value> = json_data["crushers"]
+            .as_array()
+            .unwrap_or(&Vec::new())
+            .to_vec();
 
         let hex_data = json_data["block_data"].as_str().unwrap();
 
         let mut block_data: Vec<Blocks> = Vec::new();
 
         for i in (0..hex_data.len()).step_by(4) {
-            let hex_str = hex_data.get(i..i+4).unwrap();
-    
+            let hex_str = hex_data.get(i..i + 4).unwrap();
+
             let num = u16::from_str_radix(hex_str, 16).unwrap();
             let block = Blocks::from(num);
-            
+
             block_data.push(block)
         }
 
@@ -181,13 +211,14 @@ pub fn get_random_data_with_type(
     data_storage: &DeterministicHashMap<usize, RoomData>,
     current_rooms: &[Room],
 ) -> RoomData {
-    data_storage.iter()
+    data_storage
+        .values()
         .filter(|data| {
-            data.1.room_type == room_type &&
-                data.1.shape == room_shape &&
-                !current_rooms.iter().any(|room| room.room_data == *data.1) // No duplicate rooms
+            data.room_type == room_type
+                && data.shape == room_shape
+                && !current_rooms.iter().any(|room| room.data == **data) // No duplicate rooms
         })
-        .map(|x| x.1)
+        .map(|x| x)
         .choose(&mut seeded_rng())
         .unwrap_or(&RoomData::dummy())
         .clone()

@@ -1,0 +1,254 @@
+use crate::network::packets::packet::ProcessPacket;
+use crate::network::protocol::play::serverbound;
+use crate::network::protocol::play::serverbound::{ArmSwing, ChatMessage, ClickWindow, ClientSettings, ClientStatus, HeldItemChange, PlayerAction, PlayerActionType, PlayerBlockPlacement, PlayerDigging, PlayerLook, PlayerPosition, PlayerPositionLook, PlayerUpdate, TabComplete, UseEntity};
+use crate::player::player::{Player, PlayerExtension};
+use crate::types::block_position::BlockPos;
+use crate::types::direction::Direction;
+
+impl ProcessPacket for serverbound::KeepAlive {
+    fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
+        // if player.last_keep_alive == self.id {
+        //     if let Ok(since) = SystemTime::now().duration_since(UNIX_EPOCH) {
+        //         let since = since.as_millis() as i32 - player.last_keep_alive;
+        //         player.ping = (player.ping * 3 + since) / 4;
+        //         println!("Ping: {}", player.ping);
+        //     }
+        // }
+    }
+}
+
+impl ProcessPacket for ChatMessage {
+    fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
+        if self.message.starts_with("/") {
+            // let command = self.message.strip_prefix("/").unwrap();
+            // if let Err(e) = Command::handle(command, player.world_mut(), player) {
+            //     eprintln!("cmd failed {e}")
+            // };
+        }
+    }
+}
+
+impl ProcessPacket for UseEntity {
+    fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
+        // if let Some((entity, entity_impl)) = player.world_mut().entities.get_mut(&self.entity_id.0) {
+        //     entity_impl.interact(entity, player, &self.action)
+        // }
+    }
+}
+
+// I don't know if any implementation will be needed,
+// but just in case imma keep it here
+impl ProcessPacket for PlayerUpdate {}
+
+// anti cheat stuff vvv important to do for all 3
+
+impl ProcessPacket for PlayerPosition {
+    fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
+        player.position.x = self.x;
+        player.position.y = self.y;
+        player.position.z = self.z;
+    }
+}
+
+impl ProcessPacket for PlayerLook {
+    fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
+        player.yaw = self.yaw;
+        player.pitch = self.pitch;
+    }
+}
+
+impl ProcessPacket for PlayerPositionLook {
+    fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
+        player.position.x = self.x;
+        player.position.y = self.y;
+        player.position.z = self.z;
+        player.yaw = self.yaw;
+        player.pitch = self.pitch;
+    }
+}
+
+impl ProcessPacket for PlayerDigging {
+    fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
+        // let world = player.world_mut();
+        // match self.action {
+        //     PlayerDiggingAction::StartDestroyBlock => {
+        //         // todo:
+        //         // when block toughness is added,
+        //         // replace check with if vanilla toughness would match
+        //         if let Some(ItemSlot::Filled(Item::DiamondPickaxe)) = player.inventory.get_hotbar_slot(player.held_slot as usize) {
+        //             let block = world.get_block_at(self.position.x, self.position.y, self.position.z);
+        //             player.write_packet(&BlockChange {
+        //                 block_pos: self.position,
+        //                 block_state: block.get_block_state_id(),
+        //             })
+        //         }
+        //     }
+        //     PlayerDiggingAction::FinishDestroyBlock => {
+        //         let block = world.get_block_at(self.position.x, self.position.y, self.position.z);
+        //         player.write_packet(&BlockChange {
+        //             block_pos: self.position,
+        //             block_state: block.get_block_state_id(),
+        //         })
+        //     }
+        //     _ => {}
+        // }
+    }
+}
+
+pub struct BlockInteractResult {
+    pub position: BlockPos,
+    pub direction: Direction,
+}
+
+impl ProcessPacket for PlayerBlockPlacement {
+    fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
+        if !player.sent_block_placement {
+            player.sent_block_placement = true;
+            
+            let block_hit_result = if self.position.is_invalid() { 
+                None
+            } else {
+                Some(BlockInteractResult {
+                    position: self.position,
+                    direction: match self.placed_direction {
+                        0 => Direction::Down,
+                        1 => Direction::Up,
+                        2 => Direction::North,
+                        3 => Direction::South,
+                        4 => Direction::West,
+                        5 => Direction::East,
+                        _ => unreachable!()
+                    },
+                })
+            };
+            P::interact(player, self.item_stack.clone(), block_hit_result);
+        }
+    }
+}
+
+impl ProcessPacket for HeldItemChange {
+    fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
+        // warn player if invalid packets
+        let item_slot = self.slot_id.clamp(0, 8) as u8;
+        player.held_slot = item_slot;
+    }
+}
+
+// will be useful if we want to add stuff like mage beam
+impl ProcessPacket for ArmSwing {}
+
+impl ProcessPacket for PlayerAction {
+    fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
+        match self.action {
+            PlayerActionType::StartSneaking => player.is_sneaking = true,
+            PlayerActionType::StopSneaking => player.is_sneaking = false,
+            _ => {}
+        }
+    }
+}
+
+impl ProcessPacket for serverbound::CloseWindow {
+    fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
+        // player.open_ui(UI::None)
+    }
+}
+
+impl ProcessPacket for ClickWindow {
+    fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
+        // if player.current_ui == UI::None
+        //     || (player.window_id != self.window_id && player.current_ui != UI::Inventory)
+        // {
+        //     player.sync_inventory();
+        //     return;
+        // }
+        // player.current_ui.clone().handle_click_window(self, player);
+
+        if player.inventory.handle_packet(self, &mut player.packet_buffer) {
+            println!("re-sync inventory");
+            player.sync_inventory();
+        }
+        // player.sync_inventory();
+    }
+}
+
+impl ProcessPacket for serverbound::ConfirmTransaction {
+    // wd sync stuff
+}
+
+impl ProcessPacket for TabComplete {
+    // fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
+    //     if !self.message.starts_with("/") {
+    //         return;
+    //     }
+    //     let parts: Vec<&str> = self.message.split_whitespace().collect();
+    //     let command_name = parts[0].strip_prefix("/").unwrap();
+    // 
+    //     if command_name.is_empty() {
+    //         player.write_packet(&TabCompleteReply {
+    //             matches: Command::list().iter().map(|cmd| format!("/{}", cmd.name())).collect(),
+    //         });
+    //         return
+    //     }
+    // 
+    //     if let Some(command) = Command::find(command_name) {
+    //         let args = &parts[1..];
+    // 
+    //         let next_arg = self.message.ends_with(' ');
+    // 
+    //         if args.is_empty() && !next_arg {
+    //             // user input a valid command but has not hit space, so we shouldn't provide any completions.
+    //             // there might be a better way to do this somewhere else but idk atm.
+    //             return;
+    //         }
+    // 
+    //         let current_arg = if next_arg {
+    //             args.len()
+    //         } else {
+    //             args.len().saturating_sub(1)
+    //         };
+    // 
+    //         let command_args = command.args(player.world_mut(), player);
+    // 
+    //         if current_arg >= command_args.len() {
+    //             // user has input too many arguments; so we just return here.
+    //             return;
+    //         }
+    // 
+    //         let completions = {
+    //             let arg = &command_args.get(current_arg);
+    //             if arg.is_none() { return; }
+    //             &arg.unwrap().completions
+    //         };
+    // 
+    //         let matches: Vec<String> = if next_arg || args.is_empty() {
+    //             completions.to_vec()
+    //         } else {
+    //             completions.iter().filter(|cmp| cmp.starts_with(args.last().unwrap_or(&""))).cloned().collect()
+    //         };
+    // 
+    //         player.write_packet(&TabCompleteReply {
+    //             matches
+    //         });
+    //     } else {
+    //         let commands = Command::list().iter().filter(|cmd| cmd.name().starts_with(command_name)).map(|cmd| format!("/{}", cmd.name())).collect();
+    //         player.write_packet(&TabCompleteReply {
+    //             matches: commands
+    //         });
+    //     }
+    // }
+}
+
+impl ProcessPacket for ClientSettings {
+    // render distance stuff if needed
+}
+
+impl ProcessPacket for ClientStatus {
+    fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
+        // match self {
+        //     ClientStatus::OpenInventory => {
+        //         player.open_ui(UI::Inventory)
+        //     }
+        //     _ => {}
+        // }
+    }
+}
