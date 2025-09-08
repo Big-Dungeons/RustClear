@@ -9,7 +9,7 @@ use crate::player::player::{Player, PlayerExtension};
 use crate::types::direction::Direction;
 
 pub struct DungeonPlayer {
-    
+    pub is_ready: bool
 }
 
 impl PlayerExtension for DungeonPlayer {
@@ -54,11 +54,18 @@ impl PlayerExtension for DungeonPlayer {
 }
 
 impl Player<DungeonPlayer> {
+
+    pub fn ready(&mut self) {
+        self.extension.is_ready = !self.extension.is_ready;
+        self.world_mut().update_ready_status(self);
+    }
     
     // this functions is mostly a test
     pub fn current_room(&mut self) -> Option<&Room> {
-        if let Some((index, _)) = self.world().extension.get_player_room(self) { 
-            let room = &self.world().extension.rooms[index];
+        let world = self.world();
+
+        if let Some((index, _)) = world.get_player_room(self) {
+            let room = &world.rooms[index];
             return Some(room)
         }
         None

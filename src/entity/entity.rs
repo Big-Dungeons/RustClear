@@ -3,6 +3,7 @@ use crate::get_chunk_position;
 use crate::network::binary::var_int::VarInt;
 use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::protocol::play::clientbound::{DestroyEntites, EntityTeleport, SpawnMob, SpawnObject};
+use crate::network::protocol::play::serverbound::EntityInteractionType;
 use crate::player::player::{Player, PlayerExtension};
 use crate::world::chunk::chunk_grid::ChunkDiff;
 use crate::world::world::{World, WorldExtension, VIEW_DISTANCE};
@@ -19,7 +20,12 @@ pub trait EntityImpl<W : WorldExtension, P : PlayerExtension = <W as WorldExtens
     
     fn tick(&self, entity: &mut EntityBase<W>, _: &mut PacketBuffer);
     
-    fn interact(&self, entity: &mut EntityBase<W>, player: &mut Player<P>) {}
+    fn interact(
+        &self,
+        entity: &mut EntityBase<W>,
+        player: &mut Player<P>,
+        action: &EntityInteractionType
+    ) {}
 }
 
 pub struct EntityBase<W : WorldExtension> {
@@ -158,6 +164,9 @@ impl<W : WorldExtension> Entity<W> {
             if chunk_position != last_chunk_position { 
                 let world = entity.world_mut();
                 let chunk_grid = &mut world.chunk_grid;
+                
+                // this has the flaw, where entity gets respawned even when in view
+                
                 entity.world().chunk_grid.for_each_diff(
                     chunk_position,
                     last_chunk_position,

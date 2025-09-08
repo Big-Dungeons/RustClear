@@ -3,10 +3,11 @@ use crate::get_chunk_position;
 use crate::inventory::inventory::Inventory;
 use crate::inventory::item::{get_item_stack, Item};
 use crate::inventory::item_stack::ItemStack;
+use crate::inventory::menu::OpenContainer;
 use crate::network::packets::packet::IdentifiedPacket;
 use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::packets::packet_serialize::PacketSerializable;
-use crate::network::protocol::play::clientbound::{ConfirmTransaction, SetSlot, WindowItems};
+use crate::network::protocol::play::clientbound::{ConfirmTransaction, WindowItems};
 use crate::player::packet_handling::BlockInteractResult;
 use crate::types::aabb::AABB;
 use crate::world::chunk::chunk_grid::ChunkDiff;
@@ -48,7 +49,7 @@ pub struct Player<E : PlayerExtension> {
 
     pub packet_buffer: PacketBuffer,
 
-    pub game_profile: GameProfile,
+    pub profile: GameProfile,
     pub client_id: ClientId,
     pub entity_id: EntityId,
 
@@ -63,6 +64,8 @@ pub struct Player<E : PlayerExtension> {
     
     pub is_sneaking: bool,
 
+    pub window_id: i8,
+    pub open_container: OpenContainer<E>,
     pub inventory: Inventory<E::Item>,
     pub held_slot: u8,
 
@@ -90,7 +93,7 @@ impl<E : PlayerExtension> Player<E> {
 
             packet_buffer: PacketBuffer::new(),
 
-            game_profile,
+            profile: game_profile,
             client_id,
             entity_id,
 
@@ -104,6 +107,8 @@ impl<E : PlayerExtension> Player<E> {
             
             is_sneaking: false,
 
+            open_container: OpenContainer::None,
+            window_id: 0,
             inventory: Inventory::new(),
             held_slot: 0,
 
@@ -228,6 +233,12 @@ impl<E : PlayerExtension> Player<E> {
         )
     }
     
+    pub fn open_container(&mut self, mut container: OpenContainer<E>) {
+        self.window_id += 1;
+        container.open(self);
+        self.open_container = container;
+    }
+    
     pub fn sync_inventory(&mut self) {
         let mut items = Vec::new();
         for item in self.inventory.items.iter() {
@@ -237,11 +248,10 @@ impl<E : PlayerExtension> Player<E> {
             window_id: 0,
             items,
         });
-        self.write_packet(&SetSlot {
-            window_id: -1,
-            slot: 0,
-            item_stack: get_item_stack(&self.inventory.dragged_item),
-        })
+        // take ownership
+        let mut container = std::mem::replace(&mut self.open_container, OpenContainer::None);
+        container.sync_container(self);
+        self.open_container = container;
     }
 
     

@@ -1,4 +1,5 @@
 use crate::block::block_parameter::Axis;
+use crate::block::rotatable::Rotatable;
 use crate::dungeon::door::door::{Door, DoorType};
 use crate::dungeon::door::door_positions::DOOR_POSITIONS;
 use crate::dungeon::dungeon_player::DungeonPlayer;
@@ -6,10 +7,11 @@ use crate::dungeon::items::dungeon_items::DungeonItem;
 use crate::dungeon::room::room::{Room, RoomNeighbour, RoomSegment};
 use crate::dungeon::room::room_data::{get_random_data_with_type, RoomData, RoomShape, RoomType};
 use crate::network::binary::var_int::VarInt;
-use crate::network::protocol::play::clientbound::{EntityProperties, PlayerAbilities};
+use crate::network::protocol::play::clientbound::{Chat, EntityProperties, PlayerAbilities};
 use crate::player::attribute::{Attribute, AttributeMap, AttributeModifier};
 use crate::player::player::{ClientId, GameProfile, Player};
 use crate::types::block_position::BlockPos;
+use crate::types::chat_component::ChatComponent;
 use crate::utils::hasher::deterministic_hasher::DeterministicHashMap;
 use crate::world::world::{World, WorldExtension};
 use anyhow::bail;
@@ -19,11 +21,19 @@ use uuid::Uuid;
 
 pub const DUNGEON_ORIGIN: IVec2 = IVec2::new(-200, -200);
 
+pub enum DungeonState {
+    NotStarted,
+    Starting { starts_in_ticks: usize },
+    Started { ticks: usize }
+}
+
 pub struct Dungeon {
     pub rooms: Vec<Room>,
     pub doors: Vec<Door>,
     room_index_grid: [Option<usize>; 36],
     entrance_room_index: usize,
+
+    state: DungeonState
 }
 
 impl WorldExtension for Dungeon {
@@ -31,13 +41,46 @@ impl WorldExtension for Dungeon {
     type Player = DungeonPlayer;
 
     fn tick(world: &mut World<Self>) {
+        let dungeon = &mut world.extension;
+
+        match &mut dungeon.state {
+            DungeonState::Starting { starts_in_ticks: tick } => {
+                *tick -= 1;
+                if *tick == 0 {
+                    dungeon.state = DungeonState::Started { ticks: 0 }
+                } else if *tick % 20 == 0 {
+
+                    let seconds_remaining = *tick / 20;
+                    let s = if seconds_remaining == 1 { "" } else { "s" };
+                    let str = format!("§aStarting in {} second{}.", seconds_remaining, s);
+
+                    for player in world.players.iter_mut() {
+                        player.write_packet(&Chat {
+                            component: ChatComponent::new(str.clone()),
+                            chat_type: 0,
+                        });
+                    }
+                }
+            }
+            DungeonState::Started { ticks } => {
+                *ticks += 1;
+            }
+            _ => {}
+        }
     }
 
     fn on_player_join(world: &mut World<Self>, profile: GameProfile, client_id: ClientId) {
         let entrance = world.extension.entrance_room();
         let position = entrance.get_world_block_pos(&BlockPos::new(15, 72, 18)).as_dvec3_centered();
         
-        let player = world.spawn_player(position, 0.0, 0.0, profile, client_id, DungeonPlayer {});
+        let player = world.spawn_player(
+            position,
+            180.0.rotate(entrance.rotation),
+            0.0,
+            profile,
+            client_id,
+            DungeonPlayer { is_ready: false }
+        );
 
         let speed: f32 = 500.0 * 0.001;
 
@@ -67,6 +110,40 @@ impl WorldExtension for Dungeon {
         player.inventory.set_slot(44, Some(DungeonItem::SkyblockMenu));
         player.sync_inventory();
         player.flush_packets()
+    }
+}
+
+impl World<Dungeon> {
+
+    pub fn update_ready_status(&mut self, player: &mut Player<DungeonPlayer>) {
+        assert!(!matches!(self.state, DungeonState::Started { .. }));
+
+        let is_ready = player.extension.is_ready;
+        let message = format!("§7{} {}!", player.profile.username, if is_ready { "§ais now ready" } else { "§cis no longer ready" });
+        
+        let packet = Chat {
+            component: ChatComponent::new(message),
+            chat_type: 0,
+        };
+        
+        for player in self.players.iter_mut() {
+            player.write_packet(&packet)
+        }
+        
+        if is_ready {
+            let mut should_start = true;
+
+            for player in self.players.iter() {
+                if !player.extension.is_ready {
+                    should_start = false
+                }
+            }
+            if should_start {
+                self.state = DungeonState::Starting { starts_in_ticks: 100 }
+            }
+        } else {
+            self.state = DungeonState::NotStarted
+        }
     }
 }
 
@@ -230,6 +307,7 @@ impl Dungeon {
             doors,
             room_index_grid: room_grid,
             entrance_room_index,
+            state: DungeonState::NotStarted,
         })
     }
 

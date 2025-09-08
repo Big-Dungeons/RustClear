@@ -1,12 +1,15 @@
 use crate::block::blocks::Blocks;
+use crate::block::rotatable::Rotatable;
 use crate::dungeon::door::door::DoorType;
 use crate::dungeon::dungeon::Dungeon;
 use crate::dungeon::dungeon_player::DungeonPlayer;
 use crate::dungeon::room::room_data::RoomData;
 use crate::entity::entity::{EntityBase, EntityImpl};
 use crate::entity::entity_metadata::{EntityMetadata, EntityVariant};
+use crate::inventory::menu::{DungeonMenu, OpenContainer};
 use crate::network::internal_packets::{MainThreadMessage, NetworkThreadMessage};
 use crate::network::packets::packet_buffer::PacketBuffer;
+use crate::network::protocol::play::serverbound::EntityInteractionType;
 use crate::network::run_network::run_network_thread;
 use crate::player::player::Player;
 use crate::types::block_position::BlockPos;
@@ -100,17 +103,25 @@ async fn main() -> anyhow::Result<()> {
                 // y no work?
                 entity.pitch += 5.0
             }
-            fn interact(&self, entity: &mut EntityBase<Dungeon>, player: &mut Player<DungeonPlayer>) {
-                todo!()
+            fn interact(
+                &self, _: &mut EntityBase<Dungeon>,
+                player: &mut Player<DungeonPlayer>,
+                action: &EntityInteractionType
+            ) {
+                if let EntityInteractionType::InteractAt = action {
+                    return;
+                }
+                player.open_container(OpenContainer::Menu(Box::new(DungeonMenu::Mort)))
             }
         }
 
         let entrance = world.extension.entrance_room();
         let position = entrance.get_world_block_pos(&BlockPos::new(15, 69, 4)).as_dvec3_centered();
+        let yaw = 0.0.rotate(entrance.rotation);
         world.spawn_entity(
             EntityMetadata::new(EntityVariant::Zombie { is_child: false, is_villager: false }),
             position,
-            0.0,
+            yaw,
             0.0,
             Test {}
         );

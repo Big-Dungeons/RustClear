@@ -1,3 +1,4 @@
+use crate::inventory::menu::OpenContainer;
 use crate::network::packets::packet::ProcessPacket;
 use crate::network::protocol::play::serverbound;
 use crate::network::protocol::play::serverbound::{ArmSwing, ChatMessage, ClickWindow, ClientSettings, ClientStatus, HeldItemChange, PlayerAction, PlayerActionType, PlayerBlockPlacement, PlayerDigging, PlayerLook, PlayerPosition, PlayerPositionLook, PlayerUpdate, TabComplete, UseEntity};
@@ -19,7 +20,8 @@ impl ProcessPacket for serverbound::KeepAlive {
 
 impl ProcessPacket for ChatMessage {
     fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
-        if self.message.starts_with("/") {
+        if self.message.starts_with("/mort") {
+            // player.open_container(OpenContainer::Menu(Box::new(DungeonMenu::Mort)))
             // let command = self.message.strip_prefix("/").unwrap();
             // if let Err(e) = Command::handle(command, player.world_mut(), player) {
             //     eprintln!("cmd failed {e}")
@@ -30,9 +32,10 @@ impl ProcessPacket for ChatMessage {
 
 impl ProcessPacket for UseEntity {
     fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
-        // if let Some((entity, entity_impl)) = player.world_mut().entities.get_mut(&self.entity_id.0) {
-        //     entity_impl.interact(entity, player, &self.action)
-        // }
+        if let Some(index) = player.world_mut().entity_map.get(&self.entity_id.0) {
+            let entity = &mut player.world_mut().entities[*index];
+            entity.entity_impl.interact(&mut entity.base, player, &self.action)
+        }
     }
 }
 
@@ -149,25 +152,17 @@ impl ProcessPacket for PlayerAction {
 
 impl ProcessPacket for serverbound::CloseWindow {
     fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
+        player.open_container(OpenContainer::None)
         // player.open_ui(UI::None)
     }
 }
 
 impl ProcessPacket for ClickWindow {
     fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
-        // if player.current_ui == UI::None
-        //     || (player.window_id != self.window_id && player.current_ui != UI::Inventory)
-        // {
-        //     player.sync_inventory();
-        //     return;
-        // }
-        // player.current_ui.clone().handle_click_window(self, player);
-
-        if player.inventory.handle_packet(self, &mut player.packet_buffer) {
-            println!("re-sync inventory");
-            player.sync_inventory();
-        }
-        // player.sync_inventory();
+        // need to take ownership because of borrow checker
+        let mut container = std::mem::replace(&mut player.open_container, OpenContainer::None);
+        container.click_window(player, self);
+        player.open_container = container;
     }
 }
 
@@ -244,11 +239,11 @@ impl ProcessPacket for ClientSettings {
 
 impl ProcessPacket for ClientStatus {
     fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
-        // match self {
-        //     ClientStatus::OpenInventory => {
-        //         player.open_ui(UI::Inventory)
-        //     }
-        //     _ => {}
-        // }
+        match self {
+            ClientStatus::OpenInventory => {
+                player.open_container(OpenContainer::Inventory)
+            }
+            _ => {}
+        }
     }
 }
