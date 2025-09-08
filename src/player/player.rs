@@ -7,6 +7,7 @@ use crate::inventory::menu::OpenContainer;
 use crate::network::packets::packet::IdentifiedPacket;
 use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::packets::packet_serialize::PacketSerializable;
+use crate::network::protocol::play::clientbound;
 use crate::network::protocol::play::clientbound::{ConfirmTransaction, WindowItems};
 use crate::player::packet_handling::BlockInteractResult;
 use crate::types::aabb::AABB;
@@ -234,6 +235,11 @@ impl<E : PlayerExtension> Player<E> {
     }
     
     pub fn open_container(&mut self, mut container: OpenContainer<E>) {
+        if let OpenContainer::Menu(_) = self.open_container {
+            self.write_packet(&clientbound::CloseWindow {
+                window_id: self.window_id,
+            })
+        }
         self.window_id += 1;
         container.open(self);
         self.open_container = container;

@@ -1,7 +1,7 @@
 use crate::block::blocks::Blocks;
 use crate::block::rotatable::Rotatable;
 use crate::dungeon::door::door::DoorType;
-use crate::dungeon::dungeon::Dungeon;
+use crate::dungeon::dungeon::{Dungeon, DungeonState};
 use crate::dungeon::dungeon_player::DungeonPlayer;
 use crate::dungeon::room::room_data::RoomData;
 use crate::entity::entity::{EntityBase, EntityImpl};
@@ -104,11 +104,15 @@ async fn main() -> anyhow::Result<()> {
                 entity.pitch += 5.0
             }
             fn interact(
-                &self, _: &mut EntityBase<Dungeon>,
+                &self, 
+                _: &mut EntityBase<Dungeon>,
                 player: &mut Player<DungeonPlayer>,
                 action: &EntityInteractionType
             ) {
                 if let EntityInteractionType::InteractAt = action {
+                    return;
+                }
+                if let DungeonState::Started { .. } = player.world().state {  
                     return;
                 }
                 player.open_container(OpenContainer::Menu(Box::new(DungeonMenu::Mort)))

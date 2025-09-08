@@ -6,6 +6,7 @@ use crate::dungeon::dungeon_player::DungeonPlayer;
 use crate::dungeon::items::dungeon_items::DungeonItem;
 use crate::dungeon::room::room::{Room, RoomNeighbour, RoomSegment};
 use crate::dungeon::room::room_data::{get_random_data_with_type, RoomData, RoomShape, RoomType};
+use crate::inventory::menu::OpenContainer;
 use crate::network::binary::var_int::VarInt;
 use crate::network::protocol::play::clientbound::{Chat, EntityProperties, PlayerAbilities};
 use crate::player::attribute::{Attribute, AttributeMap, AttributeModifier};
@@ -33,7 +34,7 @@ pub struct Dungeon {
     room_index_grid: [Option<usize>; 36],
     entrance_room_index: usize,
 
-    state: DungeonState
+    pub state: DungeonState
 }
 
 impl WorldExtension for Dungeon {
@@ -47,7 +48,8 @@ impl WorldExtension for Dungeon {
             DungeonState::Starting { starts_in_ticks: tick } => {
                 *tick -= 1;
                 if *tick == 0 {
-                    dungeon.state = DungeonState::Started { ticks: 0 }
+                    dungeon.state = DungeonState::Started { ticks: 0 };
+                    world.start_dungeon();
                 } else if *tick % 20 == 0 {
 
                     let seconds_remaining = *tick / 20;
@@ -114,9 +116,17 @@ impl WorldExtension for Dungeon {
 }
 
 impl World<Dungeon> {
+    
+    pub fn start_dungeon(&mut self) {
+        for player in self.players.iter_mut() {
+            if let OpenContainer::Menu(_) = player.open_container {
+                player.open_container(OpenContainer::None)
+            } 
+        }
+    }
 
     pub fn update_ready_status(&mut self, player: &mut Player<DungeonPlayer>) {
-        assert!(!matches!(self.state, DungeonState::Started { .. }));
+        assert!(!matches!(self.state, DungeonState::Started { .. }), "tried to ready up when dungeon has already started");
 
         let is_ready = player.extension.is_ready;
         let message = format!("§7{} {}!", player.profile.username, if is_ready { "§ais now ready" } else { "§cis no longer ready" });
