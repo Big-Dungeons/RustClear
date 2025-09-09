@@ -5,8 +5,7 @@ use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::protocol::play::clientbound::{DestroyEntites, EntityTeleport, SpawnMob, SpawnObject};
 use crate::network::protocol::play::serverbound::EntityInteractionType;
 use crate::player::player::{Player, PlayerExtension};
-use crate::world::chunk::chunk_grid::ChunkDiff;
-use crate::world::world::{World, WorldExtension, VIEW_DISTANCE};
+use crate::world::world::{World, WorldExtension};
 use glam::DVec3;
 
 pub type EntityId = i32;
@@ -40,8 +39,9 @@ pub struct EntityBase<W : WorldExtension> {
     pub last_position: DVec3,
     pub last_yaw: f32,
     pub last_pitch: f32,
-    
-    pub metadata: EntityMetadata,
+
+    pub ticks_existed: u32,
+    pub metadata: Option<EntityMetadata>,
 }
 
 impl<W : WorldExtension> EntityBase<W> {
@@ -55,7 +55,10 @@ impl<W : WorldExtension> EntityBase<W> {
     }
 
     pub fn write_spawn_packet(&self, buffer: &mut PacketBuffer) {
-        let variant = &self.metadata.variant;
+        let Some(metadata) = &self.metadata else {
+            return;
+        };
+        let variant = &metadata.variant;
         if variant.is_player() {
             // needs player list item
             // buffer.write_packet(&SpawnPlayer {
@@ -96,7 +99,7 @@ impl<W : WorldExtension> EntityBase<W> {
                 velocity_x: self.velocity.x,
                 velocity_y: self.velocity.y,
                 velocity_z: self.velocity.z,
-                metadata: self.metadata.clone(),
+                metadata: metadata.clone(),
             });
         }
     }
@@ -118,7 +121,7 @@ impl<W : WorldExtension> Entity<W> {
     
     pub fn new<E : EntityImpl<W> + 'static>(
         world: *mut World<W>,
-        entity_metadata: EntityMetadata,
+        entity_metadata: Option<EntityMetadata>,
         entity_id: EntityId,
         position: DVec3,
         yaw: f32,
@@ -135,6 +138,7 @@ impl<W : WorldExtension> Entity<W> {
             last_position: position,
             last_yaw: yaw,
             last_pitch: pitch,
+            ticks_existed: 0,
             metadata: entity_metadata,
         };
         Self {
@@ -145,45 +149,46 @@ impl<W : WorldExtension> Entity<W> {
     
     pub fn tick(&mut self, packet_buffer: &mut PacketBuffer) {
         let entity = &mut self.base;
+        // im not sure if it is a good idea to have it add this before or after impl tick
+        entity.ticks_existed += 1;
         self.entity_impl.tick(entity, packet_buffer);
         
         if entity.position != entity.last_position || entity.yaw != entity.last_yaw || entity.pitch != entity.last_pitch {
-            packet_buffer.write_packet(&EntityTeleport {
-                entity_id: entity.id,
-                pos_x: entity.position.x,
-                pos_y: entity.position.y,
-                pos_z: entity.position.z,
-                yaw: entity.yaw,
-                pitch: entity.pitch,
-                on_ground: true,
-            });
-            
-            let chunk_position = get_chunk_position(entity.position);
-            let last_chunk_position = get_chunk_position(entity.last_position);
-            
-            if chunk_position != last_chunk_position { 
-                let world = entity.world_mut();
-                let chunk_grid = &mut world.chunk_grid;
-                
-                // this has the flaw, where entity gets respawned even when in view
-                
-                entity.world().chunk_grid.for_each_diff(
-                    chunk_position,
-                    last_chunk_position,
-                    VIEW_DISTANCE,
-                    |x, z, diff| {
-                        // shouldn't be none?
-                        let Some(chunk) = chunk_grid.get_chunk_mut(x, z) else {
-                            return;
-                        };
-                        if diff == ChunkDiff::New {
-                            entity.write_spawn_packet(&mut chunk.packet_buffer);
-                            self.entity_impl.spawn(entity, &mut chunk.packet_buffer);
-                        }
-                    }
-                )
+            if entity.metadata.is_some() {
+                packet_buffer.write_packet(&EntityTeleport {
+                    entity_id: entity.id,
+                    pos_x: entity.position.x,
+                    pos_y: entity.position.y,
+                    pos_z: entity.position.z,
+                    yaw: entity.yaw,
+                    pitch: entity.pitch,
+                    on_ground: true,
+                });
             }
-            
+
+            // let chunk_position = get_chunk_position(entity.position);
+            // let last_chunk_position = get_chunk_position(entity.last_position);
+            //
+            // if chunk_position != last_chunk_position {
+            //     let world = entity.world_mut();
+            //     let chunk_grid = &mut world.chunk_grid;
+            //
+            //     entity.world().chunk_grid.for_each_diff(
+            //         chunk_position,
+            //         last_chunk_position,
+            //         VIEW_DISTANCE,
+            //         |x, z, diff| {
+            //             // shouldn't be none?
+            //             let Some(chunk) = chunk_grid.get_chunk_mut(x, z) else {
+            //                 return;
+            //             };
+            //             if diff == ChunkDiff::New {
+            //                 entity.write_spawn_packet(&mut chunk.packet_buffer);
+            //                 self.entity_impl.spawn(entity, &mut chunk.packet_buffer);
+            //             }
+            //         }
+            //     )
+            // }
         } /*else if entity.yaw != entity.last_yaw || entity.pitch != entity.last_pitch {
             packet_buffer.write_packet(&EntityRotate {
                 entity_id: entity.id,

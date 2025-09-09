@@ -35,7 +35,7 @@ register_packets! {
     EntityVelocity = 0x12;
     DestroyEntites = 0x13;
     // Entity => 0x14;
-    EntityMove = 0x15;
+    EntityRelativeMove = 0x15;
     EntityRotate = 0x16;
     EntityMoveRotate = 0x17;
     EntityTeleport = 0x18;
@@ -213,11 +213,11 @@ packet_serializable! {
 }
 
 packet_serializable! {
-    pub struct EntityMove {
-        pub entity_id: VarInt,
-        pub pos_x: i8,
-        pub pos_y: i8,
-        pub pos_z: i8,
+    pub struct EntityRelativeMove {
+        pub entity_id: i32 => &VarInt(self.entity_id),
+        pub pos_x: f64 => &((self.pos_x * 32.0).floor() as i32 as i8),
+        pub pos_y: f64 => &((self.pos_y * 32.0).floor() as i32 as i8),
+        pub pos_z: f64 => &((self.pos_z * 32.0).floor() as i32 as i8),
         pub on_ground: bool,
     }
 }

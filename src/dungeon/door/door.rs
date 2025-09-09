@@ -1,8 +1,12 @@
 use crate::block::block_parameter::Axis;
 use crate::block::blocks::Blocks;
+use crate::dungeon::door::door_entity::DoorEntityImpl;
+use crate::dungeon::dungeon::Dungeon;
 use crate::types::block_position::BlockPos;
 use crate::utils::seeded_rng::seeded_rng;
 use crate::world::chunk::chunk_grid::ChunkGrid;
+use crate::world::world::World;
+use glam::DVec3;
 use rand::prelude::IndexedRandom;
 use std::collections::HashMap;
 
@@ -29,7 +33,8 @@ pub struct Door {
     pub x: i32,
     pub z: i32,
     pub axis: Axis,
-    pub door_type: DoorType
+    pub door_type: DoorType,
+    pub is_open: bool,
 }
 
 impl Door {
@@ -96,4 +101,28 @@ impl Door {
         );
     }
     
+    pub fn open(
+        &mut self,
+        world: &mut World<Dungeon>,
+    ) {
+        debug_assert!(!self.is_open, "door is already open");
+        self.is_open = true;
+        
+        world.chunk_grid.fill_blocks(
+            Blocks::Barrier,
+            BlockPos::new(self.x - 1, 69, self.z - 1),
+            BlockPos::new(self.x + 1, 72, self.z + 1),
+        );
+        world.spawn_entity(
+            None,
+            DVec3::new(self.x as f64, 62.0, self.z as f64),
+            0.0,
+            0.0,
+            DoorEntityImpl {
+                block: self.door_type.get_block(),
+                x: self.x - 1,
+                z: self.z - 1,
+            }
+        );
+    }
 }

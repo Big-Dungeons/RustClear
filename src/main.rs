@@ -123,7 +123,7 @@ async fn main() -> anyhow::Result<()> {
         let position = entrance.get_world_block_pos(&BlockPos::new(15, 69, 4)).as_dvec3_centered();
         let yaw = 0.0.rotate(entrance.rotation);
         world.spawn_entity(
-            EntityMetadata::new(EntityVariant::Zombie { is_child: false, is_villager: false }),
+            Some(EntityMetadata::new(EntityVariant::Zombie { is_child: false, is_villager: false })),
             position,
             yaw,
             0.0,

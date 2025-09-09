@@ -17,6 +17,7 @@ impl PlayerExtension for DungeonPlayer {
     type Item = DungeonItem;
 
     fn tick(player: &mut Player<Self>) {
+        // tick item cooldowns here
     }
 
     fn interact(player: &mut Player<Self>, item: Option<ItemStack>, block: Option<BlockInteractResult>) {

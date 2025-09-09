@@ -124,7 +124,7 @@ impl<E : WorldExtension> World<E> {
     
     pub fn spawn_entity<T : EntityImpl<E> + 'static>(
         &mut self,
-        entity_metadata: EntityMetadata,
+        entity_metadata: Option<EntityMetadata>,
         position: DVec3,
         yaw: f32,
         pitch: f32,
