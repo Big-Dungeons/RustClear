@@ -13,7 +13,6 @@ dependencies = [
  "chrono",
  "include_dir",
  "indoc",
- "once_cell",
  "rand",
  "rand_chacha",
  "serde",

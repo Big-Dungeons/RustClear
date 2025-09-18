@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use crate::net::packets::packet::IdentifiedPacket;
 use crate::net::packets::packet_serialize::PacketSerializable;
 use crate::register_packets;
@@ -5,7 +7,6 @@ use base64::engine::general_purpose;
 use base64::Engine;
 use blocks::packet_serializable;
 use bytes::BytesMut;
-use once_cell::sync::Lazy;
 
 register_packets! {
     StatusResponse<'_> = 0x00;
@@ -35,7 +36,7 @@ packet_serializable! {
 // not real sure where to put this, but here should be fine for now.
 const FAVICON_BYTES: &[u8] = include_bytes!("../../../assets/favicon.png");
 
-pub static STATUS_RESPONSE_JSON: Lazy<String> = Lazy::new(|| {
+pub static STATUS_RESPONSE_JSON: LazyLock<String> = LazyLock::new(|| {
     let encoded_image = general_purpose::STANDARD.encode(FAVICON_BYTES);
     let version = env!("CARGO_PKG_VERSION");
 
