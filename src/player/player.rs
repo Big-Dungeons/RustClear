@@ -9,8 +9,10 @@ use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::packets::packet_serialize::PacketSerializable;
 use crate::network::protocol::play::clientbound;
 use crate::network::protocol::play::clientbound::{ConfirmTransaction, WindowItems};
+use crate::network::protocol::play::serverbound::PlayerDiggingAction;
 use crate::player::packet_handling::BlockInteractResult;
 use crate::types::aabb::AABB;
+use crate::types::block_position::BlockPos;
 use crate::world::chunk::chunk_grid::ChunkDiff;
 use crate::world::world::VIEW_DISTANCE;
 use crate::world::world::{World, WorldExtension};
@@ -39,6 +41,11 @@ pub trait PlayerExtension : Sized {
     type Item: Item;
     
     fn tick(player: &mut Player<Self>);
+
+    // maybe make a separate enum that actually only has player digging actions
+    fn dig(player: &mut Player<Self>, position: BlockPos, action: &PlayerDiggingAction) {
+
+    }
 
     fn interact(player: &mut Player<Self>, item: Option<ItemStack>, block: Option<BlockInteractResult>) {
 

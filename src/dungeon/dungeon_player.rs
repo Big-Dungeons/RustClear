@@ -4,9 +4,12 @@ use crate::dungeon::room::room::Room;
 use crate::inventory::item::get_item_stack;
 use crate::inventory::item_stack::ItemStack;
 use crate::network::protocol::play::clientbound::BlockChange;
+use crate::network::protocol::play::serverbound::PlayerDiggingAction;
 use crate::player::packet_handling::BlockInteractResult;
 use crate::player::player::{Player, PlayerExtension};
+use crate::types::block_position::BlockPos;
 use crate::types::direction::Direction;
+use crate::world::world::World;
 
 pub struct DungeonPlayer {
     pub is_ready: bool
@@ -16,8 +19,36 @@ impl PlayerExtension for DungeonPlayer {
     type World = Dungeon;
     type Item = DungeonItem;
 
-    fn tick(player: &mut Player<Self>) {
+    fn tick(_: &mut Player<Self>) {
         // tick item cooldowns here
+    }
+
+    fn dig(player: &mut Player<Self>, position: BlockPos, action: &PlayerDiggingAction) {
+        let mut restore_block = false;
+        match action {
+            PlayerDiggingAction::StartDestroyBlock => {
+                if let Some(item) = *player.inventory.get_hotbar_slot(player.held_slot as usize) {
+                    if matches!(item, DungeonItem::Pickaxe) { 
+                        restore_block = true;
+                    }
+                }
+                
+                // only doors can be interacted with left click I think
+                let world = player.world_mut();
+                player.try_open_door(world, &position);
+            }
+            PlayerDiggingAction::FinishDestroyBlock => {
+                restore_block = true;
+            }
+            _ => {}
+        }
+        if restore_block { 
+            let block = player.world().chunk_grid.get_block_at(position.x, position.y, position.z);
+            player.write_packet(&BlockChange {
+                block_pos: position,
+                block_state: block.get_block_state_id(),
+            })
+        }
     }
 
     fn interact(player: &mut Player<Self>, item: Option<ItemStack>, block: Option<BlockInteractResult>) {
@@ -39,27 +70,15 @@ impl PlayerExtension for DungeonPlayer {
                 });
             }
             
-            
             let world = player.world_mut();
-            
-            if world.has_started() {
-                if let Some(room) = player.current_room() {
-                    for neighbour in room.neighbours() {
-                        let door = unsafe { &mut world.extension_mut().doors[neighbour.door_index] };
-                        if !door.is_open && door.contains(&block.position) {
-                            door.open(world)
-                        }
-                    }
-                }
-            }
+            player.try_open_door(world, &block.position);
         }
-        
+
         let held_item = *player.inventory.get_hotbar_slot(player.held_slot as usize);
         
         if get_item_stack(&held_item) != item {
             player.sync_inventory();
         }
-        
         if let Some(held_item) = held_item {
             held_item.on_right_click(player)
         }
@@ -82,6 +101,19 @@ impl Player<DungeonPlayer> {
             return Some(room)
         }
         None
+    }
+    
+    pub fn try_open_door(&self, world: &mut World<Dungeon>, position: &BlockPos) {
+        if world.has_started() {
+            if let Some(room) = self.current_room() {
+                for neighbour in room.neighbours() {
+                    let door = unsafe { &mut world.extension_mut().doors[neighbour.door_index] };
+                    if !door.is_open && door.contains(position) {
+                        door.open(world)
+                    }
+                }
+            }
+        }
     }
     
 }

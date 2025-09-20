@@ -7,7 +7,7 @@ use crate::types::block_position::BlockPos;
 use crate::types::direction::Direction;
 
 impl ProcessPacket for serverbound::KeepAlive {
-    fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
+    fn process_with_player<P : PlayerExtension>(&self, _: &mut Player<P>) {
         // if player.last_keep_alive == self.id {
         //     if let Ok(since) = SystemTime::now().duration_since(UNIX_EPOCH) {
         //         let since = since.as_millis() as i32 - player.last_keep_alive;
@@ -19,14 +19,8 @@ impl ProcessPacket for serverbound::KeepAlive {
 }
 
 impl ProcessPacket for ChatMessage {
-    fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
-        if self.message.starts_with("/mort") {
-            // player.open_container(OpenContainer::Menu(Box::new(DungeonMenu::Mort)))
-            // let command = self.message.strip_prefix("/").unwrap();
-            // if let Err(e) = Command::handle(command, player.world_mut(), player) {
-            //     eprintln!("cmd failed {e}")
-            // };
-        }
+    fn process_with_player<P : PlayerExtension>(&self, _: &mut Player<P>) {
+        
     }
 }
 
@@ -72,29 +66,7 @@ impl ProcessPacket for PlayerPositionLook {
 
 impl ProcessPacket for PlayerDigging {
     fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
-        // let world = player.world_mut();
-        // match self.action {
-        //     PlayerDiggingAction::StartDestroyBlock => {
-        //         // todo:
-        //         // when block toughness is added,
-        //         // replace check with if vanilla toughness would match
-        //         if let Some(ItemSlot::Filled(Item::DiamondPickaxe)) = player.inventory.get_hotbar_slot(player.held_slot as usize) {
-        //             let block = world.get_block_at(self.position.x, self.position.y, self.position.z);
-        //             player.write_packet(&BlockChange {
-        //                 block_pos: self.position,
-        //                 block_state: block.get_block_state_id(),
-        //             })
-        //         }
-        //     }
-        //     PlayerDiggingAction::FinishDestroyBlock => {
-        //         let block = world.get_block_at(self.position.x, self.position.y, self.position.z);
-        //         player.write_packet(&BlockChange {
-        //             block_pos: self.position,
-        //             block_state: block.get_block_state_id(),
-        //         })
-        //     }
-        //     _ => {}
-        // }
+        P::dig(player, self.position, &self.action);
     }
 }
 
