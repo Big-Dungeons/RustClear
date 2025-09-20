@@ -1,5 +1,6 @@
 use bytes::{Buf, BufMut, BytesMut};
 
+#[repr(transparent)]
 #[derive(PartialEq, Eq)]
 pub struct VarInt(pub i32);
 
