@@ -15,6 +15,9 @@ pub struct RoomSegment {
 }
 
 pub struct RoomNeighbour {
+    // room index is not needed because,
+    // if room neighbour is present from a room segment,
+    // you can get neighbour segment from segments coords
     pub room_index: usize,
     pub door_index: usize,
 }
@@ -85,6 +88,10 @@ impl Room {
             rotation,
             data: room_data
         }
+    }
+
+    pub fn neighbours(&self) -> impl Iterator<Item = &RoomNeighbour> {
+        self.segments.iter().flat_map(|seg| seg.neighbours.iter().map(|n| n).flatten())
     }
 
     pub fn get_corner_pos(&self) -> BlockPos {

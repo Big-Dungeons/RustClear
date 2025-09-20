@@ -15,7 +15,7 @@ use crate::player::player::Player;
 use crate::types::block_position::BlockPos;
 use crate::utils::hasher::deterministic_hasher::DeterministicHashMap;
 use crate::utils::seeded_rng::{seeded_rng, SeededRng};
-use crate::world::world::{World, WorldExtension};
+use crate::world::world::World;
 use anyhow::bail;
 use glam::DVec3;
 use include_dir::include_dir;
@@ -112,7 +112,7 @@ async fn main() -> anyhow::Result<()> {
                 if let EntityInteractionType::InteractAt = action {
                     return;
                 }
-                if let DungeonState::Started { .. } = player.world().state {  
+                if let DungeonState::Started { .. } = player.world().state {
                     return;
                 }
                 player.open_container(OpenContainer::Menu(Box::new(DungeonMenu::Mort)))

@@ -22,26 +22,38 @@ impl PlayerExtension for DungeonPlayer {
 
     fn interact(player: &mut Player<Self>, item: Option<ItemStack>, block: Option<BlockInteractResult>) {
         if let Some(block) = block {
-            
-            let mut pos = block.position;
-            match block.direction {
-                Direction::Down => pos.y -= 1,
-                Direction::Up => pos.y += 1,
-                Direction::North => pos.z -= 1,
-                Direction::South => pos.z += 1,
-                Direction::West => pos.x -= 1,
-                Direction::East => pos.x += 1,
+            {
+                let mut pos = block.position;
+                match block.direction {
+                    Direction::Down => pos.y -= 1,
+                    Direction::Up => pos.y += 1,
+                    Direction::North => pos.z -= 1,
+                    Direction::South => pos.z += 1,
+                    Direction::West => pos.x -= 1,
+                    Direction::East => pos.x += 1,
+                }
+                let block = player.world().chunk_grid.get_block_at(pos.x, pos.y, pos.z);
+                player.write_packet(&BlockChange {
+                    block_pos: pos,
+                    block_state: block.get_block_state_id(),
+                });
             }
-            let block = player.world().chunk_grid.get_block_at(pos.x, pos.y, pos.z);
-            player.write_packet(&BlockChange {
-                block_pos: pos,
-                block_state: block.get_block_state_id(),
-            });
             
-            // todo: handle right clicking doors, and secrets here
+            
+            let world = player.world_mut();
+            
+            if world.has_started() {
+                if let Some(room) = player.current_room() {
+                    for neighbour in room.neighbours() {
+                        let door = unsafe { &mut world.extension_mut().doors[neighbour.door_index] };
+                        if !door.is_open && door.contains(&block.position) {
+                            door.open(world)
+                        }
+                    }
+                }
+            }
         }
         
-        // needs clone, but it is cheap
         let held_item = *player.inventory.get_hotbar_slot(player.held_slot as usize);
         
         if get_item_stack(&held_item) != item {
@@ -62,7 +74,7 @@ impl Player<DungeonPlayer> {
     }
     
     // this functions is mostly a test
-    pub fn current_room(&mut self) -> Option<&Room> {
+    pub fn current_room(&self) -> Option<&Room> {
         let world = self.world();
 
         if let Some((index, _)) = world.get_player_room(self) {

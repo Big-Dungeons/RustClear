@@ -35,9 +35,24 @@ pub struct Door {
     pub axis: Axis,
     pub door_type: DoorType,
     pub is_open: bool,
+    
+    inner_start: BlockPos,
+    inner_end: BlockPos,
 }
 
 impl Door {
+    
+    pub fn new(x: i32, z: i32, axis: Axis, door_type: DoorType) -> Self {
+        Self {
+            x,
+            z,
+            axis,
+            is_open: door_type == DoorType::Normal,
+            door_type,
+            inner_start: BlockPos::new(x - 1, 69, z - 1),
+            inner_end: BlockPos::new(x + 1, 72, z + 1),
+        }
+    }
     
     pub fn load_into_world(
         &self,
@@ -113,6 +128,7 @@ impl Door {
             BlockPos::new(self.x - 1, 69, self.z - 1),
             BlockPos::new(self.x + 1, 72, self.z + 1),
         );
+        // door entity gets rid of blocks when it disappears
         world.spawn_entity(
             None,
             DVec3::new(self.x as f64, 62.0, self.z as f64),
@@ -124,5 +140,13 @@ impl Door {
                 z: self.z - 1,
             }
         );
+    }
+
+    // inner bit of door, blocks abilities
+    pub fn contains(&self, block_pos: &BlockPos) -> bool {
+        let (x ,y , z) = (block_pos.x, block_pos.y, block_pos.z);
+        (x >= self.inner_start.x && x <= self.inner_end.x) &&
+        (y >= self.inner_start.y && y <= self.inner_end.y) &&
+        (z >= self.inner_start.z && z <= self.inner_end.z)
     }
 }

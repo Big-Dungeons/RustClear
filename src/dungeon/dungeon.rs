@@ -123,17 +123,18 @@ impl World<Dungeon> {
                 player.open_container(OpenContainer::None)
             } 
         }
-
-        // i can't be bothered to deal with checker rn because refcell was removed for doors
-        let self_ptr: *mut World<Dungeon> = self;
-        let self2 = unsafe { self_ptr.as_mut().unwrap() };
         
-        for door in self.extension.doors.iter_mut() {
+        // might be bad idea
+        for door in unsafe { self.extension_mut() }.doors.iter_mut() {
             if door.door_type == DoorType::Entrance {
-                door.open(self2);
+                door.open(self);
                 break
             }
         }
+    }
+    
+    pub const fn has_started(&self) -> bool {
+        matches!(self.extension.state, DungeonState::Started { .. })
     }
     
     pub fn update_ready_status(&mut self, player: &mut Player<DungeonPlayer>) {
@@ -194,13 +195,7 @@ impl Dungeon {
                     true => Axis::Z,
                     false => Axis::X,
                 };
-                doors.push(Door {
-                    x: position.x,
-                    z: position.y,
-                    axis,
-                    is_open: door_type == DoorType::Normal,
-                    door_type,
-                })
+                doors.push(Door::new(position.x, position.y, axis, door_type));
             }
         }
         
