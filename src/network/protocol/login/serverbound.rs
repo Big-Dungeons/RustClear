@@ -25,7 +25,7 @@ packet_deserializable! {
 
 impl ProcessPacket for LoginStart {
     async fn process<'a>(&self, client: &mut Client, context: ProcessContext<'a>) -> anyhow::Result<()> {
-        println!("player {} attempted to join", self.username.as_str());
+        println!("player {} attempted to join", self.username);
         let mut packet_buffer = PacketBuffer::new();
 
         let game_profile = GameProfile {
