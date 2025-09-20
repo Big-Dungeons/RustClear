@@ -79,7 +79,7 @@ pub struct Player<E : PlayerExtension> {
 
     // todo: do this for other packets too
     pub sent_block_placement: bool,
-    ticks_existed: u32,
+    pub ticks_existed: u32,
 
     pub extension: E
 }

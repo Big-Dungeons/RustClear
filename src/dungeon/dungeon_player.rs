@@ -1,9 +1,10 @@
+use crate::constants::potions::PotionEffect;
 use crate::dungeon::dungeon::Dungeon;
 use crate::dungeon::items::dungeon_items::DungeonItem;
 use crate::dungeon::room::room::Room;
 use crate::inventory::item::get_item_stack;
 use crate::inventory::item_stack::ItemStack;
-use crate::network::protocol::play::clientbound::BlockChange;
+use crate::network::protocol::play::clientbound::{AddEffect, BlockChange};
 use crate::network::protocol::play::serverbound::PlayerDiggingAction;
 use crate::player::packet_handling::BlockInteractResult;
 use crate::player::player::{Player, PlayerExtension};
@@ -19,8 +20,23 @@ impl PlayerExtension for DungeonPlayer {
     type World = Dungeon;
     type Item = DungeonItem;
 
-    fn tick(_: &mut Player<Self>) {
-        // tick item cooldowns here
+    fn tick(player: &mut Player<Self>) {
+        if player.ticks_existed % 60 == 0 {
+            player.write_packet(&AddEffect {
+                entity_id: player.entity_id,
+                effect_id: PotionEffect::Haste,
+                amplifier: 2,
+                duration: 200,
+                hide_particles: true,
+            });
+            player.write_packet(&AddEffect {
+                entity_id: player.entity_id,
+                effect_id: PotionEffect::NightVision,
+                amplifier: 0,
+                duration: 200,
+                hide_particles: true,
+            });
+        }
     }
 
     fn dig(player: &mut Player<Self>, position: BlockPos, action: &PlayerDiggingAction) {

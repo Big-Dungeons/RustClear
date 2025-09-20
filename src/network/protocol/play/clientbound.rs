@@ -1,4 +1,5 @@
 use crate::constants::particle::Particle;
+use crate::constants::potions::PotionEffect;
 use crate::entity::entity_metadata::EntityMetadata;
 use crate::inventory::item_stack::ItemStack;
 use crate::network::binary::var_int::{var_int_size, VarInt};
@@ -293,10 +294,10 @@ packet_serializable! {
 
 packet_serializable! {
     pub struct AddEffect {
-        pub entity_id: VarInt,
-        pub effect_id: u8,
+        pub entity_id: i32 => &VarInt(self.entity_id),
+        pub effect_id: PotionEffect,
         pub amplifier: i8,
-        pub duration: VarInt,
+        pub duration: i32 => &VarInt(self.duration),
         pub hide_particles: bool,
     }
 }
