@@ -1,4 +1,4 @@
-use crate::network::binary::nbt::nbt::{NBTNode, NBT};
+use crate::network::binary::nbt::{NBTNode, NBT};
 use crate::network::binary::nbt::serialize::*;
 use bytes::{Buf, BytesMut};
 use std::collections::HashMap;

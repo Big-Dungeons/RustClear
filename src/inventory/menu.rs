@@ -1,7 +1,7 @@
 use crate::dungeon::dungeon_player::DungeonPlayer;
 use crate::inventory::item::get_item_stack;
 use crate::inventory::item_stack::ItemStack;
-use crate::network::binary::nbt::nbt::NBT;
+use crate::network::binary::nbt::NBT;
 use crate::network::protocol::play::clientbound::{OpenWindow, SetSlot, WindowItems};
 use crate::network::protocol::play::serverbound::ClickWindow;
 use crate::player::player::{Player, PlayerExtension};

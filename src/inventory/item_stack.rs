@@ -1,5 +1,5 @@
 use crate::network::binary::nbt::deserialize::deserialize_nbt;
-use crate::network::binary::nbt::nbt::NBT;
+use crate::network::binary::nbt::NBT;
 use crate::network::binary::nbt::serialize::{nbt_write_size, serialize_nbt};
 use crate::network::packets::packet_deserialize::PacketDeserializable;
 use crate::network::packets::packet_serialize::PacketSerializable;

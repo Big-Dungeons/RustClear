@@ -32,12 +32,10 @@ impl PacketBuffer {
 
     /// gets a message for network thread to send the packets inside the buffer to the client.
     pub fn get_packet_message(&mut self, client_id: ClientId) -> NetworkThreadMessage {
-        let msg = NetworkThreadMessage::SendPackets {
-            client_id,
-            buffer: self.buffer.clone().freeze(),
-        };
-        self.buffer.clear();
-        msg
+        let new = BytesMut::with_capacity(self.buffer.capacity());
+        let buffer = std::mem::replace(&mut self.buffer, new).freeze();
+        
+        NetworkThreadMessage::SendPackets { client_id, buffer }
     }
     
     pub fn clear(&mut self) {

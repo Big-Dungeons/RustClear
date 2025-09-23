@@ -2,7 +2,7 @@ use crate::dungeon::dungeon_player::DungeonPlayer;
 use crate::dungeon::items::etherwarp::etherwarp;
 use crate::inventory::item::Item;
 use crate::inventory::item_stack::ItemStack;
-use crate::network::binary::nbt::nbt::{NBTNode, NBT};
+use crate::network::binary::nbt::{NBTNode, NBT};
 use crate::network::binary::nbt::serialize::TAG_COMPOUND_ID;
 use crate::player::player::Player;
 use indoc::indoc;

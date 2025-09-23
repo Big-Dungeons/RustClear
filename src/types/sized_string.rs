@@ -16,8 +16,9 @@ impl<const S: usize> SizedString<S> {
 
     pub fn truncated(str: &str) -> Self {
         let mut data = [0u8; S];
+        let len = floor_char_boundary(str, S);
         let bytes = str.as_bytes();
-        let len = bytes.len().min(S);
+        
         data[..len].copy_from_slice(&bytes[..len]);
         Self { length: len, data }
     }
@@ -35,15 +36,15 @@ impl<const S: usize> Display for SizedString<S> {
     }
 }
 
-impl<const S: usize> Into<SizedString<S>> for &str {
-    fn into(self) -> SizedString<S> {
-        SizedString::truncated(self)
+impl<const S: usize> From<&str> for SizedString<S> {
+    fn from(value: &str) -> Self {
+        SizedString::truncated(value)
     }
 }
 
-impl<const S: usize> Into<SizedString<S>> for String {
-    fn into(self) -> SizedString<S> {
-        SizedString::truncated(self.as_str())
+impl<const S: usize> From<String> for SizedString<S> {
+    fn from(value: String) -> Self {
+        SizedString::truncated(value.as_str())
     }
 }
 
@@ -64,7 +65,10 @@ impl<const S : usize> PacketDeserializable for SizedString<S> {
             bail!("String too long. {:?} > {}", len, S);
         }
         let mut data = [0u8; S];
-        data[..len].copy_from_slice(&buffer.split_to(len));
+        let read = buffer.split_to(len);
+        let _ = str::from_utf8(&read)?;
+        data[..len].copy_from_slice(&read);
+        
         Ok(SizedString {
             length: len,
             data,
@@ -80,3 +84,20 @@ impl<const S : usize> Deref for SizedString<S> {
         unsafe { std::str::from_utf8_unchecked(&self.data[..self.length]) }
     }
 }
+
+// std has this but its flagged as unstable and i dont wanna enable nightly for the whole thing just to use this. Update to std if it becomes stable.
+#[inline]
+fn floor_char_boundary(str: &str, index: usize) -> usize {
+    if index >= str.len() {
+        str.len()
+    } else {
+        let lower_bound = index.saturating_sub(3);
+        let new_index = str.as_bytes()[lower_bound..=index]
+            .iter()
+            .rposition(|b| (*b as i8) >= -0x40);
+
+        // SAFETY: we know that the character boundary will be within four bytes
+        unsafe { lower_bound + new_index.unwrap_unchecked() }
+    }
+}
+
