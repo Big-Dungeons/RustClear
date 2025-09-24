@@ -46,7 +46,7 @@ impl LoadAsset for DoorDataAssets {
     
     async fn load_asset(path: &Path) -> anyhow::Result<Self::Output> {
         let path = path.join(Self::SUBPATH);
-        let storage = Box::leak(String::from_utf8(fs::read(path).await?)?.into_boxed_str());
+        let storage = String::from_utf8(fs::read(path).await?)?;
         
         Ok(storage.split("\n").map(|line| {
             let mut blocks: Vec<Blocks> = Vec::new();
