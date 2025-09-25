@@ -248,10 +248,7 @@ pub struct TabComplete {
 impl PacketDeserializable for TabComplete {
     fn read(buffer: &mut BytesMut) -> anyhow::Result<Self> {
         Ok(Self {
-            message: {
-                let msg: SizedString<32767> = SizedString::read(buffer)?;
-                msg.to_string()
-            },
+            message: PacketDeserializable::read(buffer)?,
             target_block: {
                 if u8::read(buffer)? != 0 {
                     Some(BlockPos::read(buffer)?)

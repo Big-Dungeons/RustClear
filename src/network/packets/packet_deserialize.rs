@@ -1,5 +1,5 @@
 use crate::network::binary::var_int::{read_var_int, VarInt};
-use anyhow::bail;
+use anyhow::{bail, Context};
 use bytes::{Buf, BytesMut};
 
 pub trait PacketDeserializable : Sized {
@@ -78,5 +78,18 @@ impl PacketDeserializable for f32 {
 impl PacketDeserializable for f64 {
     fn read(buffer: &mut BytesMut) -> anyhow::Result<Self> {
         Ok(buffer.get_f64())
+    }
+}
+
+impl PacketDeserializable for String {
+    fn read(buffer: &mut BytesMut) -> anyhow::Result<Self> {
+        let len = read_var_int(buffer).context("failed to read string length")? as usize;
+        if len > 32767 {
+            bail!("String too long. {:?} > 32767", len);
+        }
+        match String::from_utf8(buffer.split_to(len).to_vec()) {
+            Ok(string) => Ok(string),
+            Err(_) => bail!("failed to read string")
+        }
     }
 }
