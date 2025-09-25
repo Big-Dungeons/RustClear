@@ -1,10 +1,11 @@
+use std::sync::LazyLock;
+
 use crate::assets::get_assets;
 use crate::network::packets::packet::IdentifiedPacket;
 use crate::network::packets::packet_serialize::PacketSerializable;
 use crate::register_packets;
 use blocks::packet_serializable;
 use bytes::BytesMut;
-use once_cell::sync::Lazy;
 
 register_packets! {
     StatusResponse<'_> = 0x00;
@@ -34,7 +35,7 @@ packet_serializable! {
 // not real sure where to put this, but here should be fine for now.
 
 
-pub static STATUS_RESPONSE_JSON: Lazy<String> = Lazy::new(|| {
+pub static STATUS_RESPONSE_JSON: LazyLock<String> = LazyLock::new(|| {
     let encoded_image = &get_assets().icon_data;
     let version = env!("CARGO_PKG_VERSION");
 

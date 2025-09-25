@@ -13,7 +13,6 @@ dependencies = [
  "chrono",
  "glam",
  "indoc",
- "once_cell",
  "rand",
  "reqwest",
  "serde",

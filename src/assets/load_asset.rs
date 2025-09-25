@@ -69,7 +69,7 @@ impl LoadAsset for DungeonStorageAssets {
     async fn load_asset(path: &Path) -> anyhow::Result<Self::Output> {
         let path = path.join(Self::SUBPATH);
         let storage = Box::leak(String::from_utf8(fs::read(path).await?)?.into_boxed_str());
-        Ok(storage.split(',').collect())
+        Ok(storage.split("\n").collect())
     }
 }
 

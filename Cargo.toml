@@ -15,7 +15,6 @@ indoc = "2.0.6"
 blocks = { path = "crates/macros" }
 chrono = "0.4.41"
 base64 = "0.22.1"
-once_cell = "1.21.3"
 glam = "0.30.5"
 reqwest = "0.12.23"
 zip = "5.1.1"
