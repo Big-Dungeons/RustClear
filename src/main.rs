@@ -4,7 +4,6 @@ use crate::block::rotatable::Rotatable;
 use crate::dungeon::door::door::DoorType;
 use crate::dungeon::dungeon::{Dungeon, DungeonState};
 use crate::dungeon::dungeon_player::DungeonPlayer;
-use crate::dungeon::room::room_data::RoomData;
 use crate::entity::entity::{EntityBase, EntityImpl};
 use crate::entity::entity_metadata::{EntityMetadata, EntityVariant};
 use crate::inventory::menu::{DungeonMenu, OpenContainer};
@@ -113,6 +112,7 @@ async fn main() -> anyhow::Result<()> {
     
     loop {
         tick_interval.tick().await;
+        // let start = Instant::now();
         
         loop {
             match main_rx.try_recv() {
@@ -123,6 +123,7 @@ async fn main() -> anyhow::Result<()> {
         }
 
         world.tick();
+        // println!("elapsed {:?}", start.elapsed())
     }
 }
 

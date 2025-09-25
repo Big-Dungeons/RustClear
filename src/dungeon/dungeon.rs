@@ -11,6 +11,7 @@ use crate::network::binary::var_int::VarInt;
 use crate::network::protocol::play::clientbound::{Chat, EntityProperties, PlayerAbilities};
 use crate::player::attribute::{Attribute, AttributeMap, AttributeModifier};
 use crate::player::player::{ClientId, GameProfile, Player};
+use crate::player::sidebar::Sidebar;
 use crate::types::block_position::BlockPos;
 use crate::types::chat_component::ChatComponent;
 use crate::utils::hasher::deterministic_hasher::DeterministicHashMap;
@@ -33,7 +34,12 @@ pub struct Dungeon {
     room_index_grid: [Option<usize>; 36],
     entrance_room_index: usize,
 
-    pub state: DungeonState
+    pub state: DungeonState,
+    
+    pub wither_key_count: usize,
+    // there can be only 1 blood key in hypixel,
+    // but what if we ever want to do some fun stuff with more than 1
+    pub blood_key_count: usize,
 }
 
 impl WorldExtension for Dungeon {
@@ -80,7 +86,10 @@ impl WorldExtension for Dungeon {
             0.0,
             profile,
             client_id,
-            DungeonPlayer { is_ready: false }
+            DungeonPlayer { 
+                is_ready: false,
+                sidebar: Sidebar::new(),
+            }
         );
 
         let speed: f32 = 500.0 * 0.001;
@@ -106,6 +115,8 @@ impl WorldExtension for Dungeon {
             walk_speed: speed,
         });
 
+        player.extension.sidebar.write_init_packets(&mut player.packet_buffer);
+        
         player.inventory.set_slot(43, Some(DungeonItem::AspectOfTheVoid));
         player.inventory.set_slot(37, Some(DungeonItem::Pickaxe));
         player.inventory.set_slot(44, Some(DungeonItem::SkyblockMenu));
@@ -324,6 +335,8 @@ impl Dungeon {
             room_index_grid: room_grid,
             entrance_room_index,
             state: DungeonState::NotStarted,
+            wither_key_count: 0,
+            blood_key_count: 1,
         })
     }
 

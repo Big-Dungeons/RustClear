@@ -74,7 +74,7 @@ register_packets! {
     // PlayerListItem<'_> = 0x38;
     PlayerAbilities = 0x39;
     TabCompleteReply = 0x3a;
-    ScoreboardObjective<'_> = 0x3b;
+    ScoreboardObjective = 0x3b;
     UpdateScore = 0x3c;
     DisplayScoreboard = 0x3d;
     Teams = 0x3e;
@@ -480,15 +480,16 @@ packet_serializable! {
     }
 }
 
+// hard coded render_type, maybe bad idea??
 #[derive(Debug)]
-pub struct ScoreboardObjective<'a> {
+pub struct ScoreboardObjective {
     pub objective_name: SizedString<16>,
-    pub objective_value: SizedString<32>,
-    pub render_type: &'a str,
+    pub objective_value: SizedString<64>,
+    // pub render_type: &'a str,
     pub mode: i8,
 }
 
-impl<'a> PacketSerializable for ScoreboardObjective<'a> {
+impl PacketSerializable for ScoreboardObjective {
     fn write_size(&self) -> usize {
         let mut size = 0;
         size += self.objective_name.write_size() + self.mode.write_size();
@@ -497,7 +498,9 @@ impl<'a> PacketSerializable for ScoreboardObjective<'a> {
         const UPDATE_NAME: i8 = 2;
 
         if self.mode == ADD_OBJECTIVE || self.mode == UPDATE_NAME {
-            size += self.objective_value.write_size() + self.render_type.write_size();
+            // inline integer type since its always this
+            const S: usize = (*b"integer").len();
+            size += self.objective_value.write_size() + var_int_size(S as i32) + S;
         }
         
         size
@@ -511,7 +514,7 @@ impl<'a> PacketSerializable for ScoreboardObjective<'a> {
 
         if self.mode == ADD_OBJECTIVE || self.mode == UPDATE_NAME {
             self.objective_value.write(buf);
-            self.render_type.write(buf);
+            PacketSerializable::write(&(*b"integer"), buf)
         }
     }
 }
@@ -554,8 +557,8 @@ packet_serializable! {
 pub struct Teams {
     pub name: SizedString<16>,
     pub display_name: SizedString<32>,
-    pub prefix: SizedString<16>,
-    pub suffix: SizedString<16>,
+    pub prefix: SizedString<32>,
+    pub suffix: SizedString<32>,
     pub name_tag_visibility: SizedString<32>,
     pub color: i8,
     pub players: Vec<SizedString<40>>,

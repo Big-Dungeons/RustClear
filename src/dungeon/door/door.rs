@@ -116,11 +116,36 @@ impl Door {
         );
     }
     
+    // todo: check if theres specific messages for trying to open wither/blood doors with no keys
+    pub fn can_open(&self, world: &World<Dungeon>) -> bool {
+        if self.is_open {
+            return false
+        }
+        match self.door_type {
+            DoorType::Wither => world.wither_key_count != 0,
+            DoorType::Blood => world.blood_key_count != 0,
+            _ => true
+        }
+    }
+    
     pub fn open(
         &mut self,
         world: &mut World<Dungeon>,
     ) {
-        debug_assert!(!self.is_open, "door is already open");
+        assert!(!self.is_open, "door is already open");
+
+        match self.door_type {
+            DoorType::Wither => {
+                assert_ne!(world.wither_key_count, 0, "opened a wither door with 0 keys");
+                world.wither_key_count -= 1;
+            }
+            DoorType::Blood => {
+                assert_ne!(world.blood_key_count, 0, "opened blood door with 0 keys");
+                world.blood_key_count -= 1;
+            }
+            _ => {}
+        }
+        
         self.is_open = true;
         
         world.chunk_grid.fill_blocks(
