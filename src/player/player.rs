@@ -1,9 +1,9 @@
 use crate::entity::entity::EntityId;
 use crate::get_chunk_position;
-use crate::inventory::Inventory;
 use crate::inventory::item::{get_item_stack, Item};
 use crate::inventory::item_stack::ItemStack;
 use crate::inventory::menu::OpenContainer;
+use crate::inventory::Inventory;
 use crate::network::packets::packet::IdentifiedPacket;
 use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::packets::packet_serialize::PacketSerializable;
@@ -140,7 +140,7 @@ impl<E : PlayerExtension> Player<E> {
     }
 
     pub fn flush_packets(&mut self) {
-        if !self.packet_buffer.buffer.is_empty() {
+        if !self.packet_buffer.is_empty() {
             let tx = &self.world().network_tx;
             let _ = tx.send(self.packet_buffer.get_packet_message(self.client_id));
         }

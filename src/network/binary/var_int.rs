@@ -45,7 +45,7 @@ pub fn write_var_int(buf: &mut BytesMut, mut value: i32) {
     }
 }
 
-pub fn var_int_size(value: i32) -> usize {
+pub const fn var_int_size(value: i32) -> usize {
     if value == 0 {
         1
     } else {

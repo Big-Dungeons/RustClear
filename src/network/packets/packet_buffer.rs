@@ -1,4 +1,4 @@
-use crate::network::binary::var_int::{write_var_int, VarInt};
+use crate::network::binary::var_int::{var_int_size, write_var_int};
 use crate::network::internal_packets::NetworkThreadMessage;
 use crate::network::packets::packet::IdentifiedPacket;
 use crate::network::packets::packet_serialize::PacketSerializable;
@@ -7,7 +7,7 @@ use bytes::BytesMut;
 
 #[derive(Debug)]
 pub struct PacketBuffer {
-    pub buffer: BytesMut,
+    buffer: BytesMut,
 }
 
 impl PacketBuffer {
@@ -19,14 +19,12 @@ impl PacketBuffer {
     }
 
     pub fn write_packet<P : IdentifiedPacket + PacketSerializable>(&mut self, packet: &P) {
-        let id = VarInt(P::PACKET_ID);
-        write_var_int(&mut self.buffer, (id.write_size() + packet.write_size()) as i32);
-        id.write(&mut self.buffer);
+        let write_size = (var_int_size(P::PACKET_ID) + packet.write_size()) as i32;
+        self.buffer.reserve(write_size as usize + var_int_size(write_size));
+        
+        write_var_int(&mut self.buffer, write_size);
+        write_var_int(&mut self.buffer, P::PACKET_ID);
         packet.write(&mut self.buffer);
-    }
-
-    pub fn copy_from(&mut self, buf: &PacketBuffer) {
-        self.buffer.extend_from_slice(&buf.buffer)
     }
 
     /// gets a message for network thread to send the packets inside the buffer to the client.
@@ -35,8 +33,19 @@ impl PacketBuffer {
         self.buffer.clear();
         NetworkThreadMessage::SendPackets { client_id, buffer }
     }
+
+    #[inline]
+    pub fn copy_from(&mut self, buf: &PacketBuffer) {
+        self.buffer.extend_from_slice(&buf.buffer)
+    }
     
+    #[inline]
     pub fn clear(&mut self) {
         self.buffer.clear();
+    }
+    
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.buffer.is_empty()
     }
 }
