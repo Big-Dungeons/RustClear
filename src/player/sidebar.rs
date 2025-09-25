@@ -7,18 +7,6 @@ use std::ops::Deref;
 
 const OBJECTIVE_NAME: SizedString<16> = unsafe { SizedString::slice_truncated(*b"sidebar") };
 
-// for team packet:
-const CREATE_TEAM: i8 = 0;
-const REMOVE_TEAM: i8 = 1;
-const UPDATE_TEAM: i8 = 2;
-const ADD_PLAYER: i8 = 3;
-
-// const REMOVE_PLAYER: i8 = 4;
-//
-// // for scoreboard objective packet
-// const ADD_OBJECTIVE: i8 = 0;
-const UPDATE_NAME: i8 = 2;
-
 pub struct Sidebar {
     lines: Vec<SizedString<64>>,
     previous: Vec<SizedString<64>>,
@@ -205,3 +193,14 @@ fn split_string(string: &SizedString<64>) -> (SizedString<32>, SizedString<32>) 
 
     (first_half.into(), second_half.into())
 }
+
+// for team packet:
+const CREATE_TEAM: i8 = 0;
+const REMOVE_TEAM: i8 = 1;
+const UPDATE_TEAM: i8 = 2;
+const ADD_PLAYER: i8 = 3;
+// const REMOVE_PLAYER: i8 = 4;
+
+// for scoreboard objective packet
+// const ADD_OBJECTIVE: i8 = 0;
+const UPDATE_NAME: i8 = 2;
