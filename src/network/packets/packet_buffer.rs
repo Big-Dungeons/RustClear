@@ -23,7 +23,6 @@ impl PacketBuffer {
         write_var_int(&mut self.buffer, (id.write_size() + packet.write_size()) as i32);
         id.write(&mut self.buffer);
         packet.write(&mut self.buffer);
-        
     }
 
     pub fn copy_from(&mut self, buf: &PacketBuffer) {
@@ -32,9 +31,8 @@ impl PacketBuffer {
 
     /// gets a message for network thread to send the packets inside the buffer to the client.
     pub fn get_packet_message(&mut self, client_id: ClientId) -> NetworkThreadMessage {
-        let new = BytesMut::with_capacity(self.buffer.capacity());
-        let buffer = std::mem::replace(&mut self.buffer, new).freeze();
-        
+        let buffer = self.buffer.split().freeze();
+        self.buffer.clear();
         NetworkThreadMessage::SendPackets { client_id, buffer }
     }
     

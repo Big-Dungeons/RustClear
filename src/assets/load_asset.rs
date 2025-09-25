@@ -1,6 +1,6 @@
-use std::path::Path;
 use anyhow::Context;
 use base64::{engine::general_purpose, Engine};
+use std::path::Path;
 use tokio::fs;
 
 use crate::{block::blocks::Blocks, dungeon::room::room_data::RoomData, utils::hasher::deterministic_hasher::DeterministicHashMap};
@@ -28,7 +28,7 @@ impl LoadAsset for RoomDataAssets {
         while let Some(file) = entries.next_entry().await? {
             let name = file.file_name();
             let file = fs::read(file.path()).await?;
-            let contents = str::from_utf8(&file)?;
+            let contents = std::str::from_utf8(&file)?;
             let room_data = RoomData::from_raw_json(contents);
 
             let name_parts: Vec<&str> = name.to_str().context("Failed to convert file name to str")?.split(",").collect();

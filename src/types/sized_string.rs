@@ -66,7 +66,7 @@ impl<const S : usize> PacketDeserializable for SizedString<S> {
         }
         let mut data = [0u8; S];
         let read = buffer.split_to(len);
-        let _ = str::from_utf8(&read)?;
+        let _ = std::str::from_utf8(&read)?;
         data[..len].copy_from_slice(&read);
         
         Ok(SizedString {
