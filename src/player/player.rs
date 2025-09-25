@@ -1,6 +1,6 @@
 use crate::entity::entity::EntityId;
 use crate::get_chunk_position;
-use crate::inventory::inventory::Inventory;
+use crate::inventory::Inventory;
 use crate::inventory::item::{get_item_stack, Item};
 use crate::inventory::item_stack::ItemStack;
 use crate::inventory::menu::OpenContainer;

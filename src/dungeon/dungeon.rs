@@ -17,7 +17,6 @@ use crate::utils::hasher::deterministic_hasher::DeterministicHashMap;
 use crate::world::world::{World, WorldExtension};
 use anyhow::bail;
 use glam::IVec2;
-use std::collections::HashMap;
 use uuid::Uuid;
 
 pub const DUNGEON_ORIGIN: IVec2 = IVec2::new(-200, -200);
@@ -199,7 +198,7 @@ impl Dungeon {
             }
         }
         
-        let mut room_id_map: HashMap<usize, Vec<RoomSegment>> = HashMap::new();
+        let mut room_id_map: DeterministicHashMap<usize, Vec<RoomSegment>> = DeterministicHashMap::default();
         
         for index in 0..36 {
             let x = index % 6;

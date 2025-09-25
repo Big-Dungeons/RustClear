@@ -1,8 +1,7 @@
+use crate::assets::get_assets;
 use crate::network::packets::packet::IdentifiedPacket;
 use crate::network::packets::packet_serialize::PacketSerializable;
 use crate::register_packets;
-use base64::engine::general_purpose;
-use base64::Engine;
 use blocks::packet_serializable;
 use bytes::BytesMut;
 use once_cell::sync::Lazy;
@@ -33,10 +32,10 @@ packet_serializable! {
 }
 
 // not real sure where to put this, but here should be fine for now.
-const FAVICON_BYTES: &[u8] = include_bytes!("../../../assets/favicon.png");
+
 
 pub static STATUS_RESPONSE_JSON: Lazy<String> = Lazy::new(|| {
-    let encoded_image = general_purpose::STANDARD.encode(FAVICON_BYTES);
+    let encoded_image = &get_assets().icon_data;
     let version = env!("CARGO_PKG_VERSION");
 
     format!(r#"{{

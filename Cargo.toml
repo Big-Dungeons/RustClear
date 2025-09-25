@@ -5,20 +5,20 @@ edition = "2024"
 
 [dependencies]
 bytes = "1.10.1"
-tokio = { version = "1.45.1", features = ["rt", "rt-multi-thread", "macros", "net", "io-util", "sync", "time"] }
+tokio = { version = "1.45.1", features = ["rt", "rt-multi-thread", "macros", "net", "io-util", "sync", "time", "fs"] }
 anyhow = "1.0.98"
 serde_json = "1.0.140"
 serde = { version = "1.0.219", features = ["derive"] }
 uuid = { version = "1.17.0", features = ["v4"] }
 rand = "0.9.1"
 indoc = "2.0.6"
-include_dir = "0.7.4"
 blocks = { path = "crates/macros" }
 chrono = "0.4.41"
-rand_chacha = "0.9.0"
 base64 = "0.22.1"
 once_cell = "1.21.3"
 glam = "0.30.5"
+reqwest = "0.12.23"
+zip = "5.1.1"
 
 [profile.dev.package."*"]
 opt-level = 3
