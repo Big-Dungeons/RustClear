@@ -1,4 +1,5 @@
 use crate::block::blocks::Blocks;
+use crate::dungeon::door::door::Door;
 use crate::dungeon::dungeon::DUNGEON_ORIGIN;
 use crate::dungeon::room::room_data::RoomData;
 use crate::types::aabb::AABB;
@@ -6,7 +7,9 @@ use crate::types::block_position::BlockPos;
 use crate::types::direction::Direction;
 use crate::world::chunk::chunk_grid::ChunkGrid;
 use glam::dvec3;
+use std::cell::RefCell;
 use std::collections::HashSet;
+use std::rc::Rc;
 
 pub struct RoomSegment {
     pub x: usize,
@@ -15,11 +18,8 @@ pub struct RoomSegment {
 }
 
 pub struct RoomNeighbour {
-    // room index is not needed because,
-    // if room neighbour is present from a room segment,
-    // you can get neighbour segment from segments coords
-    pub room_index: usize,
-    pub door_index: usize,
+    pub room: Rc<RefCell<Room>>,
+    pub door: Rc<RefCell<Door>>
 }
 
 pub struct RoomBounds {
@@ -33,6 +33,10 @@ pub struct Room {
     
     pub rotation: Direction,
     pub data: RoomData,
+
+    pub discovered: bool,
+    // idk if a bool value,
+    pub completed: bool,
 }
 
 impl Room {
@@ -86,7 +90,9 @@ impl Room {
             segments,
             room_bounds,
             rotation,
-            data: room_data
+            data: room_data,
+            discovered: false,
+            completed: false,
         }
     }
 

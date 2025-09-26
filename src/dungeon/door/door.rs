@@ -18,26 +18,16 @@ pub enum DoorType {
     Blood,
 }
 
-impl DoorType {
-    const fn get_block(&self) -> Blocks {
-        match self {
-            DoorType::Normal => Blocks::Air,
-            DoorType::Entrance => Blocks::SilverfishBlock { variant: 5 },
-            DoorType::Wither => Blocks::CoalBlock,
-            DoorType::Blood => Blocks::StainedHardenedClay { color: 14 }
-        }
-    }
-}
-
 pub struct Door {
     pub x: i32,
     pub z: i32,
     pub axis: Axis,
-    pub door_type: DoorType,
-    pub is_open: bool,
+    door_type: DoorType,
     
     inner_start: BlockPos,
     inner_end: BlockPos,
+
+    pub is_open: bool,
 }
 
 impl Door {
@@ -51,6 +41,19 @@ impl Door {
             door_type,
             inner_start: BlockPos::new(x - 1, 69, z - 1),
             inner_end: BlockPos::new(x + 1, 72, z + 1),
+        }
+    }
+    
+    pub const fn get_type(&self) -> &DoorType {
+        &self.door_type
+    }
+
+    const fn get_block(&self) -> Blocks {
+        match self.door_type {
+            DoorType::Normal => Blocks::Air,
+            DoorType::Entrance => Blocks::SilverfishBlock { variant: 5 },
+            DoorType::Wither => Blocks::CoalBlock,
+            DoorType::Blood => Blocks::StainedHardenedClay { color: 14 }
         }
     }
     
@@ -110,13 +113,12 @@ impl Door {
         }
 
         chunk_grid.fill_blocks(
-            self.door_type.get_block(),
+            self.get_block(),
             BlockPos::new(self.x - 1, 69, self.z - 1),
             BlockPos::new(self.x + 1, 72, self.z + 1),
         );
     }
     
-    // todo: check if theres specific messages for trying to open wither/blood doors with no keys
     pub fn can_open(&self, world: &World<Dungeon>) -> bool {
         if self.is_open {
             return false
@@ -128,10 +130,7 @@ impl Door {
         }
     }
     
-    pub fn open(
-        &mut self,
-        world: &mut World<Dungeon>,
-    ) {
+    pub fn open(&mut self, world: &mut World<Dungeon>) {
         assert!(!self.is_open, "door is already open");
 
         match self.door_type {
@@ -160,7 +159,7 @@ impl Door {
             0.0,
             0.0,
             DoorEntityImpl {
-                block: self.door_type.get_block(),
+                block: self.get_block(),
                 x: self.x - 1,
                 z: self.z - 1,
             }

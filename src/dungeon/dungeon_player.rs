@@ -4,16 +4,19 @@ use crate::dungeon::items::dungeon_items::DungeonItem;
 use crate::dungeon::room::room::Room;
 use crate::inventory::item::get_item_stack;
 use crate::inventory::item_stack::ItemStack;
-use crate::network::protocol::play::clientbound::{AddEffect, BlockChange};
+use crate::network::protocol::play::clientbound::{AddEffect, BlockChange, Chat};
 use crate::network::protocol::play::serverbound::PlayerDiggingAction;
 use crate::player::packet_handling::BlockInteractResult;
 use crate::player::player::{Player, PlayerExtension};
 use crate::player::sidebar::Sidebar;
 use crate::types::block_position::BlockPos;
+use crate::types::chat_component::ChatComponent;
 use crate::types::direction::Direction;
 use crate::world::world::World;
 use chrono::Local;
 use indoc::{formatdoc, indoc};
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct DungeonPlayer {
@@ -44,6 +47,16 @@ impl PlayerExtension for DungeonPlayer {
         }
 
         player.update_sidebar();
+
+        // temp
+        let world = player.world_mut();
+        if world.has_dungeon_started() {
+            if let Some(room_rc) = player.get_current_room() {
+                if !room_rc.borrow().discovered {
+                    world.discover_room(&room_rc)
+                }
+            }
+        }
     }
 
     fn dig(player: &mut Player<Self>, position: BlockPos, action: &PlayerDiggingAction) {
@@ -114,27 +127,38 @@ impl Player<DungeonPlayer> {
         self.extension.is_ready = !self.extension.is_ready;
         self.world_mut().update_ready_status(self);
     }
-    
-    // this functions is mostly a test
-    pub fn current_room(&self) -> Option<&Room> {
-        let world = self.world();
 
+    pub fn get_current_room(&self) -> Option<Rc<RefCell<Room>>> {
+        let world = self.world();
         if let Some((index, _)) = world.get_player_room(self) {
             let room = &world.rooms[index];
-            return Some(room)
+            return Some(room.clone())
         }
         None
     }
     
-    pub fn try_open_door(&self, world: &mut World<Dungeon>, position: &BlockPos) {
-        if world.has_started() {
-            if let Some(room) = self.current_room() {
-                for neighbour in room.neighbours() {
-                    let door = unsafe { &mut world.extension_mut().doors[neighbour.door_index] };
-                    // todo: msg and sound when try open with no key
-                    if door.can_open(world) && door.contains(position) {
-                        door.open(world)
+    pub fn try_open_door(&mut self, world: &mut World<Dungeon>, position: &BlockPos) {
+        if world.has_dungeon_started() {
+            if let Some(room_rc) = self.get_current_room() {
+                for neighbour in room_rc.borrow().neighbours() {
+                    {
+                        let mut door = neighbour.door.borrow_mut();
+
+                        if !door.contains(position) || door.is_open {
+                            continue;
+                        }
+                        if !door.can_open(world) {
+                            // todo: proper chat message and sound
+                            self.write_packet(&Chat {
+                                component: ChatComponent::new("no key"),
+                                chat_type: 0,
+                            });
+                            continue;
+                        }
+
+                        door.open(world);
                     }
+                    world.discover_room(&neighbour.room);
                 }
             }
         }
@@ -148,7 +172,8 @@ impl Player<DungeonPlayer> {
         let date = now.format("%m/%d/%y").to_string();
         let time = now.format("%-I:%M%P").to_string();
 
-        let room_id = if let Some(room) = self.current_room() {
+        let room_id = if let Some(room_rc) = self.get_current_room() {
+            let room = room_rc.borrow();
             &*room.data.id.clone()
         } else {
             ""
@@ -270,6 +295,6 @@ fn get_sb_date() -> (&'static str, u64, &'static str) {
             _ => "th",
         },
     };
-    //sb_month = SKYBLOCK_MONTHS[month], day = day_of_month, day_suffix = suffix
+    // sb_month = SKYBLOCK_MONTHS[month], day = day_of_month, day_suffix = suffix
     (SKYBLOCK_MONTHS[month], day_of_month, suffix)
 }

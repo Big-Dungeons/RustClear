@@ -1,6 +1,5 @@
 use crate::constants::particle::Particle;
 use crate::dungeon::dungeon_player::DungeonPlayer;
-use crate::dungeon::room::room_data::RoomType;
 use crate::network::protocol::play::clientbound::{PositionLook, SoundEffect};
 use crate::player::player::Player;
 use crate::utils::bitset::BitSet;
@@ -23,12 +22,12 @@ enum EtherResult {
 pub fn etherwarp(player: &mut Player<DungeonPlayer>) {
     // temporary, but just to test,
     // since some puzzles let you teleport in them, and others don't
-    if let Some(current_room) = player.current_room() {
-        match current_room.data.room_type {
-            RoomType::Trap | RoomType::Puzzle => return,
-            _ => {}
-        }
-    };
+    // if let Some(current_room) = player.current_room() {
+    //     match current_room.data.room_type {
+    //         RoomType::Trap | RoomType::Puzzle => return,
+    //         _ => {}
+    //     }
+    // };
     
     let mut start_pos = player.position.clone();
     start_pos.y += 1.54; // assume always sneaking
@@ -47,13 +46,13 @@ pub fn etherwarp(player: &mut Player<DungeonPlayer>) {
     };
 
     if let EtherResult::Valid(x, y, z) = traverse_voxels(&player.world().chunk_grid, start_pos, end_pos) {
-        let dungeon = &player.world().extension;
-        if let Some(index) = dungeon.get_room_at(x, z) {
-            let room = &dungeon.rooms[index];
-            if room.data.room_type == RoomType::Puzzle { 
-                return;
-            }
-        }
+        // let dungeon = &player.world().extension;
+        // if let Some(index) = dungeon.get_room_at(x, z) {
+        //     let room = &dungeon.rooms[index];
+        //     if room.data.room_type == RoomType::Puzzle {
+        //         return;
+        //     }
+        // }
         
         
         player.world_mut().spawn_particle(

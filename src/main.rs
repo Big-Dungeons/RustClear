@@ -66,7 +66,7 @@ async fn main() -> anyhow::Result<()> {
     );
 
     for room in world.extension.rooms.iter() {
-        room.load_into_world(&mut world.chunk_grid);
+        room.borrow().load_into_world(&mut world.chunk_grid);
     }
     load_doors_into_world(&mut world);
 
@@ -99,7 +99,9 @@ async fn main() -> anyhow::Result<()> {
         }
 
         let entrance = world.extension.entrance_room();
+        let entrance = entrance.borrow();
         let position = entrance.get_world_block_pos(&BlockPos::new(15, 69, 4)).as_dvec3_centered();
+        
         let yaw = 0.0.rotate(entrance.rotation);
         world.spawn_entity(
             Some(EntityMetadata::new(EntityVariant::Zombie { is_child: false, is_villager: false })),
@@ -160,6 +162,6 @@ fn load_doors_into_world(world: &mut World<Dungeon>) {
     );
     
     for door in world.extension.doors.iter() {
-        door.load_into_world(&mut world.chunk_grid, &door_type_blocks)
+        door.borrow().load_into_world(&mut world.chunk_grid, &door_type_blocks)
     }
 }
