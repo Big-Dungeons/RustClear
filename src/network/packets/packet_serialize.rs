@@ -126,12 +126,13 @@ impl PacketSerializable for &[u8] {
     }
 }
 
-impl<const N: usize> PacketSerializable for &[u8; N] {
+impl<const N: usize> PacketSerializable for [u8; N] {
     fn write_size(&self) -> usize {
-        N
+        var_int_size(N as i32) + N
     }
     fn write(&self, buf: &mut BytesMut) {
-        buf.put_slice(*self)
+        write_var_int(buf, N as i32);
+        buf.put_slice(self)
     }
 }
 

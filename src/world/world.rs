@@ -55,12 +55,6 @@ impl<E : WorldExtension> World<E> {
         }
     }
 
-    // might be bad idea
-    pub unsafe fn extension_mut<'a>(&mut self) -> &'a mut E {
-        let self_ptr: *mut World<E> = self;
-        unsafe { &mut (*self_ptr).extension }
-    }
-
     pub fn new_entity_id(&mut self) -> i32 {
         self.entity_id += 1;
         self.entity_id
@@ -258,9 +252,6 @@ impl<E : WorldExtension> World<E> {
         }
     }
 }
-
-// im not sure if using deref is a good idea?
-
 
 impl<W : WorldExtension> Deref for World<W> {
     type Target = W;

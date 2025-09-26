@@ -4,6 +4,7 @@ use crate::dungeon::door::door::{Door, DoorType};
 use crate::dungeon::door::door_positions::DOOR_POSITIONS;
 use crate::dungeon::dungeon_player::DungeonPlayer;
 use crate::dungeon::items::dungeon_items::DungeonItem;
+use crate::dungeon::map::DungeonMap;
 use crate::dungeon::room::room::{Room, RoomNeighbour, RoomSegment};
 use crate::dungeon::room::room_data::{get_random_data_with_type, RoomData, RoomShape, RoomType};
 use crate::inventory::menu::OpenContainer;
@@ -11,12 +12,15 @@ use crate::network::binary::var_int::VarInt;
 use crate::network::protocol::play::clientbound::{Chat, EntityProperties, PlayerAbilities};
 use crate::player::attribute::{Attribute, AttributeMap, AttributeModifier};
 use crate::player::player::{ClientId, GameProfile, Player};
+use crate::player::sidebar::Sidebar;
 use crate::types::block_position::BlockPos;
 use crate::types::chat_component::ChatComponent;
 use crate::utils::hasher::deterministic_hasher::DeterministicHashMap;
 use crate::world::world::{World, WorldExtension};
 use anyhow::bail;
 use glam::IVec2;
+use std::cell::RefCell;
+use std::rc::Rc;
 use uuid::Uuid;
 
 pub const DUNGEON_ORIGIN: IVec2 = IVec2::new(-200, -200);
@@ -28,12 +32,18 @@ pub enum DungeonState {
 }
 
 pub struct Dungeon {
-    pub rooms: Vec<Room>,
-    pub doors: Vec<Door>,
+    pub rooms: Vec<Rc<RefCell<Room>>>,
+    pub doors: Vec<Rc<RefCell<Door>>>,
     room_index_grid: [Option<usize>; 36],
     entrance_room_index: usize,
 
-    pub state: DungeonState
+    pub state: DungeonState,
+    pub map: DungeonMap,
+
+    // there can be only 1 blood key in hypixel,
+    // but what if we ever want to do some fun stuff with more than 1
+    pub blood_key_count: usize,
+    pub wither_key_count: usize,
 }
 
 impl WorldExtension for Dungeon {
@@ -65,13 +75,21 @@ impl WorldExtension for Dungeon {
             }
             DungeonState::Started { ticks } => {
                 *ticks += 1;
+
+                if let Some(packet) = world.extension.map.get_packet() {
+                    for player in world.players.iter_mut() {
+                        player.write_packet(&packet)
+                    }
+                }
             }
             _ => {}
         }
     }
 
     fn on_player_join(world: &mut World<Self>, profile: GameProfile, client_id: ClientId) {
-        let entrance = world.extension.entrance_room();
+        let entrance = world.extension.entrance_room().clone();
+        let entrance = entrance.borrow();
+
         let position = entrance.get_world_block_pos(&BlockPos::new(15, 72, 18)).as_dvec3_centered();
         
         let player = world.spawn_player(
@@ -80,7 +98,10 @@ impl WorldExtension for Dungeon {
             0.0,
             profile,
             client_id,
-            DungeonPlayer { is_ready: false }
+            DungeonPlayer { 
+                is_ready: false,
+                sidebar: Sidebar::new(),
+            }
         );
 
         let speed: f32 = 500.0 * 0.001;
@@ -106,6 +127,8 @@ impl WorldExtension for Dungeon {
             walk_speed: speed,
         });
 
+        player.extension.sidebar.write_init_packets(&mut player.packet_buffer);
+        
         player.inventory.set_slot(43, Some(DungeonItem::AspectOfTheVoid));
         player.inventory.set_slot(37, Some(DungeonItem::Pickaxe));
         player.inventory.set_slot(44, Some(DungeonItem::SkyblockMenu));
@@ -120,19 +143,27 @@ impl World<Dungeon> {
         for player in self.players.iter_mut() {
             if let OpenContainer::Menu(_) = player.open_container {
                 player.open_container(OpenContainer::None)
-            } 
-        }
-        
-        // might be bad idea
-        for door in unsafe { self.extension_mut() }.doors.iter_mut() {
-            if door.door_type == DoorType::Entrance {
-                door.open(self);
-                break
             }
+            player.inventory.set_slot(44, Some(DungeonItem::MagicalMap));
+            player.sync_inventory();
+        }
+
+        let entrance_room = self.entrance_room();
+        self.discover_room(&entrance_room);
+
+        for neighbour in entrance_room.borrow().neighbours() {
+            neighbour.door.borrow_mut().open(self);
+            self.discover_room(&neighbour.room);
         }
     }
+
+    pub fn discover_room(&mut self, room_rc: &Rc<RefCell<Room>>) {
+        assert!(!room_rc.borrow().discovered, "tried discovering an already discovered room");
+        room_rc.borrow_mut().discovered = true;
+        self.map.draw_room(room_rc);
+    }
     
-    pub const fn has_started(&self) -> bool {
+    pub const fn has_dungeon_started(&self) -> bool {
         matches!(self.extension.state, DungeonState::Started { .. })
     }
     
@@ -175,8 +206,8 @@ impl Dungeon {
         room_data_storage: &DeterministicHashMap<usize, RoomData>,
     ) -> anyhow::Result<Dungeon> {
         
-        let mut rooms: Vec<Room> = Vec::new();
-        let mut doors: Vec<Door> = Vec::new();
+        let mut rooms: Vec<Rc<RefCell<Room>>> = Vec::new();
+        let mut doors: Vec<Rc<RefCell<Door>>> = Vec::new();
 
         for (index, position) in DOOR_POSITIONS.into_iter().enumerate() {
             let Some(type_string) = layout_str.get(index + 72..index+73) else {
@@ -194,10 +225,18 @@ impl Dungeon {
                     true => Axis::Z,
                     false => Axis::X,
                 };
-                doors.push(Door::new(position.x, position.y, axis, door_type));
+                doors.push(Rc::new(RefCell::new(Door::new(position.x, position.y, axis, door_type))));
             }
         }
-        
+
+        // used in room neighbours as a temporary value,
+        // if the reference count of this != 1 after finishing initializing it will fail
+        let placeholder_neighbour = Rc::new(RefCell::new(Room::new(vec![RoomSegment {
+            x: 0,
+            z: 0,
+            neighbours: [const { None }; 4],
+        }], RoomData::dummy())));
+
         let mut room_id_map: DeterministicHashMap<usize, Vec<RoomSegment>> = DeterministicHashMap::default();
         
         for index in 0..36 {
@@ -234,13 +273,13 @@ impl Dungeon {
             ];
             for (index, (door_x, door_z)) in door_options.into_iter().enumerate() {
                 let door = doors.iter().enumerate().find(|(_, door)| {
+                    let door = door.borrow();
                     door.x == door_x && door.z == door_z
                 });
-
-                if let Some((door_index, _)) = door {
+                if let Some((_, door)) = door {
                     segment.neighbours[index] = Some(RoomNeighbour {
-                        room_index: 0, // will be populated later? if at all
-                        door_index,
+                        room: placeholder_neighbour.clone(),
+                        door: door.clone(),
                     });
                 }
             }
@@ -269,7 +308,7 @@ impl Dungeon {
                     &rooms
                 );
                 room_data.room_type = room_type;
-                rooms.push(Room::new(vec![segment], room_data));
+                rooms.push(Rc::new(RefCell::new(Room::new(vec![segment], room_data))));
                 continue;
             }
             
@@ -282,7 +321,7 @@ impl Dungeon {
         for segments in room_id_map.into_values() {
             let shape = RoomShape::from_segments(&segments);
             let data = get_random_data_with_type(RoomType::Normal, shape, &room_data_storage, &rooms);
-            rooms.push(Room::new(segments, data))
+            rooms.push(Rc::new(RefCell::new(Room::new(segments, data))))
         }
 
         // populate room index grid
@@ -292,6 +331,7 @@ impl Dungeon {
         let mut entrance_room_index = 0;
 
         for (index, room) in rooms.iter().enumerate() {
+            let room = room.borrow();
             if room.data.room_type == RoomType::Entrance {
                 entrance_room_index = index;
             }
@@ -317,6 +357,41 @@ impl Dungeon {
             }
         }
 
+        // replace placeholder_neighbour with its actual neighbours
+        for room_rc in rooms.iter() {
+            for segment in room_rc.borrow_mut().segments.iter_mut() {
+                for (index, neighbour) in segment.neighbours.iter_mut().enumerate() {
+                    if let Some(neighbour) = neighbour {
+                        // shouldn't be possible to error unless its an invalid dungeon
+                        let neighbour_position = match index {
+                            0 => segment.x + ((segment.z - 1) * 6),
+                            1 => (segment.x + 1) + (segment.z * 6),
+                            2 => segment.x + ((segment.z + 1) * 6),
+                            3 => (segment.x - 1) + (segment.z * 6),
+                            _ => unreachable!()
+                        };
+                        neighbour.room = rooms[room_grid[neighbour_position].unwrap()].clone()
+                    }
+                }
+            }
+        }
+
+        if Rc::strong_count(&placeholder_neighbour) > 1 {
+            bail!("Placeholder neighbour is leaked, likely caused by invalid room layout")
+        }
+
+        // temp
+        let mut wither_key_count = 0;
+
+        for door in doors.iter() {
+            let door = door.borrow();
+            if let DoorType::Wither = door.get_type() {
+                wither_key_count += 1;
+            }
+        }
+
+        let map_offset_x = (128 - (grid_max_x + 1) * 20) / 2;
+        let map_offset_y = (128 - (grid_max_y + 1) * 20) / 2;
 
         Ok(Dungeon {
             rooms,
@@ -324,32 +399,45 @@ impl Dungeon {
             room_index_grid: room_grid,
             entrance_room_index,
             state: DungeonState::NotStarted,
+            map: DungeonMap::new(map_offset_x, map_offset_y),
+            wither_key_count,
+            blood_key_count: 1,
+
         })
     }
 
-    pub fn entrance_room(&self) -> &Room {
-        &self.rooms[self.entrance_room_index]
+    pub fn entrance_room(&self) -> Rc<RefCell<Room>> {
+        self.rooms[self.entrance_room_index].clone()
     }
+
+    // todo: clean up everything under here
     
-    // maybe this also considers room bounds? im not sure
-    pub fn get_room_at(&self, x: i32, z: i32) -> Option<usize> {
-        if x < DUNGEON_ORIGIN.x || z < DUNGEON_ORIGIN.y { 
+    pub fn get_room_grid_position(x: i32, z: i32) -> Option<usize> {
+        if x < DUNGEON_ORIGIN.x || z < DUNGEON_ORIGIN.y {
             return None;
         }
         let grid_x = ((x - DUNGEON_ORIGIN.x) / 32) as usize;
         let grid_z = ((z - DUNGEON_ORIGIN.y) / 32) as usize;
-        *self.room_index_grid.get(grid_x + (grid_z * 6)).unwrap_or_else(|| &None)
+        Some(grid_x + (grid_z * 6))
     }
-    
+
+    pub fn get_room_index_at(&self, x: i32, z: i32) -> Option<usize> {
+        *self.room_index_grid.get(Self::get_room_grid_position(x, z)?).unwrap_or_else(|| &None)
+    }
+
+    // todo: instead of doing this everytime player needs room,
+    // once a tick, get the room the player is in, then just use a reference between each
     pub fn get_player_room(&self, player: &Player<DungeonPlayer>) -> Option<(usize, Option<usize>)> {
-        let room_index = self.get_room_at(
+        let room_index = self.get_room_index_at(
             player.position.x as i32,
             player.position.z as i32
         );
+
         if let Some(index) = room_index {
             let player_aabb = player.collision_aabb();
+            let room = &self.rooms[index].borrow();
 
-            for room_bounds in self.rooms[index].room_bounds.iter() {
+            for room_bounds in room.room_bounds.iter() {
                 if player_aabb.intersects(&room_bounds.aabb) {
                     return Some((index, room_bounds.segment_index))
                 }

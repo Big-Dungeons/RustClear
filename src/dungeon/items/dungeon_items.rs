@@ -2,8 +2,8 @@ use crate::dungeon::dungeon_player::DungeonPlayer;
 use crate::dungeon::items::etherwarp::etherwarp;
 use crate::inventory::item::Item;
 use crate::inventory::item_stack::ItemStack;
-use crate::network::binary::nbt::{NBTNode, NBT};
 use crate::network::binary::nbt::serialize::TAG_COMPOUND_ID;
+use crate::network::binary::nbt::{NBTNode, NBT};
 use crate::player::player::Player;
 use indoc::indoc;
 use std::collections::HashMap;
@@ -12,6 +12,7 @@ use std::collections::HashMap;
 pub enum DungeonItem {
     AspectOfTheVoid,
     SkyblockMenu,
+    MagicalMap,
     Pickaxe,
 }
 
@@ -58,6 +59,20 @@ impl Item for DungeonItem {
                     ]),
                 ])),
             },
+            DungeonItem::MagicalMap => ItemStack {
+                item: 358,
+                stack_size: 1,
+                metadata: 1,
+                tag_compound: Some(NBT::with_nodes(vec![
+                    NBT::compound("display", vec![
+                        NBT::string("Name", "§bMagical Map"),
+                        NBT::list_from_string("Lore", indoc! {r#"
+                            §7Shows the layout of the Dungeon as
+                            §7it is explored and completed.
+                        "#})
+                    ]),
+                ])),
+            },
             DungeonItem::Pickaxe => ItemStack {
                 item: 278,
                 stack_size: 1,
@@ -91,7 +106,7 @@ impl Item for DungeonItem {
     }
     fn can_move_in_inventory(&self) -> bool {
         match self {
-            DungeonItem::SkyblockMenu => false,
+            DungeonItem::SkyblockMenu | DungeonItem::MagicalMap => false,
             _ => true
         }
     }

@@ -1,18 +1,45 @@
 use crate::network::binary::var_int::{read_var_int, var_int_size, write_var_int};
 use crate::network::packets::packet_deserialize::PacketDeserializable;
 use crate::network::packets::packet_serialize::PacketSerializable;
+use crate::types::sized_string_mut::SizedStringMut;
 use anyhow::{bail, Context};
 use bytes::{Buf, BufMut, BytesMut};
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::Deref;
+use std::str;
 
-#[derive(Debug)]
+// S is size of bytes not char len
+
+// should have the underlying data size be S * 4,
+// and then also ensure that the actual amount of characters doesnt surpass S
+
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct SizedString<const S: usize> {
-    length: usize,
-    data: [u8; S]
+    pub length: usize,
+    pub(super) data: [u8; S]
 }
 
 impl<const S: usize> SizedString<S> {
+
+    pub const EMPTY: SizedString<S> = SizedString {
+        length: 0,
+        data: [0; S],
+    };
+
+    pub const unsafe fn slice_truncated<const N : usize>(slice: [u8; N]) -> Self {
+        // need to do this for it to work const
+        let mut data = [0; S];
+        let mut i = 0;
+
+        while i < N && i < S {
+            data[i] = slice[i];
+            i += 1;
+        }
+        Self {
+            length: i,
+            data,
+        }
+    }
 
     pub fn truncated(str: &str) -> Self {
         let mut data = [0u8; S];
@@ -36,15 +63,21 @@ impl<const S: usize> Display for SizedString<S> {
     }
 }
 
-impl<const S: usize> From<&str> for SizedString<S> {
-    fn from(value: &str) -> Self {
-        SizedString::truncated(value)
+impl<const S: usize> Into<SizedString<S>> for SizedStringMut<S> {
+    fn into(self) -> SizedString<S> {
+        self.inner
     }
 }
 
-impl<const S: usize> From<String> for SizedString<S> {
-    fn from(value: String) -> Self {
-        SizedString::truncated(value.as_str())
+impl<const S: usize> Into<SizedString<S>> for &str {
+    fn into(self) -> SizedString<S> {
+        SizedString::truncated(self)
+    }
+}
+
+impl<const S: usize> Into<SizedString<S>> for String {
+    fn into(self) -> SizedString<S> {
+        SizedString::truncated(self.as_str())
     }
 }
 
@@ -81,7 +114,7 @@ impl<const S : usize> Deref for SizedString<S> {
 
     fn deref(&self) -> &Self::Target {
         // should be fine, since it shouldn't be initialized without using a str
-        unsafe { std::str::from_utf8_unchecked(&self.data[..self.length]) }
+        unsafe { str::from_utf8_unchecked(&self.data[..self.length]) }
     }
 }
 

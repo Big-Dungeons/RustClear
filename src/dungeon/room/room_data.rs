@@ -4,7 +4,9 @@ use crate::utils::hasher::deterministic_hasher::DeterministicHashMap;
 use crate::utils::seeded_rng::seeded_rng;
 use rand::seq::IteratorRandom;
 use serde_json::Value;
+use std::cell::RefCell;
 use std::collections::HashSet;
+use std::rc::Rc;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum RoomShape {
@@ -140,6 +142,7 @@ pub struct RoomData {
     pub width: i32,
     pub length: i32,
     pub height: i32,
+    // do we need to keep this once loaded into world?
     pub block_data: Vec<Blocks>,
     pub crusher_data: Vec<Value>, // Needs to be parsed when rooms are generated
 }
@@ -209,14 +212,14 @@ pub fn get_random_data_with_type(
     room_type: RoomType,
     room_shape: RoomShape,
     data_storage: &DeterministicHashMap<usize, RoomData>,
-    current_rooms: &[Room],
+    current_rooms: &[Rc<RefCell<Room>>],
 ) -> RoomData {
     data_storage
         .values()
         .filter(|data| {
             data.room_type == room_type
                 && data.shape == room_shape
-                && !current_rooms.iter().any(|room| room.data == **data) // No duplicate rooms
+                && !current_rooms.iter().any(|room| room.borrow().data == **data) // No duplicate rooms
         })
         .map(|x| x)
         .choose(&mut seeded_rng())

@@ -66,7 +66,12 @@ impl<P : PlayerExtension> OpenContainer<P> {
             }
             OpenContainer::Inventory => {
                 if player.inventory.handle_packet(packet, &mut player.packet_buffer) {
-                    player.sync_inventory()
+                    player.sync_inventory();
+                    player.write_packet(&SetSlot {
+                        window_id: -1,
+                        slot: 0,
+                        item_stack: get_item_stack(&player.inventory.dragged_item),
+                    })
                 }
             }
             OpenContainer::Menu(menu) => {
