@@ -13,7 +13,7 @@ pub fn peek_var_int(buf: &mut impl Buf) -> Option<(i32, usize)> {
             return None;
         }
 
-        let byte = buf.get_u8();
+        let byte = buf.chunk()[num_read];
         let value = (byte & 0x7f) as i32;
         result |= value << (7 * num_read);
         num_read += 1;
