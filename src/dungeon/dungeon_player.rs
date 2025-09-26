@@ -208,8 +208,7 @@ impl Player<DungeonPlayer> {
                 // clear percentage is based on amount of tiles that are cleared.
                 
                 let (has_blood_key, wither_key_count) = (
-                    // todo: find icon instead of yes
-                    if world.blood_key_count != 0 { "§ayes" } else { "§c✖" },
+                    if world.blood_key_count != 0 { "§a✓" } else { "§c✖" },
                     world.wither_key_count,
                 );
                 

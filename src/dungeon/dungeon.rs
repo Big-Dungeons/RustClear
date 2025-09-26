@@ -328,6 +328,14 @@ impl Dungeon {
             }
         }
 
+        // temp
+        let mut wither_key_count = 0;
+
+        for door in doors.iter() {
+            if let DoorType::Wither = door.door_type {
+                wither_key_count += 1;
+            }
+        }
 
         Ok(Dungeon {
             rooms,
@@ -335,7 +343,7 @@ impl Dungeon {
             room_index_grid: room_grid,
             entrance_room_index,
             state: DungeonState::NotStarted,
-            wither_key_count: 0,
+            wither_key_count,
             blood_key_count: 1,
         })
     }
