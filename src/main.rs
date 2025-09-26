@@ -23,7 +23,6 @@ use std::time::Duration;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::unbounded_channel;
 
-mod replays;
 mod assets;
 mod world;
 mod player;
