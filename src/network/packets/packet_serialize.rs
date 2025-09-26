@@ -178,10 +178,6 @@ impl PacketSerializable for Uuid {
         const { size_of::<Self>() }
     }
     fn write(&self, buf: &mut BytesMut) {
-        let bytes = self.as_u128();
-        let most = (bytes >> 64) as i64;
-        let least = bytes as i64;
-        most.write(buf);
-        least.write(buf);
+        buf.put_u128(self.as_u128());
     }
 }

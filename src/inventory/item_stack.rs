@@ -52,7 +52,7 @@ impl PacketSerializable for Option<ItemStack> {
 }
 
 impl PacketDeserializable for Option<ItemStack> {
-    fn read(buffer: &mut BytesMut) -> anyhow::Result<Self> {
+    fn read(buffer: &mut impl Buf) -> anyhow::Result<Self> {
         let id = buffer.get_i16();
         if id >= 0 {
             let item_stack = ItemStack {

@@ -16,7 +16,7 @@ pub fn packet_deserializable_macro(input: TokenStream) -> TokenStream {
                 #input
 
                 impl crate::network::packets::packet_deserialize::PacketDeserializable for #name {
-                   fn read(buffer: &mut bytes::BytesMut) -> anyhow::Result<Self> {
+                   fn read(buffer: &mut impl bytes::Buf) -> anyhow::Result<Self> {
                         Ok(Self {
                             #(#fields)*
                         })
@@ -43,7 +43,7 @@ pub fn packet_deserializable_macro(input: TokenStream) -> TokenStream {
                 #input
 
                 impl crate::network::packets::packet_deserialize::PacketDeserializable for #name {
-                   fn read(buffer: &mut bytes::BytesMut) -> anyhow::Result<Self> {
+                   fn read(buffer: &mut impl bytes::Buf) -> anyhow::Result<Self> {
                         let id: i8 = crate::network::packets::packet_deserialize::PacketDeserializable::read(buffer)?;
                         match id {
                             #(#variants)*

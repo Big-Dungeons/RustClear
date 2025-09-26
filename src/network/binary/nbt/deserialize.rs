@@ -1,11 +1,12 @@
 use crate::network::binary::nbt::{NBTNode, NBT};
 use crate::network::binary::nbt::serialize::*;
+use crate::utils::get_vec;
 use bytes::{Buf, BytesMut};
 use std::collections::HashMap;
 
 // should use anyhow, client can maliciously send invalid nbt data
 // does assume its all correct.
-pub fn deserialize_nbt(buffer: &mut BytesMut) -> Option<NBT> {
+pub fn deserialize_nbt(buffer: &mut impl Buf) -> Option<NBT> {
     let tag = buffer.get_u8();
     // might issue if it isn't
     if tag != TAG_COMPOUND_ID {
@@ -24,7 +25,7 @@ pub fn deserialize_nbt(buffer: &mut BytesMut) -> Option<NBT> {
     None
 }
 
-fn read_entry(buffer: &mut BytesMut, tag: u8) -> NBTNode {
+fn read_entry(buffer: &mut impl Buf, tag: u8) -> NBTNode {
     match tag {
         TAG_BYTE_ID => {
             let value = buffer.get_i8();
@@ -53,7 +54,7 @@ fn read_entry(buffer: &mut BytesMut, tag: u8) -> NBTNode {
 
         TAG_BYTE_ARRAY_ID => {
             let array_len = buffer.get_i32() as usize;
-            let vec = buffer.split_to(array_len).to_vec();
+            let vec = get_vec(buffer, array_len);
             NBTNode::ByteArray(vec)
         }
         TAG_STRING_ID => {
@@ -104,7 +105,7 @@ fn read_entry(buffer: &mut BytesMut, tag: u8) -> NBTNode {
     }
 }
 
-fn read_string(buffer: &mut BytesMut) -> String {
-    let size = buffer.get_u16();
-    String::from_utf8(buffer.split_to(size as usize).to_vec()).unwrap()
+fn read_string(buffer: &mut impl Buf) -> String {
+    let size = buffer.get_u16() as usize;
+    String::from_utf8(get_vec(buffer, size)).unwrap()
 }

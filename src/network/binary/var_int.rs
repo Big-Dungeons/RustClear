@@ -1,19 +1,19 @@
-use bytes::{Buf, BufMut, BytesMut};
+use bytes::{Buf, BufMut};
 
 #[repr(transparent)]
 #[derive(PartialEq, Eq)]
 pub struct VarInt(pub i32);
 
-pub fn peek_var_int(buf: &BytesMut) -> Option<(i32, usize)> {
+pub fn peek_var_int(buf: &mut impl Buf) -> Option<(i32, usize)> {
     let mut num_read = 0;
     let mut result = 0;
 
     loop {
-        if num_read >= 5 || num_read >= buf.len() {
+        if num_read >= 5 || num_read >= buf.remaining() {
             return None;
         }
 
-        let byte = buf[num_read];
+        let byte = buf.get_u8();
         let value = (byte & 0x7f) as i32;
         result |= value << (7 * num_read);
         num_read += 1;
@@ -26,13 +26,13 @@ pub fn peek_var_int(buf: &BytesMut) -> Option<(i32, usize)> {
     Some((result, num_read))
 }
 
-pub fn read_var_int(buf: &mut BytesMut) -> Option<i32> {
+pub fn read_var_int(buf: &mut impl Buf) -> Option<i32> {
     let (int, len) = peek_var_int(buf)?;
     buf.advance(len);
     Some(int)
 }
 
-pub fn write_var_int(buf: &mut BytesMut, mut value: i32) {
+pub fn write_var_int(buf: &mut impl BufMut, mut value: i32) {
     loop {
         if (value & !0x7F) == 0 {
             // buf.reserve(1);

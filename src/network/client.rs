@@ -8,8 +8,8 @@ use crate::network::protocol::handshake::serverbound::HandshakePacket;
 use crate::network::protocol::login::serverbound::Login;
 use crate::network::protocol::play::serverbound::Play;
 use crate::network::protocol::status::serverbound::Status;
-use crate::player::player::ClientId;
-use bytes::{Buf, BytesMut};
+use crate::player::player::{ClientId, GameProfile};
+use bytes::{Buf, Bytes, BytesMut};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
@@ -117,23 +117,23 @@ async fn read_packets(
     }
 }
 
-async fn read_whole_packet(buf: &mut BytesMut) -> Option<BytesMut> {
-    if buf.is_empty() {
+async fn read_whole_packet(buf: &mut impl Buf) -> Option<Bytes> {
+    if !buf.has_remaining() {
         return None;
     }
     let (packet_len, varint_len) = peek_var_int(buf)?;
 
     let packet_len = packet_len as usize;
-    if buf.len() < packet_len + varint_len {
+    if buf.remaining() < packet_len + varint_len {
         return None;
     }
 
     buf.advance(varint_len);
-    Some(buf.split_to(packet_len))
+    Some(buf.copy_to_bytes(packet_len))
 }
 
 async fn parse_from_packets<'a, P: PacketDeserializable + ProcessPacket>(
-    buffer: &mut BytesMut,
+    buffer: &mut impl Buf,
     client: &mut Client,
     process_context: ProcessContext<'a>
 ) {

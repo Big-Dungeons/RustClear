@@ -144,7 +144,7 @@ impl PacketSerializable for BlockPos {
 }
 
 impl PacketDeserializable for BlockPos {
-    fn read(buffer: &mut BytesMut) -> anyhow::Result<Self> {
+    fn read(buffer: &mut impl Buf) -> anyhow::Result<Self> {
         let long = buffer.get_i64();
         Ok(BlockPos {
             x: (long << (64 - X_SHIFT - XZ_BITS) >> (64 - XZ_BITS)) as i32,

@@ -2,7 +2,7 @@ use crate::network::binary::var_int::{read_var_int, var_int_size, write_var_int}
 use crate::network::packets::packet_deserialize::PacketDeserializable;
 use crate::network::packets::packet_serialize::PacketSerializable;
 use anyhow::{bail, Context};
-use bytes::{BufMut, BytesMut};
+use bytes::{Buf, BufMut, BytesMut};
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::Deref;
 
@@ -59,13 +59,13 @@ impl<const S: usize> PacketSerializable for SizedString<S> {
 }
 
 impl<const S : usize> PacketDeserializable for SizedString<S> {
-    fn read(buffer: &mut BytesMut) -> anyhow::Result<Self> {
+    fn read(buffer: &mut impl Buf) -> anyhow::Result<Self> {
         let len = read_var_int(buffer).context("failed to read string length")? as usize;
         if len > S {
             bail!("String too long. {:?} > {}", len, S);
         }
         let mut data = [0u8; S];
-        let read = buffer.split_to(len);
+        let read = buffer.copy_to_bytes(len);
         let _ = std::str::from_utf8(&read)?;
         data[..len].copy_from_slice(&read);
         

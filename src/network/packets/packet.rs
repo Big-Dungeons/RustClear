@@ -49,7 +49,7 @@ macro_rules! register_serverbound_packets {
         }
         
         impl crate::network::packets::packet_deserialize::PacketDeserializable for $enum_name {
-            fn read(buffer: &mut bytes::BytesMut) -> anyhow::Result<Self> {
+            fn read(buffer: &mut impl bytes::Buf) -> anyhow::Result<Self> {
                 if let Some(packet_id) = crate::network::binary::var_int::read_var_int(buffer) {
                     match packet_id {
                         $(

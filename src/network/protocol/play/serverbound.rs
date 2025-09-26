@@ -9,7 +9,7 @@ use crate::types::block_position::BlockPos;
 use crate::types::sized_string::SizedString;
 use anyhow::bail;
 use blocks::packet_deserializable;
-use bytes::BytesMut;
+use bytes::Buf;
 use glam::Vec3;
 
 register_serverbound_packets! {
@@ -70,7 +70,7 @@ pub struct UseEntity {
 }
 
 impl PacketDeserializable for UseEntity {
-    fn read(buffer: &mut BytesMut) -> anyhow::Result<Self> {
+    fn read(buffer: &mut impl Buf) -> anyhow::Result<Self> {
         let entity_id: VarInt = PacketDeserializable::read(buffer)?;
         let action: EntityInteractionType = PacketDeserializable::read(buffer)?;
         let hit_vec = if action == EntityInteractionType::InteractAt { 
@@ -177,7 +177,7 @@ pub enum PlayerActionType {
 }
 
 impl PacketDeserializable for PlayerActionType {
-    fn read(buffer: &mut BytesMut) -> anyhow::Result<Self> {
+    fn read(buffer: &mut impl Buf) -> anyhow::Result<Self> {
         let var_int: VarInt = PacketDeserializable::read(buffer)?;
         Ok({
             match var_int.0 {
@@ -246,7 +246,7 @@ pub struct TabComplete {
 }
 
 impl PacketDeserializable for TabComplete {
-    fn read(buffer: &mut BytesMut) -> anyhow::Result<Self> {
+    fn read(buffer: &mut impl Buf) -> anyhow::Result<Self> {
         Ok(Self {
             message: PacketDeserializable::read(buffer)?,
             target_block: {
@@ -277,7 +277,7 @@ pub enum ClientStatus {
 }
 
 impl PacketDeserializable for ClientStatus {
-    fn read(buffer: &mut BytesMut) -> anyhow::Result<Self> {
+    fn read(buffer: &mut impl Buf) -> anyhow::Result<Self> {
         let var_int: VarInt = PacketDeserializable::read(buffer)?;
         Ok({
             match var_int.0 {
