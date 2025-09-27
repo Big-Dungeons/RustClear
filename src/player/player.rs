@@ -16,8 +16,9 @@ use crate::types::block_position::BlockPos;
 use crate::world::chunk::chunk_grid::ChunkDiff;
 use crate::world::world::VIEW_DISTANCE;
 use crate::world::world::{World, WorldExtension};
-use glam::{dvec3, DVec3};
+use glam::{dvec3, DVec3, Vec3};
 use std::collections::HashMap;
+use std::f32::consts::PI;
 use uuid::Uuid;
 
 pub type ClientId = usize;
@@ -266,7 +267,12 @@ impl<E : PlayerExtension> Player<E> {
         container.sync_container(self);
         self.open_container = container;
     }
-
+    
+    pub fn rotation_vec(&self) -> Vec3 {
+        let (yaw_sin, yaw_cos) = (-self.yaw.to_radians() - PI).sin_cos();
+        let (pitch_sin, pitch_cos) = (-self.pitch.to_radians()).sin_cos();
+        Vec3::new(yaw_sin * -pitch_cos, pitch_sin, yaw_cos * -pitch_cos)
+    }
     
     // this function spawns entities in area,
     // this runs on first tick to allow client to load chunks

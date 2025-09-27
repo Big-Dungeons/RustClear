@@ -5,9 +5,8 @@ use crate::player::player::Player;
 use crate::utils::bitset::BitSet;
 use crate::world::chunk::chunk_grid::ChunkGrid;
 use glam::{vec3, DVec3};
-use std::f64::consts::PI;
 
-const VALID_ETHER_WARP_BLOCK_IDS: BitSet<3> = BitSet::new(
+pub(super) const VALID_ETHER_WARP_BLOCK_IDS: BitSet<3> = BitSet::new(
     &[
         0, 6, 9, 11, 30, 31, 32, 36, 37, 38, 39, 40, 50, 51, 55, 59, 65, 66, 69, 76, 77, 78,
         93, 94, 104, 105, 106, 111, 115, 131, 132, 140, 141, 142, 143, 144, 149, 150, 157, 171, 175
@@ -29,21 +28,10 @@ pub fn etherwarp(player: &mut Player<DungeonPlayer>) {
     //     }
     // };
     
-    let mut start_pos = player.position.clone();
+    let mut start_pos = player.position;
     start_pos.y += 1.54; // assume always sneaking
-
-    let end_pos = {
-        let yaw = player.yaw as f64;
-        let pitch = player.pitch as f64;
-        let rad_yaw = -yaw.to_radians() - PI;
-        let rad_pitch = -pitch.to_radians();
-
-        let f2 = -rad_pitch.cos();
-
-        let mut pos = DVec3::new(rad_yaw.sin() * f2, rad_pitch.sin(), rad_yaw.cos() * f2).normalize();
-        pos *= 61.0;
-        pos + start_pos
-    };
+    let mut end_pos = player.rotation_vec().normalize().as_dvec3() * 61.0;
+    end_pos += start_pos;
 
     if let EtherResult::Valid(x, y, z) = traverse_voxels(&player.world().chunk_grid, start_pos, end_pos) {
         // let dungeon = &player.world().extension;
@@ -87,8 +75,9 @@ fn traverse_voxels(chunk_grid: &ChunkGrid, start: DVec3, end: DVec3) -> EtherRes
     let (x0, y0, z0) = (start.x, start.y, start.z);
     let (x1, y1, z1) = (end.x, end.y, end.z);
 
-    let (mut x, mut y, mut z) = (start.x.floor() as i32, start.y.floor() as i32, start.z.floor() as i32);
-    let (end_x, end_y, end_z) = (end.x.floor() as i32, end.y.floor() as i32, end.z.floor() as i32);
+    
+    let (mut x, mut y, mut z) = start.floor().as_ivec3().into();
+    let (end_x, end_y, end_z) = end.floor().as_ivec3().into();
 
     let dir_x = x1 - x0;
     let dir_y = y1 - y0;
