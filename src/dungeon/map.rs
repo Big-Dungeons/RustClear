@@ -38,7 +38,7 @@ struct DirtyMapRegion {
 }
 
 pub struct DungeonMap {
-    pixels: [u8; 128 * 128],
+    pixels: Vec<u8>,
     offset_x: usize,
     offset_y: usize,
     dirty_region: Option<DirtyMapRegion>
@@ -51,7 +51,7 @@ impl DungeonMap {
 
     pub fn new(offset_x: usize, offset_y: usize) -> Self {
         Self {
-            pixels: [0; 128 * 128],
+            pixels: vec![0; 128 * 128],
             offset_x,
             offset_y,
             dirty_region: None,
