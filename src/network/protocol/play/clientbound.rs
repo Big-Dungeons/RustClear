@@ -1,5 +1,6 @@
 use crate::constants::particle::Particle;
 use crate::constants::potions::PotionEffect;
+use crate::constants::Sound;
 use crate::entity::entity_metadata::EntityMetadata;
 use crate::inventory::item_stack::ItemStack;
 use crate::network::binary::var_int::{var_int_size, VarInt};
@@ -56,7 +57,7 @@ register_packets! {
     // ChunkDataBulk = 0x26;
     // Explosion = 0x27;
     // Effect = 0x28;
-    SoundEffect<'_> = 0x29;
+    SoundEffect = 0x29;
     Particles = 0x2a;
     // ChangeGameState = 0x2b;
     // SpawnGlobalEntity = 0x2c;
@@ -336,8 +337,8 @@ packet_serializable! {
 }
 
 packet_serializable! {
-    pub struct SoundEffect<'a> {
-        pub sound: &'a str,
+    pub struct SoundEffect {
+        pub sound: Sound,
         pub pos_x: f64 => &((self.pos_x * 8.0) as i32),
         pub pos_y: f64 => &((self.pos_y * 8.0) as i32),
         pub pos_z: f64 => &((self.pos_z * 8.0) as i32),

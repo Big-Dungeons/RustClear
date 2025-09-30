@@ -1,3 +1,4 @@
+use crate::constants::Sound;
 use crate::entity::entity::EntityId;
 use crate::get_chunk_position;
 use crate::inventory::item::{get_item_stack, Item};
@@ -8,7 +9,7 @@ use crate::network::packets::packet::IdentifiedPacket;
 use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::packets::packet_serialize::PacketSerializable;
 use crate::network::protocol::play::clientbound;
-use crate::network::protocol::play::clientbound::{ConfirmTransaction, WindowItems};
+use crate::network::protocol::play::clientbound::{ConfirmTransaction, SoundEffect, WindowItems};
 use crate::network::protocol::play::serverbound::PlayerDiggingAction;
 use crate::player::packet_handling::BlockInteractResult;
 use crate::types::aabb::AABB;
@@ -231,6 +232,21 @@ impl<E : PlayerExtension> Player<E> {
         self.sent_block_placement = false;
         self.last_position = self.position;
         self.flush_packets()
+    }
+    
+    pub fn play_sound_at(&mut self, sound: Sound, volume: f32, pitch: f32, position: DVec3) {
+        self.write_packet(&SoundEffect {
+            sound,
+            pos_x: position.x,
+            pos_y: position.y,
+            pos_z: position.z,
+            volume,
+            pitch,
+        })
+    }
+    
+    pub fn play_sound(&mut self, sound: Sound, volume: f32, pitch: f32) {
+        self.play_sound_at(sound, volume, pitch, self.position)
     }
 
     pub fn collision_aabb(&self) -> AABB {

@@ -1,4 +1,4 @@
-use crate::constants::particle::Particle;
+use crate::constants::Particle;
 use crate::entity::entity::{Entity, EntityId, EntityImpl};
 use crate::entity::entity_metadata::EntityMetadata;
 use crate::get_chunk_position;

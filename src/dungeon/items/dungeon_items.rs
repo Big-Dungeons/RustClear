@@ -1,16 +1,20 @@
 use crate::dungeon::dungeon_player::DungeonPlayer;
+use crate::dungeon::items::ability::{Ability, Cooldown};
 use crate::dungeon::items::etherwarp::etherwarp;
 use crate::dungeon::items::instant_transmission::instant_transmission;
 use crate::inventory::item::Item;
 use crate::inventory::item_stack::ItemStack;
 use crate::network::binary::nbt::serialize::TAG_COMPOUND_ID;
 use crate::network::binary::nbt::{NBTNode, NBT};
+use crate::network::protocol::play::clientbound::Chat;
 use crate::player::player::Player;
+use crate::types::chat_component::ChatComponent;
 use indoc::indoc;
 use std::collections::HashMap;
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
 pub enum DungeonItem {
+    TacticalInsertion,
     AspectOfTheVoid,
     SkyblockMenu,
     MagicalMap,
@@ -22,6 +26,26 @@ impl Item for DungeonItem {
 
     fn get_item_stack(&self) -> ItemStack {
         match self {
+            DungeonItem::TacticalInsertion => ItemStack {
+                item: 369,
+                stack_size: 1,
+                metadata: 0,
+                tag_compound: Some(NBT::with_nodes(vec![
+                    NBT::compound("display", vec![
+                        NBT::string("Name", "§6Tactical Insertion"),
+                        NBT::list_from_string("Lore", indoc! {r#"
+                            §6Ability: Gorilla Tactics §e§lRIGHT CLICK
+                            §7Marks your location and teleport back there
+                            §7after §a3s§7.
+
+                            §6§l§kU§r§6§l LEGENDARY §kU
+                        "#})
+                    ]),
+                    NBT::compound("ExtraAttributes", vec![
+                        NBT::string("id", "TACTICAL_INSERTION"),
+                    ]),
+                ])),
+            },
             DungeonItem::AspectOfTheVoid => ItemStack {
                 item: 277,
                 stack_size: 1,
@@ -146,7 +170,25 @@ impl Item for DungeonItem {
 
 impl DungeonItem {
     pub fn on_right_click(&self, player: &mut Player<DungeonPlayer>) {
+        if let Some(cooldown) = player.item_cooldown(self) {
+            if !cooldown.silent {
+                let string = format!("§cThis ability is on cooldown for {}s.", cooldown.ticks_remaining / 20);
+                player.write_packet(&Chat {
+                    component: ChatComponent::new(string),
+                    chat_type: 0,
+                })
+            }
+            return;
+        }
         match self {
+            DungeonItem::TacticalInsertion => {
+                player.add_item_ability(Ability::TacticalInsertion {
+                    position: player.position,
+                    yaw: player.yaw,
+                    pitch: player.pitch,
+                });
+                player.add_item_cooldown(&DungeonItem::TacticalInsertion, Cooldown::from_seconds(20, false))
+            }
             DungeonItem::AspectOfTheVoid => {
                 if player.is_sneaking {
                     etherwarp(player);

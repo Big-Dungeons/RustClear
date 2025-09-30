@@ -1,5 +1,6 @@
-use crate::constants::potions::PotionEffect;
+use crate::constants::PotionEffect;
 use crate::dungeon::dungeon::{Dungeon, DungeonState};
+use crate::dungeon::items::ability::{Ability, ActiveAbility, Cooldown};
 use crate::dungeon::items::dungeon_items::DungeonItem;
 use crate::dungeon::room::room::Room;
 use crate::inventory::item::get_item_stack;
@@ -15,13 +16,19 @@ use crate::types::direction::Direction;
 use crate::world::world::World;
 use chrono::Local;
 use indoc::{formatdoc, indoc};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
+use std::collections::HashMap;
 use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct DungeonPlayer {
     pub is_ready: bool,
     pub sidebar: Sidebar,
+
+    pub cooldowns: HashMap<DungeonItem, Cooldown>,
+    // maybe disallow multiple of the same,
+    // however if you pair with cooldowns it should be fine
+    pub active_abilities: Cell<Vec<ActiveAbility>>,
 }
 
 impl PlayerExtension for DungeonPlayer {
@@ -47,6 +54,18 @@ impl PlayerExtension for DungeonPlayer {
         }
 
         player.update_sidebar();
+        
+        let mut abilities = player.extension.active_abilities.take();
+        abilities.retain_mut(|active_ability| {
+            active_ability.ability.tick(active_ability.ticks_active, player);
+            active_ability.ticks_active != active_ability.ability.duration()
+        });
+        player.extension.active_abilities.set(abilities);
+
+        player.extension.cooldowns.retain(|_, cooldown| {
+            cooldown.ticks_remaining -= 1;
+            cooldown.ticks_remaining != 0
+        });
 
         // temp
         let world = player.world_mut();
@@ -122,6 +141,22 @@ impl PlayerExtension for DungeonPlayer {
 }
 
 impl Player<DungeonPlayer> {
+    
+    pub fn item_cooldown(&self, item: &DungeonItem) -> Option<&Cooldown> {
+        self.extension.cooldowns.get(item)
+    }
+    
+    pub fn add_item_cooldown(&mut self, item: &DungeonItem, cooldown: Cooldown) {
+        self.extension.cooldowns.insert(*item, cooldown);
+    }
+    
+    pub fn add_item_ability(&mut self, ability: Ability) {
+        let active_ability = ActiveAbility {
+            ability,
+            ticks_active: 0,
+        };
+        self.extension.active_abilities.get_mut().push(active_ability)
+    }
 
     pub fn ready(&mut self) {
         self.extension.is_ready = !self.extension.is_ready;

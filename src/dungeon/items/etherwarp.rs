@@ -1,6 +1,6 @@
-use crate::constants::particle::Particle;
+use crate::constants::{Particle, Sound};
 use crate::dungeon::dungeon_player::DungeonPlayer;
-use crate::network::protocol::play::clientbound::{PositionLook, SoundEffect};
+use crate::network::protocol::play::clientbound::PositionLook;
 use crate::player::player::Player;
 use crate::utils::bitset::BitSet;
 use crate::world::chunk::chunk_grid::ChunkGrid;
@@ -42,6 +42,7 @@ pub fn etherwarp(player: &mut Player<DungeonPlayer>) {
         //     }
         // }
         
+        let position = DVec3::new(x as f64 + 0.5, y as f64 + 1.05, z as f64 + 0.5);
         
         player.world_mut().spawn_particle(
             Particle::SpellWitch,
@@ -50,9 +51,9 @@ pub fn etherwarp(player: &mut Player<DungeonPlayer>) {
             25
         );
         player.write_packet(&PositionLook {
-            x: x as f64 + 0.5,
-            y: y as f64 + 1.05,
-            z: z as f64 + 0.5,
+            x: position.x,
+            y: position.y,
+            z: position.z,
             yaw: 0.0,
             pitch: 0.0,
             // these flags make xyz absolute meaning they set directly
@@ -60,14 +61,7 @@ pub fn etherwarp(player: &mut Player<DungeonPlayer>) {
             // since yaw and pitch provided is 0, it doesn't rotate the player causing head snapping
             flags: 24,
         });
-        player.write_packet(&SoundEffect {
-            sound: "mob.enderdragon.hit",
-            volume: 1.0,
-            pitch: 0.53968257,
-            pos_x: x as f64 + 0.5,
-            pos_y: y as f64 + 1.05,
-            pos_z: z as f64 + 0.5,
-        });
+        player.play_sound_at(Sound::EnderDragonHit, 1.0, 0.54, position);
     }
 }
 

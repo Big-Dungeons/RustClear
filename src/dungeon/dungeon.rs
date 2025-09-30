@@ -19,7 +19,8 @@ use crate::utils::hasher::deterministic_hasher::DeterministicHashMap;
 use crate::world::world::{World, WorldExtension};
 use anyhow::bail;
 use glam::IVec2;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
+use std::collections::HashMap;
 use std::rc::Rc;
 use uuid::Uuid;
 
@@ -101,6 +102,8 @@ impl WorldExtension for Dungeon {
             DungeonPlayer { 
                 is_ready: false,
                 sidebar: Sidebar::new(),
+                cooldowns: HashMap::new(),
+                active_abilities: Cell::new(Vec::new()),
             }
         );
 
@@ -131,6 +134,7 @@ impl WorldExtension for Dungeon {
         
         player.inventory.set_slot(37, Some(DungeonItem::Hyperion));
         player.inventory.set_slot(39, Some(DungeonItem::Pickaxe));
+        player.inventory.set_slot(42, Some(DungeonItem::TacticalInsertion));
         player.inventory.set_slot(43, Some(DungeonItem::AspectOfTheVoid));
         player.inventory.set_slot(44, Some(DungeonItem::SkyblockMenu));
         player.sync_inventory();
