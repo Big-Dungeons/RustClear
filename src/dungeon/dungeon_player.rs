@@ -56,9 +56,10 @@ impl PlayerExtension for DungeonPlayer {
         player.update_sidebar();
         
         let mut abilities = player.extension.active_abilities.take();
-        abilities.retain_mut(|active_ability| {
-            active_ability.ability.tick(active_ability.ticks_active, player);
-            active_ability.ticks_active != active_ability.ability.duration()
+        abilities.retain_mut(|active| {
+            active.ticks_active += 1;
+            active.ability.tick(active.ticks_active, player);
+            active.ticks_active != active.ability.duration()
         });
         player.extension.active_abilities.set(abilities);
 
