@@ -1,20 +1,23 @@
 use crate::block::blocks::Blocks;
 use crate::dungeon::door::door::Door;
 use crate::dungeon::dungeon::DUNGEON_ORIGIN;
+use crate::dungeon::dungeon_player::DungeonPlayer;
 use crate::dungeon::room::room_data::RoomData;
+use crate::player::player::{ClientId, Player};
 use crate::types::aabb::AABB;
 use crate::types::block_position::BlockPos;
 use crate::types::direction::Direction;
 use crate::world::chunk::chunk_grid::ChunkGrid;
 use glam::dvec3;
 use std::cell::RefCell;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 pub struct RoomSegment {
     pub x: usize,
     pub z: usize,
-    pub neighbours: [Option<RoomNeighbour>; 4]
+    pub neighbours: [Option<RoomNeighbour>; 4],
+    pub player_ref_count: usize,
 }
 
 pub struct RoomNeighbour {
@@ -37,6 +40,9 @@ pub struct Room {
     pub discovered: bool,
     // idk if a bool value,
     pub completed: bool,
+
+    // usize is index of the section they're in
+    pub players: HashMap<ClientId, Option<usize>>
 }
 
 impl Room {
@@ -93,6 +99,7 @@ impl Room {
             data: room_data,
             discovered: false,
             completed: false,
+            players: HashMap::new(),
         }
     }
 
@@ -145,6 +152,43 @@ impl Room {
         }
     }
 
+    pub fn add_player_ref(&mut self, client_id: ClientId, segment: Option<usize>) {
+        debug_assert!(!self.players.contains_key(&client_id), "player already in room");
+        self.players.insert(client_id, segment);
+        if let Some(segment) = segment {
+            self.segments[segment].player_ref_count += 1;
+        }
+    }
+
+    pub fn remove_player_ref(&mut self, client_id: ClientId) {
+        debug_assert!(self.players.contains_key(&client_id), "player wasn't in the room");
+        let segment = self.players.remove(&client_id).unwrap();
+
+        if let Some(segment) = segment {
+            self.segments[segment].player_ref_count -= 1;
+        }
+    }
+
+    pub fn update_player_segment(&mut self, client_id: ClientId, new: Option<usize>) {
+        let old = self.players.get_mut(&client_id).unwrap();
+        debug_assert!(*old != new, "tried updated player section, when section hasn't changed");
+
+        if let Some(segment) = *old {
+            self.segments[segment].player_ref_count -= 1;
+        };
+        if let Some(segment) = new {
+            self.segments[segment].player_ref_count += 1;
+        }
+        *old = new;
+    }
+
+    pub fn players_mut<'a>(
+        &self,
+        players: &'a mut Vec<Player<DungeonPlayer>>
+    ) -> impl Iterator<Item = &'a mut Player<DungeonPlayer>> {
+        debug_assert!(!self.players.is_empty(), "iterating room players when there is none");
+        players.iter_mut().filter(|player| self.players.contains_key(&player.client_id))
+    }
 
     pub fn get_world_block_pos(&self, room_pos: &BlockPos) -> BlockPos {
         let corner = self.get_corner_pos();

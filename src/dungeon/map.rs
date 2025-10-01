@@ -3,9 +3,7 @@ use crate::dungeon::door::door::DoorType;
 use crate::dungeon::room::room::Room;
 use crate::dungeon::room::room_data::{RoomData, RoomShape, RoomType::*};
 use crate::network::protocol::play::clientbound::Maps;
-use std::cell::RefCell;
 use std::cmp::{max, min};
-use std::rc::Rc;
 
 const DUNGEON_MAP_ID: i32 = 1;
 
@@ -129,8 +127,7 @@ impl DungeonMap {
         }
     }
 
-    pub fn draw_room(&mut self, room: &Rc<RefCell<Room>>) {
-        let room = room.borrow();
+    pub fn draw_room(&mut self, room: &Room) {
         let color = get_room_color(&room.data);
 
         for segment in room.segments.iter() {

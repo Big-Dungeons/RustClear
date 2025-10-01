@@ -22,13 +22,15 @@ use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct DungeonPlayer {
-    pub is_ready: bool,
     pub sidebar: Sidebar,
+    pub is_ready: bool,
 
-    pub cooldowns: HashMap<DungeonItem, Cooldown>,
+    pub current_room: Option<(Rc<RefCell<Room>>, Option<usize>)>,
+
     // maybe disallow multiple of the same,
     // however if you pair with cooldowns it should be fine
     pub active_abilities: Cell<Vec<ActiveAbility>>,
+    pub cooldowns: HashMap<DungeonItem, Cooldown>,
 }
 
 impl PlayerExtension for DungeonPlayer {
@@ -67,16 +69,6 @@ impl PlayerExtension for DungeonPlayer {
             cooldown.ticks_remaining -= 1;
             cooldown.ticks_remaining != 0
         });
-
-        // temp
-        let world = player.world_mut();
-        if world.has_dungeon_started() {
-            if let Some(room_rc) = player.get_current_room() {
-                if !room_rc.borrow().discovered {
-                    world.discover_room(&room_rc)
-                }
-            }
-        }
     }
 
     fn dig(player: &mut Player<Self>, position: BlockPos, action: &PlayerDiggingAction) {
@@ -194,7 +186,8 @@ impl Player<DungeonPlayer> {
 
                         door.open(world);
                     }
-                    world.discover_room(&neighbour.room);
+                    neighbour.room.borrow_mut().discovered = true;
+                    world.map.draw_room(&neighbour.room.borrow())
                 }
             }
         }

@@ -76,7 +76,53 @@ impl WorldExtension for Dungeon {
             }
             DungeonState::Started { ticks } => {
                 *ticks += 1;
+                
+                // iterate over players and get the room and room section they're in
+                // if its different remove the player (client) id in the room and room section
+                // and set the player current room reference to the new room
 
+                for player in world.players.iter_mut() {
+                    if let Some((index, new_segment)) = world.extension.get_player_room(player) {
+                        let room = &world.extension.rooms[index];
+                        
+                        if let Some((old_room, old_segment)) = &mut player.extension.current_room {
+                            if !Rc::ptr_eq(old_room, room) {
+                                old_room.borrow_mut().remove_player_ref(player.client_id);
+                                room.borrow_mut().add_player_ref(player.client_id, new_segment);
+                                player.extension.current_room = Some((room.clone(), new_segment));
+                            } else if *old_segment != new_segment {
+                                room.borrow_mut().update_player_segment(player.client_id, new_segment);
+                                *old_segment = new_segment;
+                            }
+                        } else {
+                            room.borrow_mut().add_player_ref(player.client_id, new_segment);
+                            player.extension.current_room = Some((room.clone(), new_segment));
+                        }
+                    } else {
+                        if let Some((old_room, _)) = &player.extension.current_room {
+                            old_room.borrow_mut().remove_player_ref(player.client_id);
+                            player.extension.current_room = None
+                        }
+                    }
+                }
+
+                // iterate over rooms and sections ,
+                // if room has any players, tick it
+                // and for sections if it has a player, try to spawn its neighbours
+
+                // tick puzzles, etc
+                
+                for room_rc in world.extension.rooms.iter_mut() {
+                    let mut room = room_rc.borrow_mut();
+                    
+                    if !room.players.is_empty() {
+                        if !room.discovered {
+                            room.discovered = true;
+                            world.extension.map.draw_room(&*room);
+                        }
+                    }
+                }
+                
                 if let Some(packet) = world.extension.map.get_packet() {
                     for player in world.players.iter_mut() {
                         player.write_packet(&packet)
@@ -102,6 +148,7 @@ impl WorldExtension for Dungeon {
             DungeonPlayer { 
                 is_ready: false,
                 sidebar: Sidebar::new(),
+                current_room: None,
                 cooldowns: HashMap::new(),
                 active_abilities: Cell::new(Vec::new()),
             }
@@ -153,19 +200,17 @@ impl World<Dungeon> {
             player.sync_inventory();
         }
 
-        let entrance_room = self.entrance_room();
-        self.discover_room(&entrance_room);
-
-        for neighbour in entrance_room.borrow().neighbours() {
-            neighbour.door.borrow_mut().open(self);
-            self.discover_room(&neighbour.room);
+        {
+            let entrance_room = self.entrance_room();
+            entrance_room.borrow_mut().discovered = true;
+            self.map.draw_room(&entrance_room.borrow());
         }
-    }
 
-    pub fn discover_room(&mut self, room_rc: &Rc<RefCell<Room>>) {
-        assert!(!room_rc.borrow().discovered, "tried discovering an already discovered room");
-        room_rc.borrow_mut().discovered = true;
-        self.map.draw_room(room_rc);
+        for neighbour in self.entrance_room().borrow().neighbours() {
+            neighbour.door.borrow_mut().open(self);
+            neighbour.room.borrow_mut().discovered = true;
+            self.map.draw_room(&neighbour.room.borrow());
+        }
     }
     
     pub const fn has_dungeon_started(&self) -> bool {
@@ -240,6 +285,7 @@ impl Dungeon {
             x: 0,
             z: 0,
             neighbours: [const { None }; 4],
+            player_ref_count: 0,
         }], RoomData::dummy())));
 
         let mut room_id_map: DeterministicHashMap<usize, Vec<RoomSegment>> = DeterministicHashMap::default();
@@ -264,6 +310,7 @@ impl Dungeon {
                 x,
                 z,
                 neighbours: [const { None }; 4],
+                player_ref_count: 0,
             };
 
             // find neighbouring doors
