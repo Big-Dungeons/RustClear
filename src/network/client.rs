@@ -8,7 +8,7 @@ use crate::network::protocol::handshake::serverbound::HandshakePacket;
 use crate::network::protocol::login::serverbound::Login;
 use crate::network::protocol::play::serverbound::Play;
 use crate::network::protocol::status::serverbound::Status;
-use crate::player::player::{ClientId, GameProfile};
+use crate::player::player::ClientId;
 use bytes::{Buf, Bytes, BytesMut};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
@@ -46,14 +46,8 @@ pub async fn handle_client(
         tokio::select! {
             result = socket.read_buf(&mut bytes) => {
                 match result {
-                    Ok(0) => { 
-                        // Channel closed normally
-                        break 
-                    },
-                    
-                    Ok(_) => {
-                        read_packets(&mut bytes, &mut client, &network_tx, &main_tx).await
-                    }
+                    Ok(0) => break, // channel closed normally
+                    Ok(_) => read_packets(&mut bytes, &mut client, &network_tx, &main_tx).await,
                     Err(e) => {
                         eprintln!("Client {client_id:?} read error: {e}");
                         break;
@@ -69,10 +63,7 @@ pub async fn handle_client(
                             break
                         }
                     }
-
-                    ClientHandlerMessage::CloseHandler => {
-                        break
-                    }
+                    ClientHandlerMessage::CloseHandler => break,
                 }
             }
         }
@@ -88,7 +79,7 @@ async fn read_packets(
     network_thread_tx: &UnboundedSender<NetworkThreadMessage>,
     main_thread_tx: &UnboundedSender<MainThreadMessage>
 ) {
-    while let Some(mut buffer) = read_whole_packet(buffer).await {
+    while let Some(mut buffer) = read_whole_packet(buffer) {
         let context = ProcessContext { network_thread_tx, main_thread_tx, };
         match client.connection_state {
             Handshaking => parse_from_packets::<HandshakePacket>(&mut buffer, client, context).await,
@@ -108,25 +99,19 @@ async fn read_packets(
                             }
                         );
                     }
-                    Err(err) => {
-                        eprintln!("Failed to parse packet from {err}")
-                    }
+                    Err(err) => eprintln!("Failed to parse packet from {err}"),
                 }
             }
         }
     }
 }
 
-async fn read_whole_packet(buf: &mut impl Buf) -> Option<Bytes> {
-    if !buf.has_remaining() {
-        return None;
-    }
+fn read_whole_packet(buf: &mut impl Buf) -> Option<Bytes> {
+    if !buf.has_remaining() { return None }
     let (packet_len, varint_len) = peek_var_int(buf)?;
 
     let packet_len = packet_len as usize;
-    if buf.remaining() < packet_len + varint_len {
-        return None;
-    }
+    if buf.remaining() < packet_len + varint_len { return None }
 
     buf.advance(varint_len);
     Some(buf.copy_to_bytes(packet_len))
@@ -142,9 +127,7 @@ async fn parse_from_packets<'a, P: PacketDeserializable + ProcessPacket>(
             if let Err(e) = packet.process(client, process_context).await {
                 eprintln!("error processing {e}");
             }
-        }
-        Err(e) => {
-            eprintln!("Failed to parse packet from {e}")
-        }
+        },
+        Err(e) => eprintln!("Failed to parse packet from {e}"),
     }
 }

@@ -30,7 +30,6 @@ impl PacketBuffer {
     /// gets a message for network thread to send the packets inside the buffer to the client.
     pub fn get_packet_message(&mut self, client_id: ClientId) -> NetworkThreadMessage {
         let buffer = self.buffer.split().freeze();
-        self.buffer.clear();
         NetworkThreadMessage::SendPackets { client_id, buffer }
     }
 

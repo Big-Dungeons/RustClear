@@ -23,7 +23,10 @@ pub async fn run_network_thread(
     loop {
         tokio::select! {
             // a client failing to connect here is recoverable and doesnt really do anything, so we can just ignore it.
-            Ok((socket, _)) = listener.accept() => {
+            // we do need to continue on a failed connection though, otherwise it would need to wait for network_rx to receive
+            // before attempting to get a new connection.
+            result = listener.accept() => {
+                let Ok((socket, _)) = result else { continue };
                 let client_id: ClientId = client_id_counter;
                 client_id_counter += 1;
 
@@ -56,9 +59,7 @@ pub async fn run_network_thread(
                         }
                     }
             
-                    NetworkThreadMessage::ConnectionClosed { client_id } => {
-                        disconnect_client(client_id, &main_tx, &mut clients);
-                    }
+                    NetworkThreadMessage::ConnectionClosed { client_id } => disconnect_client(client_id, &main_tx, &mut clients),
                 }
             }
         }
