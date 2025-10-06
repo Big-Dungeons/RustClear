@@ -2,6 +2,7 @@ use crate::constants::Sound;
 use crate::dungeon::dungeon_player::DungeonPlayer;
 use crate::network::protocol::play::clientbound::PositionLook;
 use crate::player::player::Player;
+use enumset::EnumSet;
 use glam::DVec3;
 
 #[derive(Copy, Clone)]
@@ -73,7 +74,7 @@ impl Ability {
                         z: position.z,
                         yaw: *yaw,
                         pitch: *pitch,
-                        flags: 0,
+                        flags: EnumSet::new(),
                     })
                 }
             }

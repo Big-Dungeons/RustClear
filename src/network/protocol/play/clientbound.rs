@@ -14,6 +14,7 @@ use crate::types::chat_component::ChatComponent;
 use crate::types::sized_string::SizedString;
 use blocks::packet_serializable;
 use bytes::BytesMut;
+use enumset::{EnumSet, EnumSetType};
 use glam::Vec3;
 use uuid::Uuid;
 
@@ -134,6 +135,15 @@ packet_serializable! {
     }
 }
 
+#[derive(EnumSetType)]
+pub enum Relative {
+    X,
+    Y,
+    Z,
+    Yaw,
+    Pitch
+}
+
 packet_serializable! {
     pub struct PositionLook {
         pub x: f64,
@@ -141,7 +151,7 @@ packet_serializable! {
         pub z: f64,
         pub yaw: f32,
         pub pitch: f32,
-        pub flags: u8,
+        pub flags: EnumSet<Relative> => &self.flags.as_u8(),
     }
 }
 

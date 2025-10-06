@@ -1,6 +1,6 @@
 use crate::dungeon::dungeon_player::DungeonPlayer;
 use crate::dungeon::items::etherwarp::VALID_ETHER_WARP_BLOCK_IDS;
-use crate::network::protocol::play::clientbound::PositionLook;
+use crate::network::protocol::play::clientbound::{PositionLook, Relative};
 use crate::player::player::Player;
 use crate::world::chunk::chunk_grid::ChunkGrid;
 use glam::{DVec3, IVec3};
@@ -59,7 +59,7 @@ pub fn instant_transmission(
             z: position.z as f64 + 0.5,
             yaw: 0.0,
             pitch: 0.0,
-            flags: 24,
+            flags: Relative::Yaw | Relative::Pitch,
         })
     }
     if block_in_way {

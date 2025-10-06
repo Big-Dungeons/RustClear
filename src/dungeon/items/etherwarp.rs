@@ -1,6 +1,6 @@
 use crate::constants::{Particle, Sound};
 use crate::dungeon::dungeon_player::DungeonPlayer;
-use crate::network::protocol::play::clientbound::PositionLook;
+use crate::network::protocol::play::clientbound::{PositionLook, Relative};
 use crate::player::player::Player;
 use crate::utils::bitset::BitSet;
 use crate::world::chunk::chunk_grid::ChunkGrid;
@@ -56,10 +56,7 @@ pub fn etherwarp(player: &mut Player<DungeonPlayer>) {
             z: position.z,
             yaw: 0.0,
             pitch: 0.0,
-            // these flags make xyz absolute meaning they set directly
-            // while keeping yaw and pitch relative (meaning it is added to players yaw)
-            // since yaw and pitch provided is 0, it doesn't rotate the player causing head snapping
-            flags: 24,
+            flags: Relative::Yaw | Relative::Pitch,
         });
         player.play_sound_at(Sound::EnderDragonHit, 1.0, 0.54, position);
     }

@@ -9,6 +9,7 @@ use crate::network::packets::packet::ProcessPacket;
 use crate::network::protocol::play::clientbound::{DestroyEntites, JoinGame, Particles, PlayerData, PlayerListItem, PositionLook};
 use crate::player::player::{ClientId, GameProfile, Player, PlayerExtension};
 use crate::world::chunk::chunk_grid::ChunkGrid;
+use enumset::EnumSet;
 use glam::{DVec3, Vec3};
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
@@ -122,7 +123,7 @@ impl<E : WorldExtension> World<E> {
             z: player.position.z,
             yaw: player.yaw,
             pitch: player.pitch,
-            flags: 0,
+            flags: EnumSet::new(),
         });
         
         player.write_packet(&PlayerListItem {
