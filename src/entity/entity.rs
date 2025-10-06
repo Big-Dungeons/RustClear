@@ -1,8 +1,8 @@
-use crate::entity::entity_metadata::EntityMetadata;
+use crate::entity::entity_metadata::{EntityMetadata, EntityVariant};
 use crate::get_chunk_position;
 use crate::network::binary::var_int::VarInt;
 use crate::network::packets::packet_buffer::PacketBuffer;
-use crate::network::protocol::play::clientbound::{DestroyEntites, EntityTeleport, SpawnMob, SpawnObject};
+use crate::network::protocol::play::clientbound::{DestroyEntites, EntityTeleport, EntityYawRotate, SpawnMob, SpawnObject, SpawnPlayer};
 use crate::network::protocol::play::serverbound::EntityInteractionType;
 use crate::player::player::{Player, PlayerExtension};
 use crate::world::world::{World, WorldExtension};
@@ -59,19 +59,25 @@ impl<W : WorldExtension> EntityBase<W> {
             return;
         };
         let variant = &metadata.variant;
-        if variant.is_player() {
-            // needs player list item
-            // buffer.write_packet(&SpawnPlayer {
-            //     entity_id: VarInt(self.id),
-            //     uuid,
-            //     x: self.position.x,
-            //     y: self.position.y,
-            //     z: self.position.z,
-            //     yaw: self.yaw,
-            //     pitch: self.pitch,
-            //     current_item: 0,
-            //     metadata: self.metadata.clone(),
-            // });
+        if let EntityVariant::NPC { npc_id } = variant {
+            // should never be none
+            let profile = self.world().npc_profiles.get(npc_id).unwrap();
+
+            buffer.write_packet(&SpawnPlayer {
+                entity_id: self.id,
+                uuid: profile.uuid,
+                x: self.position.x,
+                y: self.position.y,
+                z: self.position.z,
+                yaw: self.yaw,
+                pitch: self.pitch,
+                current_item: 0,
+                metadata: metadata.clone(),
+            });
+            buffer.write_packet(&EntityYawRotate {
+                entity_id: self.id,
+                yaw: self.yaw,
+            })
         } else if variant.is_object() {
             buffer.write_packet(&SpawnObject {
                 entity_id: VarInt(self.id),
@@ -164,6 +170,10 @@ impl<W : WorldExtension> Entity<W> {
                     pitch: entity.pitch,
                     on_ground: true,
                 });
+                packet_buffer.write_packet(&EntityYawRotate {
+                    entity_id: entity.id,
+                    yaw: entity.yaw,
+                })
             }
 
             // let chunk_position = get_chunk_position(entity.position);

@@ -1,11 +1,12 @@
 use crate::constants::Particle;
 use crate::entity::entity::{Entity, EntityId, EntityImpl};
 use crate::entity::entity_metadata::EntityMetadata;
+use crate::entity::npc_asset::NpcAsset;
 use crate::get_chunk_position;
 use crate::network::binary::var_int::VarInt;
 use crate::network::internal_packets::{MainThreadMessage, NetworkThreadMessage};
 use crate::network::packets::packet::ProcessPacket;
-use crate::network::protocol::play::clientbound::{DestroyEntites, JoinGame, Particles, PositionLook};
+use crate::network::protocol::play::clientbound::{DestroyEntites, JoinGame, Particles, PlayerData, PlayerListItem, PositionLook};
 use crate::player::player::{ClientId, GameProfile, Player, PlayerExtension};
 use crate::world::chunk::chunk_grid::ChunkGrid;
 use glam::{DVec3, Vec3};
@@ -16,11 +17,17 @@ use tokio::sync::mpsc::UnboundedSender;
 pub const VIEW_DISTANCE: i32 = 6;
 
 pub trait WorldExtension : Sized {
-    
+
     type Player: PlayerExtension<World = Self>;
     
     fn tick(world: &mut World<Self>);
     fn on_player_join(world: &mut World<Self>, profile: GameProfile, client_id: ClientId);
+
+    // ran on world new, you need to put all skins u will use
+    // I don't think we need to add skins runtime
+    // could in future make
+    // some script / macro like include_bytes to get texture and signature from a skin png?
+    fn get_npc_skins() -> HashMap<&'static str, NpcAsset>;
 }
 
 pub struct World<E : WorldExtension> {
@@ -28,7 +35,7 @@ pub struct World<E : WorldExtension> {
 
     pub players: Vec<Player<E::Player>>,
     pub player_map: HashMap<ClientId, usize>,
-    
+    pub npc_profiles: HashMap<&'static str, GameProfile>,
     entity_id: i32,
     pub entities: Vec<Entity<E>>,
     pub entity_map: HashMap<EntityId, usize>,
@@ -42,10 +49,14 @@ pub struct World<E : WorldExtension> {
 impl<E : WorldExtension> World<E> {
 
     pub fn new(network_tx: UnboundedSender<NetworkThreadMessage>, extension: E) -> Self {
+        let npc_profiles = E::get_npc_skins().into_iter().map(|(key, asset)| {
+            (key, asset.get_profile())
+        }).collect();
         Self {
             network_tx,
             players: Vec::new(),
             player_map: HashMap::new(),
+            npc_profiles,
             entity_id: 0,
             entities: Vec::new(),
             entity_map: HashMap::new(),
@@ -112,6 +123,33 @@ impl<E : WorldExtension> World<E> {
             yaw: player.yaw,
             pitch: player.pitch,
             flags: 0,
+        });
+        
+        player.write_packet(&PlayerListItem {
+            action: VarInt(0),
+            players: vec![&PlayerData {
+                ping: 0,
+                game_mode: 0,
+                profile: &player.profile.clone(),
+                display_name: None,
+            }],
+        });
+
+        let npc_data: Vec<PlayerData> = self.npc_profiles
+            .iter()
+            .map(|(_, v)| PlayerData {
+                ping: 0,
+                game_mode: 0,
+                profile: &v,
+                display_name: None,
+            })
+            .collect();
+
+        let npc_data_refs: Vec<&PlayerData> = npc_data.iter().collect();
+
+        player.write_packet(&PlayerListItem {
+            action: VarInt(0),
+            players: npc_data_refs
         });
 
         player.flush_packets();

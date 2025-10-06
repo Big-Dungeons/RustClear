@@ -71,16 +71,47 @@ async fn main() -> anyhow::Result<()> {
     load_doors_into_world(&mut world);
 
     {
-        struct Test;
+        struct Test {
+            yaw: f32,
+            pitch: f32,
+        }
+
         impl EntityImpl<Dungeon> for Test {
             fn spawn(&mut self, _: &mut EntityBase<Dungeon>, _: &mut PacketBuffer) {
             }
             fn despawn(&mut self, _: &mut EntityBase<Dungeon>, _: &mut PacketBuffer) {
             }
             fn tick(&self, entity: &mut EntityBase<Dungeon>, _: &mut PacketBuffer) {
-                // entity.position.y += 0.1;
-                // y no work?
-                entity.pitch += 5.0
+                if entity.ticks_existed % 5 == 0 {
+                    return;
+                }
+
+                let world = entity.world();
+                let player: Option<&Player<DungeonPlayer>> = world.players
+                    .iter()
+                    .filter(|p| entity.position.distance(p.position) <= 5.0)
+                    .min_by(|a, b| {
+                        entity.position
+                            .distance(a.position)
+                            .partial_cmp(&entity.position.distance(b.position))
+                            .unwrap()
+                    });
+                
+                if let Some(player) = player {
+                    let (yaw, pitch) = {
+                        let direction = player.position - entity.position;
+                        let yaw = direction.z.atan2(direction.x).to_degrees() - 90.0;
+                        let horizontal_dist = (direction.x.powi(2) + direction.z.powi(2)).sqrt();
+                        let pitch = -direction.y.atan2(horizontal_dist).to_degrees();
+
+                        (yaw, pitch)
+                    };
+                    entity.yaw = yaw as f32;
+                    entity.pitch = pitch as f32;
+                } else {
+                    entity.yaw = self.yaw;
+                    entity.pitch = self.pitch;
+                }
             }
             fn interact(
                 &self, 
@@ -104,11 +135,11 @@ async fn main() -> anyhow::Result<()> {
         
         let yaw = 0.0.rotate(entrance.rotation);
         world.spawn_entity(
-            Some(EntityMetadata::new(EntityVariant::Zombie { is_child: false, is_villager: false })),
+            Some(EntityMetadata::new(EntityVariant::NPC { npc_id: "mort" })),
             position,
             yaw,
             0.0,
-            Test {}
+            Test { yaw, pitch: 0.0 }
         );
     }
     

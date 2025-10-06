@@ -5,11 +5,12 @@ use crate::inventory::item::{get_item_stack, Item};
 use crate::inventory::item_stack::ItemStack;
 use crate::inventory::menu::OpenContainer;
 use crate::inventory::Inventory;
+use crate::network::binary::var_int::VarInt;
 use crate::network::packets::packet::IdentifiedPacket;
 use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::packets::packet_serialize::PacketSerializable;
 use crate::network::protocol::play::clientbound;
-use crate::network::protocol::play::clientbound::{ConfirmTransaction, SoundEffect, WindowItems};
+use crate::network::protocol::play::clientbound::{ConfirmTransaction, PlayerData, PlayerListItem, SoundEffect, WindowItems};
 use crate::network::protocol::play::serverbound::PlayerDiggingAction;
 use crate::player::packet_handling::BlockInteractResult;
 use crate::types::aabb::AABB;
@@ -24,13 +25,13 @@ use uuid::Uuid;
 
 pub type ClientId = usize;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct GameProfileProperty {
     pub value: String,
     pub signature: Option<String>
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct GameProfile {
     pub uuid: Uuid,
     pub username: String,
@@ -152,7 +153,8 @@ impl<E : PlayerExtension> Player<E> {
         // must be done here instead of instantly after chunks are sent,
         // otherwise entities occasionally appear invisible
         self.spawn_entities();
-        
+        self.remove_npc_profiles();
+
         self.ticks_existed += 1;
         self.write_packet(&ConfirmTransaction {
             window_id: 0,
@@ -312,6 +314,32 @@ impl<E : PlayerExtension> Player<E> {
                     }
                 },
             );
+        }
+    }
+
+    // to not appear in tab list, it must be removed
+    #[cold]
+    fn remove_npc_profiles(&mut self) {
+        if self.ticks_existed == 10 {
+            let world = self.world_mut();
+            let npc_data: Vec<PlayerData> = world.npc_profiles
+                .iter()
+                .map(|(_, v)| {
+                    PlayerData {
+                        ping: 0,
+                        game_mode: 0,
+                        profile: &v,
+                        display_name: None,
+                    }
+                })
+                .collect();
+            let npc_data_refs: Vec<&PlayerData> = npc_data.iter().collect();
+
+            self.write_packet(&PlayerListItem {
+                action: VarInt(4),
+                players: npc_data_refs
+            });
+
         }
     }
 }

@@ -4,7 +4,9 @@ use bytes::{BufMut, BytesMut};
 
 #[derive(Debug, Clone)]
 pub enum EntityVariant {
-    Player,
+    NPC {
+        npc_id: &'static str
+    },
     DroppedItem {
         item: ItemStack,
     },
@@ -24,20 +26,13 @@ impl EntityVariant {
     /// Returns the mc entity id of the variant 
     pub const fn get_id(&self) -> i8 {
         match self {
-            // players need to be spawned with SpawnPlayer packet
-            EntityVariant::Player => unreachable!(),
+            // npcs need to be spawned with SpawnPlayer packet
+            EntityVariant::NPC { .. } => unreachable!(),
             EntityVariant::DroppedItem { .. } => 2,
             EntityVariant::ArmorStand => 30,
             EntityVariant::Zombie { .. } => 54,
             EntityVariant::Bat { .. } => 65,
             EntityVariant::FallingBlock => 70,
-        }
-    }
-
-    pub const fn is_player(&self) -> bool {
-        match self { 
-            EntityVariant::Player => true,
-            _ => false,
         }
     }
     
@@ -51,6 +46,9 @@ impl EntityVariant {
         }
     }
 }
+
+// maybe just re-do so its more aligned with mc,
+// it wouldn't be hard and would make it not need to manually serialize everything
 
 #[derive(Debug, Clone)]
 pub struct EntityMetadata {
@@ -85,6 +83,9 @@ impl PacketSerializable for EntityMetadata {
         const BYTE_SIZE: usize = const { size_of::<u8>() };
         let mut size = BYTE_SIZE * 3;
         match &self.variant {
+            EntityVariant::NPC { .. } => {
+                size += BYTE_SIZE + BYTE_SIZE;
+            }
             EntityVariant::DroppedItem { item } => {
                 size += item.write_size() + BYTE_SIZE;
             }
@@ -108,6 +109,10 @@ impl PacketSerializable for EntityMetadata {
         write_data(buf, BYTE, 0, flags);
 
         match &self.variant {
+            EntityVariant::NPC { .. } => {
+                // all layers visible
+                write_data(buf, BYTE, 10, u8::MAX)
+            }
             EntityVariant::DroppedItem { item } => {
                 write_data(buf, ITEM_STACK, 10, Some(item.clone()))
             }

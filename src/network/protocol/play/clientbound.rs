@@ -3,10 +3,11 @@ use crate::constants::potions::PotionEffect;
 use crate::constants::Sound;
 use crate::entity::entity_metadata::EntityMetadata;
 use crate::inventory::item_stack::ItemStack;
-use crate::network::binary::var_int::{var_int_size, VarInt};
+use crate::network::binary::var_int::{var_int_size, write_var_int, VarInt};
 use crate::network::packets::packet::IdentifiedPacket;
 use crate::network::packets::packet_serialize::PacketSerializable;
 use crate::player::attribute::AttributeMap;
+use crate::player::player::GameProfile;
 use crate::register_packets;
 use crate::types::block_position::BlockPos;
 use crate::types::chat_component::ChatComponent;
@@ -14,6 +15,7 @@ use crate::types::sized_string::SizedString;
 use blocks::packet_serializable;
 use bytes::BytesMut;
 use glam::Vec3;
+use uuid::Uuid;
 
 register_packets! {
     KeepAlive = 0x00;
@@ -28,7 +30,7 @@ register_packets! {
     // SetHotbarSlot = 0x09;
     // EntityUsedBed = 0x0a;
     // SwingAnimation = 0x0b
-    // SpawnPlayer = 0x0c;
+    SpawnPlayer = 0x0c;
     CollectItem = 0x0d;
     SpawnObject = 0x0e;
     SpawnMob = 0x0f;
@@ -72,7 +74,7 @@ register_packets! {
     // UpdateBlockEntity = 0x35;
     // SignEditorOpen = 0x36;
     // Statistics = 0x37;
-    // PlayerListItem<'_> = 0x38;
+    PlayerListItem<'_> = 0x38;
     PlayerAbilities = 0x39;
     TabCompleteReply = 0x3a;
     ScoreboardObjective = 0x3b;
@@ -143,19 +145,19 @@ packet_serializable! {
     }
 }
 
-// packet_serializable! {
-//     pub struct SpawnPlayer {
-//         pub entity_id: VarInt,
-//         pub uuid: Uuid,
-//         pub x: f64 => &((self.x * 32.0).floor() as i32),
-//         pub y: f64 => &((self.y * 32.0).floor() as i32),
-//         pub z: f64 => &((self.z * 32.0).floor() as i32),
-//         pub yaw: f32 => &((self.yaw * 256.0 / 360.0) as i8),
-//         pub pitch: f32 => &((self.pitch * 256.0 / 360.0) as i8),
-//         pub current_item: i16,
-//         pub metadata: EntityMetadata,
-//     }
-// }
+packet_serializable! {
+    pub struct SpawnPlayer {
+        pub entity_id: i32 => &VarInt(self.entity_id),
+        pub uuid: Uuid,
+        pub x: f64 => &((self.x * 32.0).floor() as i32),
+        pub y: f64 => &((self.y * 32.0).floor() as i32),
+        pub z: f64 => &((self.z * 32.0).floor() as i32),
+        pub yaw: f32 => &((self.yaw * 256.0 / 360.0) as i8),
+        pub pitch: f32 => &((self.pitch * 256.0 / 360.0) as i8),
+        pub current_item: i16,
+        pub metadata: EntityMetadata,
+    }
+}
 
 packet_serializable! {
     pub struct CollectItem {
@@ -259,8 +261,8 @@ packet_serializable! {
 
 packet_serializable! {
     pub struct EntityYawRotate {
-        pub entity_id: VarInt,
-        pub yaw: i8,
+        pub entity_id: i32 => &VarInt(self.entity_id),
+        pub yaw: f32 => &((self.yaw * 256.0 / 360.0) as i32 as i8),
     }
 }
 
@@ -637,115 +639,123 @@ packet_serializable! {
     }
 }
 
-// pub struct PlayerListItem<'a> {
-//     pub action: VarInt,
-//     pub players: Vec<&'a PlayerData>
-// }
-// 
-// impl PacketSerializable for PlayerListItem<'_> {
-//     
-//     fn write_size(&self) -> usize {
-//         const ADD_PLAYER: i32 = 0;
-//         const UPDATE_GAME_MODE: i32 = 1;
-//         const UPDATE_LATENCY: i32 = 2;
-//         const UPDATE_NAME: i32 = 3;
-//         const REMOVE_PLAYER: i32 = 4;
-//         
-//         let mut size = self.action.write_size() + var_int_size(self.players.len() as i32);
-// 
-//         for player in self.players.iter() {
-//             match self.action.0 {
-//                 ADD_PLAYER => {
-//                     size += player.profile.uuid.write_size() + player.profile.username.write_size();
-//                     
-//                     let properties = &player.profile.properties;
-//                     size += 
-//                         var_int_size(properties.len() as i32) +
-//                         var_int_size(player.game_mode.id()) + 
-//                         var_int_size(player.ping);
-//                     
-//                     for (key, property) in properties.iter() {
-//                         size += key.write_size() + property.value.write_size() + 1;
-//                         
-//                         if let Some(signature) = &property.signature {
-//                             size += signature.write_size();
-//                         }
-//                     }
-//                 }
-//                 UPDATE_GAME_MODE => {
-//                     size += player.profile.uuid.write_size() + var_int_size(player.game_mode.id());
-//                 }
-//                 UPDATE_LATENCY => {
-//                     size += player.profile.uuid.write_size() + var_int_size(player.ping);
-//                 }
-//                 UPDATE_NAME | REMOVE_PLAYER => {
-//                     size += player.profile.uuid.write_size();
-//                 }
-//                 _ => unreachable!()
-//             }
-//             if self.action.0 == ADD_PLAYER || self.action.0 == UPDATE_NAME {
-//                 size += 1;
-//                 if let Some(name) = &player.display_name {
-//                     size += name.write_size();
-//                 }
-//             }
-//         }
-//         
-//         size
-//     }
-//     fn write(&self, buf: &mut BytesMut) {
-//         const ADD_PLAYER: i32 = 0;
-//         const UPDATE_GAME_MODE: i32 = 1;
-//         const UPDATE_LATENCY: i32 = 2;
-//         const UPDATE_NAME: i32 = 3;
-//         const REMOVE_PLAYER: i32 = 4;
-//         
-//         self.action.write(buf);
-//         write_var_int(buf, self.players.len() as i32);
-// 
-//         for player in self.players.iter() {
-//             match self.action.0 {
-//                 ADD_PLAYER => {
-//                     player.profile.uuid.write(buf);
-//                     player.profile.username.write(buf);
-// 
-//                     let properties = &player.profile.properties;
-//                     write_var_int(buf, properties.len() as i32);
-//                     for (key, property) in properties.iter() {
-//                         key.write(buf);
-//                         property.value.write(buf);
-// 
-//                         if let Some(signature) = &property.signature {
-//                             true.write(buf);
-//                             signature.write(buf)
-//                         } else {
-//                             false.write(buf)
-//                         }
-//                     }
-//                     write_var_int(buf, player.game_mode.id());
-//                     write_var_int(buf, player.ping);
-//                 }
-//                 UPDATE_GAME_MODE => {
-//                     player.profile.uuid.write(buf);
-//                     write_var_int(buf, player.game_mode.id());
-//                 }
-//                 UPDATE_LATENCY => {
-//                     player.profile.uuid.write(buf);
-//                     write_var_int(buf, player.ping);
-//                 }
-//                 UPDATE_NAME | REMOVE_PLAYER => {
-//                     player.profile.uuid.write(buf);
-//                 }
-//                 _ => unreachable!()
-//             }
-//             if self.action.0 == ADD_PLAYER || self.action.0 == UPDATE_NAME {
-//                 if let Some(name) = &player.display_name {
-//                     true.write(buf);
-//                     name.write(buf);
-//                 } else {
-//                     false.write(buf);
-//                 }
-//             }
-//         }
-//     }
-// }
+#[derive(Debug)]
+pub struct PlayerData<'a> {
+    pub ping: i32,
+    pub game_mode: i32,
+    pub profile: &'a GameProfile,
+    pub display_name: Option<ChatComponent>
+}
+
+pub struct PlayerListItem<'a> {
+    pub action: VarInt,
+    pub players: Vec<&'a PlayerData<'a>>
+}
+
+impl PacketSerializable for PlayerListItem<'_> {
+
+    fn write_size(&self) -> usize {
+        const ADD_PLAYER: i32 = 0;
+        const UPDATE_GAME_MODE: i32 = 1;
+        const UPDATE_LATENCY: i32 = 2;
+        const UPDATE_NAME: i32 = 3;
+        const REMOVE_PLAYER: i32 = 4;
+
+        let mut size = self.action.write_size() + var_int_size(self.players.len() as i32);
+
+        for player in self.players.iter() {
+            match self.action.0 {
+                ADD_PLAYER => {
+                    size += player.profile.uuid.write_size() + player.profile.username.write_size();
+
+                    let properties = &player.profile.properties;
+                    size +=
+                        var_int_size(properties.len() as i32) +
+                        var_int_size(player.game_mode) +
+                        var_int_size(player.ping);
+
+                    for (key, property) in properties.iter() {
+                        size += key.write_size() + property.value.write_size() + 1;
+
+                        if let Some(signature) = &property.signature {
+                            size += signature.write_size();
+                        }
+                    }
+                }
+                UPDATE_GAME_MODE => {
+                    size += player.profile.uuid.write_size() + var_int_size(player.game_mode);
+                }
+                UPDATE_LATENCY => {
+                    size += player.profile.uuid.write_size() + var_int_size(player.ping);
+                }
+                UPDATE_NAME | REMOVE_PLAYER => {
+                    size += player.profile.uuid.write_size();
+                }
+                _ => unreachable!()
+            }
+            if self.action.0 == ADD_PLAYER || self.action.0 == UPDATE_NAME {
+                size += 1;
+                if let Some(name) = &player.display_name {
+                    size += name.write_size();
+                }
+            }
+        }
+
+        size
+    }
+    fn write(&self, buf: &mut BytesMut) {
+        const ADD_PLAYER: i32 = 0;
+        const UPDATE_GAME_MODE: i32 = 1;
+        const UPDATE_LATENCY: i32 = 2;
+        const UPDATE_NAME: i32 = 3;
+        const REMOVE_PLAYER: i32 = 4;
+
+        self.action.write(buf);
+        write_var_int(buf, self.players.len() as i32);
+
+        for player in self.players.iter() {
+            match self.action.0 {
+                ADD_PLAYER => {
+                    player.profile.uuid.write(buf);
+                    player.profile.username.write(buf);
+
+                    let properties = &player.profile.properties;
+                    write_var_int(buf, properties.len() as i32);
+                    for (key, property) in properties.iter() {
+                        key.write(buf);
+                        property.value.write(buf);
+
+                        if let Some(signature) = &property.signature {
+                            true.write(buf);
+                            signature.write(buf)
+                        } else {
+                            false.write(buf)
+                        }
+                    }
+                    write_var_int(buf, player.game_mode);
+                    write_var_int(buf, player.ping);
+                }
+                UPDATE_GAME_MODE => {
+                    player.profile.uuid.write(buf);
+                    write_var_int(buf, player.game_mode);
+                }
+                UPDATE_LATENCY => {
+                    player.profile.uuid.write(buf);
+                    write_var_int(buf, player.ping);
+                }
+                UPDATE_NAME | REMOVE_PLAYER => {
+                    player.profile.uuid.write(buf);
+                }
+                _ => unreachable!()
+            }
+            if self.action.0 == ADD_PLAYER || self.action.0 == UPDATE_NAME {
+                if let Some(name) = &player.display_name {
+                    true.write(buf);
+                    name.write(buf);
+                } else {
+                    false.write(buf);
+                }
+            }
+        }
+    }
+}
