@@ -9,6 +9,9 @@ pub struct ChunkSection {
     data: [u16; 4096],
 }
 
+// could make the data a packet buffer? like store the chunk just as the packet
+// so instead of serializing the chunk for packet you just copy chunk packet buffer
+
 pub struct Chunk {
     pub chunk_sections: [Option<ChunkSection>; 16],
     pub packet_buffer: PacketBuffer,
