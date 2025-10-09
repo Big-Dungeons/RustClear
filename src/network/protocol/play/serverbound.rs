@@ -5,12 +5,12 @@ use crate::network::packets::packet::ProcessPacket;
 use crate::network::packets::packet_deserialize::PacketDeserializable;
 use crate::network::protocol::play::serverbound::ClientStatus::{OpenInventory, PerformRespawn, RequestStats};
 use crate::register_serverbound_packets;
-use crate::types::block_position::BlockPos;
+use crate::types::block_position::BlockPosition;
 use crate::types::sized_string::SizedString;
 use anyhow::bail;
 use blocks::packet_deserializable;
 use bytes::Buf;
-use glam::Vec3;
+use glam::{IVec3, Vec3};
 
 register_serverbound_packets! {
     Play;
@@ -139,14 +139,14 @@ packet_deserializable! {
 packet_deserializable! {
     pub struct PlayerDigging {
         pub action: PlayerDiggingAction,
-        pub position: BlockPos,
+        pub position: BlockPosition,
         pub direction: i8,
     }
 }
 
 packet_deserializable! {
     pub struct PlayerBlockPlacement {
-        pub position: BlockPos,
+        pub position: BlockPosition,
         pub placed_direction: i8,
         pub item_stack: Option<ItemStack>,
         pub facing_x: i8,
@@ -242,7 +242,7 @@ packet_deserializable! {
 
 pub struct TabComplete {
     pub message: String,
-    pub target_block: Option<BlockPos>
+    pub target_block: Option<IVec3>
 }
 
 impl PacketDeserializable for TabComplete {
@@ -251,7 +251,7 @@ impl PacketDeserializable for TabComplete {
             message: PacketDeserializable::read(buffer)?,
             target_block: {
                 if u8::read(buffer)? != 0 {
-                    Some(BlockPos::read(buffer)?)
+                    Some(BlockPosition::read(buffer)?.0)
                 } else { 
                     None 
                 }

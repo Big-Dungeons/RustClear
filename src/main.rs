@@ -12,11 +12,10 @@ use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::protocol::play::serverbound::EntityInteractionType;
 use crate::network::run_network::run_network_thread;
 use crate::player::player::Player;
-use crate::types::block_position::BlockPos;
 use crate::utils::seeded_rng::{seeded_rng, SeededRng};
 use crate::world::world::World;
 use anyhow::bail;
-use glam::DVec3;
+use glam::{ivec3, DVec3};
 use rand::prelude::IndexedRandom;
 use std::collections::HashMap;
 use std::time::Duration;
@@ -131,7 +130,9 @@ async fn main() -> anyhow::Result<()> {
 
         let entrance = world.extension.entrance_room();
         let entrance = entrance.borrow();
-        let position = entrance.get_world_block_pos(&BlockPos::new(15, 69, 4)).as_dvec3_centered();
+        let mut position = entrance.get_world_block_position(ivec3(15, 69, 4)).as_dvec3();
+        position.x += 0.5;
+        position.z += 0.5;
         
         let yaw = 0.0.rotate(entrance.rotation);
         world.spawn_entity(

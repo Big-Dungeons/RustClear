@@ -1,7 +1,7 @@
 use crate::block::blocks::Blocks;
 use crate::network::protocol::play::clientbound::BlockChange;
-use crate::types::block_position::BlockPos;
 use crate::world::chunk::chunk::Chunk;
+use glam::{ivec3, IVec3};
 use std::cmp::{max, min};
 
 /// Chunk grid
@@ -66,7 +66,7 @@ impl ChunkGrid {
             let local_z = z & 15;
             chunk.set_block_at(block, local_x, y, local_z);
             chunk.packet_buffer.write_packet(&BlockChange {
-                block_pos: BlockPos::new(x, y, z),
+                block_pos: ivec3(x, y, z),
                 block_state: block.get_block_state_id(),
             })
         }
@@ -171,7 +171,7 @@ impl ChunkGrid {
         }
     }
 
-    pub fn fill_blocks(&mut self, block: Blocks, start: BlockPos, end: BlockPos) {
+    pub fn fill_blocks(&mut self, block: Blocks, start: IVec3, end: IVec3) {
         iterate_blocks(start, end, |x, y, z| {
             self.set_block_at(block, x, y, z)
         })
@@ -182,8 +182,8 @@ impl ChunkGrid {
 /// and runs a function
 #[inline(always)]
 pub fn iterate_blocks<F>(
-    start: BlockPos,
-    end: BlockPos,
+    start: IVec3,
+    end: IVec3,
     mut callback: F,
 ) where
     F : FnMut(i32, i32, i32)

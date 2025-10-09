@@ -9,13 +9,13 @@ use crate::network::packets::packet_serialize::PacketSerializable;
 use crate::player::attribute::AttributeMap;
 use crate::player::player::GameProfile;
 use crate::register_packets;
-use crate::types::block_position::BlockPos;
+use crate::types::block_position::BlockPosition;
 use crate::types::chat_component::ChatComponent;
 use crate::types::sized_string::SizedString;
 use blocks::packet_serializable;
 use bytes::BytesMut;
 use enumset::{EnumSet, EnumSetType};
-use glam::Vec3;
+use glam::{IVec3, Vec3};
 use uuid::Uuid;
 
 register_packets! {
@@ -334,14 +334,14 @@ packet_serializable! {
 
 packet_serializable! {
     pub struct BlockChange {
-        pub block_pos: BlockPos,
+        pub block_pos: IVec3 => &BlockPosition(self.block_pos),
         pub block_state: u16 => &VarInt(self.block_state as i32),
     }
 }
 
 packet_serializable! {
     pub struct BlockAction {
-        pub block_pos: BlockPos,
+        pub block_pos: IVec3 => &BlockPosition(self.block_pos),
         pub event_id: u8,
         pub event_data: u8,
         pub block_id: u16 => &VarInt((self.block_id & 4095) as i32),

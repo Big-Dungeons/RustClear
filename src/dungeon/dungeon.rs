@@ -15,12 +15,11 @@ use crate::player::attribute::{Attribute, AttributeMap, AttributeModifier};
 use crate::player::player::{ClientId, GameProfile, Player};
 use crate::player::sidebar::Sidebar;
 use crate::types::aabb::AABB;
-use crate::types::block_position::BlockPos;
 use crate::types::chat_component::ChatComponent;
 use crate::utils::hasher::deterministic_hasher::DeterministicHashMap;
 use crate::world::world::{World, WorldExtension};
 use anyhow::bail;
-use glam::{DVec3, IVec2};
+use glam::{ivec3, DVec3, IVec2};
 use maplit::hashmap;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
@@ -138,7 +137,9 @@ impl WorldExtension for Dungeon {
         let entrance = world.extension.entrance_room().clone();
         let entrance = entrance.borrow();
 
-        let position = entrance.get_world_block_pos(&BlockPos::new(15, 72, 18)).as_dvec3_centered();
+        let mut position = entrance.get_world_block_position(ivec3(15, 72, 18)).as_dvec3();
+        position.x += 0.5;
+        position.z += 0.5;
         
         let player = world.spawn_player(
             position,

@@ -1,12 +1,12 @@
 use crate::block::block_parameter::Axis;
 use crate::block::blocks::Blocks;
+use crate::block::rotatable::Rotatable;
 use crate::dungeon::door::door_entity::DoorEntityImpl;
 use crate::dungeon::dungeon::Dungeon;
-use crate::types::block_position::BlockPos;
 use crate::utils::seeded_rng::seeded_rng;
 use crate::world::chunk::chunk_grid::ChunkGrid;
 use crate::world::world::World;
-use glam::DVec3;
+use glam::{ivec3, DVec3, IVec3};
 use rand::prelude::IndexedRandom;
 use std::collections::HashMap;
 
@@ -24,8 +24,8 @@ pub struct Door {
     pub axis: Axis,
     door_type: DoorType,
     
-    inner_start: BlockPos,
-    inner_end: BlockPos,
+    inner_start: IVec3,
+    inner_end: IVec3,
 
     pub is_open: bool,
 }
@@ -39,8 +39,8 @@ impl Door {
             axis,
             is_open: door_type == DoorType::Normal,
             door_type,
-            inner_start: BlockPos::new(x - 1, 69, z - 1),
-            inner_end: BlockPos::new(x + 1, 72, z + 1),
+            inner_start: ivec3(x - 1, 69, z - 1),
+            inner_end: ivec3(x + 1, 72, z + 1),
         }
     }
     
@@ -71,21 +71,21 @@ impl Door {
         // Doors have a thick bedrock floor usually
         chunk_grid.fill_blocks(
             Blocks::Bedrock,
-            BlockPos::new(self.x - dx, 67, self.z - dz),
-            BlockPos::new(self.x + dx, 66, self.z + dz),
+            ivec3(self.x - dx, 67, self.z - dz),
+            ivec3(self.x + dx, 66, self.z + dz),
         );
 
         // Might need to replace with a random palette of cobble, stone, gravel etc if we want to mimic hypixel FULLY, but this works fine.
         chunk_grid.fill_blocks(
             Blocks::Stone { variant: 0 },
-            BlockPos::new(self.x - (dz - 2) * 2, 68, self.z - (dx - 2) * 2),
-            BlockPos::new(self.x + (dz - 2) * 2, 68, self.z + (dx - 2) * 2),
+            ivec3(self.x - (dz - 2) * 2, 68, self.z - (dx - 2) * 2),
+            ivec3(self.x + (dz - 2) * 2, 68, self.z + (dx - 2) * 2),
         );
 
         chunk_grid.fill_blocks(
             Blocks::Air,
-            BlockPos::new(self.x - dx, 69, self.z - dz),
-            BlockPos::new(self.x + dx, 73, self.z + dz),
+            ivec3(self.x - dx, 69, self.z - dz),
+            ivec3(self.x + dx, 73, self.z + dz),
         );
 
         // Pretty much just to get a normal self from a wither one,
@@ -105,7 +105,7 @@ impl Door {
             let y = (index / (5 * 5)) as i32;
             let z = ((index / 5) % 5) as i32;
 
-            let bp = BlockPos::new(x - 2, y, z - 2).rotate(self_direction);
+            let bp = ivec3(x - 2, y, z - 2).rotate(self_direction);
 
             let mut block_to_place = block.clone();
             block_to_place.rotate(self_direction);
@@ -114,8 +114,8 @@ impl Door {
 
         chunk_grid.fill_blocks(
             self.get_block(),
-            BlockPos::new(self.x - 1, 69, self.z - 1),
-            BlockPos::new(self.x + 1, 72, self.z + 1),
+            ivec3(self.x - 1, 69, self.z - 1),
+            ivec3(self.x + 1, 72, self.z + 1),
         );
     }
     
@@ -149,8 +149,8 @@ impl Door {
         
         world.chunk_grid.fill_blocks(
             Blocks::Barrier,
-            BlockPos::new(self.x - 1, 69, self.z - 1),
-            BlockPos::new(self.x + 1, 72, self.z + 1),
+            ivec3(self.x - 1, 69, self.z - 1),
+            ivec3(self.x + 1, 72, self.z + 1),
         );
         // door entity gets rid of blocks when it disappears
         world.spawn_entity(
@@ -167,7 +167,7 @@ impl Door {
     }
 
     // inner bit of door, blocks abilities
-    pub fn contains(&self, block_pos: &BlockPos) -> bool {
+    pub fn contains(&self, block_pos: &IVec3) -> bool {
         let (x ,y , z) = (block_pos.x, block_pos.y, block_pos.z);
         (x >= self.inner_start.x && x <= self.inner_end.x) &&
         (y >= self.inner_start.y && y <= self.inner_end.y) &&

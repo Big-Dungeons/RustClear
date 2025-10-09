@@ -14,11 +14,10 @@ use crate::network::protocol::play::clientbound::{ConfirmTransaction, PlayerData
 use crate::network::protocol::play::serverbound::PlayerDiggingAction;
 use crate::player::packet_handling::BlockInteractResult;
 use crate::types::aabb::AABB;
-use crate::types::block_position::BlockPos;
 use crate::world::chunk::chunk_grid::ChunkDiff;
 use crate::world::world::VIEW_DISTANCE;
 use crate::world::world::{World, WorldExtension};
-use glam::{dvec3, DVec3, Vec3};
+use glam::{dvec3, DVec3, IVec3, Vec3};
 use std::collections::HashMap;
 use std::f32::consts::PI;
 use uuid::Uuid;
@@ -46,7 +45,7 @@ pub trait PlayerExtension : Sized {
     fn tick(player: &mut Player<Self>);
 
     // maybe make a separate enum that actually only has player digging actions
-    fn dig(player: &mut Player<Self>, position: BlockPos, action: &PlayerDiggingAction) {
+    fn dig(player: &mut Player<Self>, position: IVec3, action: &PlayerDiggingAction) {
 
     }
 
@@ -259,7 +258,7 @@ impl<E : PlayerExtension> Player<E> {
             dvec3(self.position.x + w, self.position.y + h, self.position.z + w),
         )
     }
-    
+
     pub fn collision_aabb_at(&self, position: &DVec3) -> AABB {
         let w = 0.3;
         let h = 1.8;

@@ -4,9 +4,9 @@ use crate::network::protocol::play::clientbound::Chat;
 use crate::network::protocol::play::serverbound;
 use crate::network::protocol::play::serverbound::{ArmSwing, ChatMessage, ClickWindow, ClientSettings, ClientStatus, HeldItemChange, PlayerAction, PlayerActionType, PlayerBlockPlacement, PlayerDigging, PlayerLook, PlayerPosition, PlayerPositionLook, PlayerUpdate, TabComplete, UseEntity};
 use crate::player::player::{Player, PlayerExtension};
-use crate::types::block_position::BlockPos;
 use crate::types::chat_component::ChatComponent;
 use crate::types::direction::Direction;
+use glam::IVec3;
 
 impl ProcessPacket for serverbound::KeepAlive {
     fn process_with_player<P : PlayerExtension>(&self, _: &mut Player<P>) {
@@ -71,12 +71,12 @@ impl ProcessPacket for PlayerPositionLook {
 
 impl ProcessPacket for PlayerDigging {
     fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
-        P::dig(player, self.position, &self.action);
+        P::dig(player, self.position.0, &self.action);
     }
 }
 
 pub struct BlockInteractResult {
-    pub position: BlockPos,
+    pub position: IVec3,
     pub direction: Direction,
 }
 
@@ -85,11 +85,11 @@ impl ProcessPacket for PlayerBlockPlacement {
         if !player.sent_block_placement {
             player.sent_block_placement = true;
             
-            let block_hit_result = if self.position.is_invalid() { 
+            let block_hit_result = if self.position.y.is_negative() {
                 None
             } else {
                 Some(BlockInteractResult {
-                    position: self.position,
+                    position: *self.position,
                     direction: match self.placed_direction {
                         0 => Direction::Down,
                         1 => Direction::Up,

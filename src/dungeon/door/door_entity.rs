@@ -5,7 +5,7 @@ use crate::entity::entity_metadata::{EntityMetadata, EntityVariant};
 use crate::network::binary::var_int::VarInt;
 use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::protocol::play::clientbound::{DestroyEntites, EntityAttach, EntityRelativeMove, SpawnMob, SpawnObject};
-use crate::types::block_position::BlockPos;
+use glam::ivec3;
 
 pub struct DoorEntityImpl {
     pub block: Blocks,
@@ -98,8 +98,8 @@ impl EntityImpl<Dungeon> for DoorEntityImpl {
             world.remove_entity(entity.id);
             world.chunk_grid.fill_blocks(
                 Blocks::Air,
-                BlockPos::new(self.x, 69, self.z),
-                BlockPos::new(self.x + 2, 72, self.z + 2),
+                ivec3(self.x, 69, self.z),
+                ivec3(self.x + 2, 72, self.z + 2),
             );
         }
     }

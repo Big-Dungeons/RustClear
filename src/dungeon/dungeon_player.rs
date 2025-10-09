@@ -10,11 +10,11 @@ use crate::network::protocol::play::serverbound::PlayerDiggingAction;
 use crate::player::packet_handling::BlockInteractResult;
 use crate::player::player::{Player, PlayerExtension};
 use crate::player::sidebar::Sidebar;
-use crate::types::block_position::BlockPos;
 use crate::types::chat_component::ChatComponent;
 use crate::types::direction::Direction;
 use crate::world::world::World;
 use chrono::Local;
+use glam::IVec3;
 use indoc::{formatdoc, indoc};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
@@ -71,7 +71,7 @@ impl PlayerExtension for DungeonPlayer {
         });
     }
 
-    fn dig(player: &mut Player<Self>, position: BlockPos, action: &PlayerDiggingAction) {
+    fn dig(player: &mut Player<Self>, position: IVec3, action: &PlayerDiggingAction) {
         let mut restore_block = false;
         match action {
             PlayerDiggingAction::StartDestroyBlock => {
@@ -163,7 +163,7 @@ impl Player<DungeonPlayer> {
         None
     }
     
-    pub fn try_open_door(&mut self, world: &mut World<Dungeon>, position: &BlockPos) {
+    pub fn try_open_door(&mut self, world: &mut World<Dungeon>, position: &IVec3) {
         if world.has_dungeon_started() {
             if let Some(room_rc) = self.get_current_room() {
                 for neighbour in room_rc.borrow().neighbours() {

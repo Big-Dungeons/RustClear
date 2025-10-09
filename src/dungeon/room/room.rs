@@ -1,13 +1,13 @@
 use crate::block::blocks::Blocks;
+use crate::block::rotatable::Rotatable;
 use crate::dungeon::door::door::Door;
 use crate::dungeon::dungeon::DUNGEON_ORIGIN;
 use crate::dungeon::room::room_data::RoomData;
 use crate::player::player::ClientId;
 use crate::types::aabb::AABB;
-use crate::types::block_position::BlockPos;
 use crate::types::direction::Direction;
 use crate::world::chunk::chunk_grid::ChunkGrid;
-use glam::dvec3;
+use glam::{dvec3, ivec3, IVec3};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -104,11 +104,15 @@ impl Room {
         self.segments.iter().flat_map(|seg| seg.neighbours.iter().map(|n| n).flatten())
     }
 
-    pub fn get_corner_pos(&self) -> BlockPos {
+    pub fn get_corner_pos(&self) -> IVec3 {
         Room::get_corner_pos_from(&self.segments, &self.rotation, &self.data)
     }
 
-    pub fn get_corner_pos_from(segments: &[RoomSegment], rotation: &Direction, room_data: &RoomData) -> BlockPos {
+    pub fn get_corner_pos_from(
+        segments: &[RoomSegment],
+        rotation: &Direction,
+        room_data: &RoomData
+    ) -> IVec3 {
         let min_x = segments.iter().min_by(|a, b| a.x.cmp(&b.x)).unwrap().x;
         let min_z = segments.iter().min_by(|a, b| a.z.cmp(&b.z)).unwrap().z;
 
@@ -117,10 +121,10 @@ impl Room {
         let z = min_z as i32 * 32 + DUNGEON_ORIGIN.y;
 
         match rotation {
-            Direction::North => BlockPos { x, y, z },
-            Direction::East => BlockPos { x: x + room_data.length - 1, y, z },
-            Direction::South => BlockPos { x: x + room_data.length - 1, y, z: z + room_data.width - 1 },
-            Direction::West => BlockPos { x: x, y, z: z + room_data.width - 1 },
+            Direction::North => ivec3(x, y, z),
+            Direction::East => ivec3(x + room_data.length - 1, y, z),
+            Direction::South => ivec3(x + room_data.length - 1, y, z + room_data.width - 1),
+            Direction::West => ivec3(x, y, z + room_data.width - 1),
             _ => unreachable!(),
         }
     }
@@ -128,7 +132,7 @@ impl Room {
     pub fn load_into_world(&self, chunk_grid: &mut ChunkGrid) {
         let corner = self.get_corner_pos();
 
-        for (i, block) in self.data.block_data.iter().enumerate() {
+        for (index, block) in self.data.block_data.iter().enumerate() {
             if *block == Blocks::Air {
                 continue;
             }
@@ -137,13 +141,13 @@ impl Room {
             let mut block = block.clone();
             block.rotate(self.rotation);
 
-            let ind = i as i32;
+            let index = index as i32;
 
-            let x = ind % self.data.width;
-            let z = (ind / self.data.width) % self.data.length;
-            let y = self.data.bottom + ind / (self.data.width * self.data.length);
+            let x = index % self.data.width;
+            let z = (index / self.data.width) % self.data.length;
+            let y = self.data.bottom + index / (self.data.width * self.data.length);
 
-            let bp = BlockPos { x, y, z }.rotate(self.rotation);
+            let bp = ivec3(x, y, z).rotate(self.rotation);
 
             chunk_grid.set_block_at(block, corner.x + bp.x, y, corner.z + bp.z);
         }
@@ -179,13 +183,12 @@ impl Room {
         *old = new;
     }
 
-    pub fn get_world_block_pos(&self, room_pos: &BlockPos) -> BlockPos {
+    pub fn get_world_block_position(&self, room_position: IVec3) -> IVec3 {
         let corner = self.get_corner_pos();
-
-        room_pos.clone()
-            .rotate(self.rotation)
-            .add_x(corner.x)
-            .add_z(corner.z)
+        let mut position = room_position.rotate(self.rotation);
+        position.x += corner.x;
+        position.z += corner.z;
+        position
     }
 }
 
