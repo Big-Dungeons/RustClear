@@ -1,16 +1,23 @@
 use crate::dungeon::dungeon_player::DungeonPlayer;
 use crate::dungeon::items::etherwarp::VALID_ETHER_WARP_BLOCK_IDS;
+use crate::dungeon::room::room_data::RoomType;
 use crate::network::protocol::play::clientbound::{PositionLook, Relative};
 use crate::player::player::Player;
 use crate::world::chunk::chunk_grid::ChunkGrid;
-use glam::{DVec3, IVec3};
-
+use glam::{dvec3, DVec3, IVec3};
 
 // it appears hypixel uses a generic stepping algorithm for ray-casting
 pub fn instant_transmission(
     player: &mut Player<DungeonPlayer>,
     distance: f64,
 ) {
+    if let Some(room_rc) = player.get_current_room() {
+        match room_rc.borrow().data.room_type {
+            RoomType::Trap | RoomType::Puzzle => return,
+            _ => {}
+        }
+    };
+
     let chunk_grid = &player.world().chunk_grid;
 
     let mut start = player.position;
@@ -53,10 +60,18 @@ pub fn instant_transmission(
 
     // todo: sounds
     if let Some(position) = current_block {
+        let position = dvec3(position.x as f64 + 0.5, position.y as f64, position.z as f64 + 0.5);
+        let dungeon = &player.world().extension;
+
+        if let Some((room_rc, _)) = dungeon.get_room(&position, player.collision_aabb_at(&position)) {
+            if room_rc.borrow().data.room_type == RoomType::Puzzle {
+                return;
+            }
+        }
         player.write_packet(&PositionLook {
-            x: position.x as f64 + 0.5,
-            y: position.y as f64,
-            z: position.z as f64 + 0.5,
+            x: position.x,
+            y: position.y,
+            z: position.z,
             yaw: 0.0,
             pitch: 0.0,
             flags: Relative::Yaw | Relative::Pitch,

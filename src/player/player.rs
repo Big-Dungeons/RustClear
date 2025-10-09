@@ -260,6 +260,15 @@ impl<E : PlayerExtension> Player<E> {
         )
     }
     
+    pub fn collision_aabb_at(&self, position: &DVec3) -> AABB {
+        let w = 0.3;
+        let h = 1.8;
+        AABB::new(
+            dvec3(position.x - w, position.y, position.z - w),
+            dvec3(position.x + w, position.y + h, position.z + w),
+        )
+    }
+    
     pub fn open_container(&mut self, mut container: OpenContainer<E>) {
         if let OpenContainer::Menu(_) = self.open_container {
             self.write_packet(&clientbound::CloseWindow {

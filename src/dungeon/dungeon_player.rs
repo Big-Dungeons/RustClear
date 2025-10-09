@@ -157,9 +157,7 @@ impl Player<DungeonPlayer> {
     }
 
     pub fn get_current_room(&self) -> Option<Rc<RefCell<Room>>> {
-        let world = self.world();
-        if let Some((index, _)) = world.get_player_room(self) {
-            let room = &world.rooms[index];
+        if let Some((room, _)) = &self.extension.current_room {
             return Some(room.clone())
         }
         None
@@ -183,7 +181,6 @@ impl Player<DungeonPlayer> {
                             });
                             continue;
                         }
-
                         door.open(world);
                     }
                     neighbour.room.borrow_mut().discovered = true;

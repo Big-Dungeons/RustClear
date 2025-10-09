@@ -14,12 +14,13 @@ use crate::network::protocol::play::clientbound::{Chat, EntityProperties, Player
 use crate::player::attribute::{Attribute, AttributeMap, AttributeModifier};
 use crate::player::player::{ClientId, GameProfile, Player};
 use crate::player::sidebar::Sidebar;
+use crate::types::aabb::AABB;
 use crate::types::block_position::BlockPos;
 use crate::types::chat_component::ChatComponent;
 use crate::utils::hasher::deterministic_hasher::DeterministicHashMap;
 use crate::world::world::{World, WorldExtension};
 use anyhow::bail;
-use glam::IVec2;
+use glam::{DVec3, IVec2};
 use maplit::hashmap;
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
@@ -78,33 +79,31 @@ impl WorldExtension for Dungeon {
             }
             DungeonState::Started { ticks } => {
                 *ticks += 1;
-                
-                // iterate over players and get the room and room section they're in
-                // if its different remove the player (client) id in the room and room section
-                // and set the player current room reference to the new room
 
                 for player in world.players.iter_mut() {
-                    if let Some((index, new_segment)) = world.extension.get_player_room(player) {
-                        let room = &world.extension.rooms[index];
-                        
-                        if let Some((old_room, old_segment)) = &mut player.extension.current_room {
-                            if !Rc::ptr_eq(old_room, room) {
-                                old_room.borrow_mut().remove_player_ref(player.client_id);
-                                room.borrow_mut().add_player_ref(player.client_id, new_segment);
-                                player.extension.current_room = Some((room.clone(), new_segment));
-                            } else if *old_segment != new_segment {
-                                room.borrow_mut().update_player_segment(player.client_id, new_segment);
-                                *old_segment = new_segment;
-                            }
-                        } else {
-                            room.borrow_mut().add_player_ref(player.client_id, new_segment);
-                            player.extension.current_room = Some((room.clone(), new_segment));
-                        }
-                    } else {
+                    let Some((new_room, new_segment)) = world.extension.get_room(&player.position, player.collision_aabb()) else {
                         if let Some((old_room, _)) = &player.extension.current_room {
+                            // was in a room, now in no room
                             old_room.borrow_mut().remove_player_ref(player.client_id);
                             player.extension.current_room = None
                         }
+                        continue;
+                    };
+                    if let Some((old_room, old_segment)) = &mut player.extension.current_room {
+                        if !Rc::ptr_eq(old_room, new_room) {
+                            // was in a different room, moved to new room
+                            old_room.borrow_mut().remove_player_ref(player.client_id);
+                            new_room.borrow_mut().add_player_ref(player.client_id, new_segment);
+                            player.extension.current_room = Some((new_room.clone(), new_segment));
+                        } else if *old_segment != new_segment {
+                            // same room, different segment
+                            new_room.borrow_mut().update_player_segment(player.client_id, new_segment);
+                            *old_segment = new_segment;
+                        }
+                    } else {
+                        // no previous room
+                        new_room.borrow_mut().add_player_ref(player.client_id, new_segment);
+                        player.extension.current_room = Some((new_room.clone(), new_segment));
                     }
                 }
 
@@ -474,39 +473,23 @@ impl Dungeon {
         self.rooms[self.entrance_room_index].clone()
     }
 
-    // todo: clean up everything under here
-    
-    pub fn get_room_grid_position(x: i32, z: i32) -> Option<usize> {
-        if x < DUNGEON_ORIGIN.x || z < DUNGEON_ORIGIN.y {
-            return None;
-        }
-        let grid_x = ((x - DUNGEON_ORIGIN.x) / 32) as usize;
-        let grid_z = ((z - DUNGEON_ORIGIN.y) / 32) as usize;
-        Some(grid_x + (grid_z * 6))
-    }
-
-    pub fn get_room_index_at(&self, x: i32, z: i32) -> Option<usize> {
-        *self.room_index_grid.get(Self::get_room_grid_position(x, z)?).unwrap_or_else(|| &None)
-    }
-
-    // todo: instead of doing this everytime player needs room,
-    // once a tick, get the room the player is in, then just use a reference between each
-    pub fn get_player_room(&self, player: &Player<DungeonPlayer>) -> Option<(usize, Option<usize>)> {
-        let room_index = self.get_room_index_at(
-            player.position.x as i32,
-            player.position.z as i32
-        );
-
-        if let Some(index) = room_index {
-            let player_aabb = player.collision_aabb();
-            let room = &self.rooms[index].borrow();
-
-            for room_bounds in room.room_bounds.iter() {
-                if player_aabb.intersects(&room_bounds.aabb) {
-                    return Some((index, room_bounds.segment_index))
-                }
+    pub fn get_room(&self, position: &DVec3, aabb: AABB) -> Option<(&Rc<RefCell<Room>>, Option<usize>)> {
+        let room_index = self.room_index_grid[grid_position(position.x as i32, position.z as i32)?]?;
+        let room_rc = &self.rooms[room_index];
+        for room_aabb in room_rc.borrow().room_bounds.iter() {
+            if room_aabb.aabb.intersects(&aabb) {
+                return Some((room_rc, room_aabb.segment_index))
             }
         }
         None
     }
+}
+
+fn grid_position(x: i32, z: i32) -> Option<usize> {
+    if x < DUNGEON_ORIGIN.x || z < DUNGEON_ORIGIN.y {
+        return None;
+    }
+    let grid_x = ((x - DUNGEON_ORIGIN.x) / 32) as usize;
+    let grid_z = ((z - DUNGEON_ORIGIN.y) / 32) as usize;
+    Some(grid_x + (grid_z * 6))
 }

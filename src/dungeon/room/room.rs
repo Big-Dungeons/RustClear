@@ -1,9 +1,8 @@
 use crate::block::blocks::Blocks;
 use crate::dungeon::door::door::Door;
 use crate::dungeon::dungeon::DUNGEON_ORIGIN;
-use crate::dungeon::dungeon_player::DungeonPlayer;
 use crate::dungeon::room::room_data::RoomData;
-use crate::player::player::{ClientId, Player};
+use crate::player::player::ClientId;
 use crate::types::aabb::AABB;
 use crate::types::block_position::BlockPos;
 use crate::types::direction::Direction;
@@ -52,7 +51,6 @@ impl Room {
         room_data: RoomData,
     ) -> Self {
         let rotation = get_rotation_from_segments(&segments);
-
         let mut room_bounds: Vec<RoomBounds> = Vec::new();
 
         for (index, segment) in segments.iter().enumerate() {
@@ -65,7 +63,6 @@ impl Room {
                 aabb: AABB::new(dvec3(x, y, z), dvec3(x + 31.0, max_y, z + 31.0)),
                 segment_index: Some(index),
             });
-
             if segments.iter().find(|seg| seg.x == segment.x + 1 && seg.z == segment.z).is_some() {
                 let x = x + 31.0;
                 let z = z;
@@ -180,14 +177,6 @@ impl Room {
             self.segments[segment].player_ref_count += 1;
         }
         *old = new;
-    }
-
-    pub fn players_mut<'a>(
-        &self,
-        players: &'a mut Vec<Player<DungeonPlayer>>
-    ) -> impl Iterator<Item = &'a mut Player<DungeonPlayer>> {
-        debug_assert!(!self.players.is_empty(), "iterating room players when there is none");
-        players.iter_mut().filter(|player| self.players.contains_key(&player.client_id))
     }
 
     pub fn get_world_block_pos(&self, room_pos: &BlockPos) -> BlockPos {

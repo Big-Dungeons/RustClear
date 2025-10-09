@@ -1,10 +1,11 @@
 use crate::constants::{Particle, Sound};
 use crate::dungeon::dungeon_player::DungeonPlayer;
+use crate::dungeon::room::room_data::RoomType;
 use crate::network::protocol::play::clientbound::{PositionLook, Relative};
 use crate::player::player::Player;
 use crate::utils::bitset::BitSet;
 use crate::world::chunk::chunk_grid::ChunkGrid;
-use glam::{vec3, DVec3};
+use glam::{dvec3, vec3, DVec3};
 
 pub(super) const VALID_ETHER_WARP_BLOCK_IDS: BitSet<3> = BitSet::new(
     &[
@@ -21,12 +22,12 @@ enum EtherResult {
 pub fn etherwarp(player: &mut Player<DungeonPlayer>) {
     // temporary, but just to test,
     // since some puzzles let you teleport in them, and others don't
-    // if let Some(current_room) = player.current_room() {
-    //     match current_room.data.room_type {
-    //         RoomType::Trap | RoomType::Puzzle => return,
-    //         _ => {}
-    //     }
-    // };
+    if let Some(room_rc) = player.get_current_room() {
+        match room_rc.borrow().data.room_type {
+            RoomType::Trap | RoomType::Puzzle => return,
+            _ => {}
+        }
+    };
     
     let mut start_pos = player.position;
     start_pos.y += 1.54; // assume always sneaking
@@ -34,16 +35,15 @@ pub fn etherwarp(player: &mut Player<DungeonPlayer>) {
     end_pos += start_pos;
 
     if let EtherResult::Valid(x, y, z) = traverse_voxels(&player.world().chunk_grid, start_pos, end_pos) {
-        // let dungeon = &player.world().extension;
-        // if let Some(index) = dungeon.get_room_at(x, z) {
-        //     let room = &dungeon.rooms[index];
-        //     if room.data.room_type == RoomType::Puzzle {
-        //         return;
-        //     }
-        // }
-        
-        let position = DVec3::new(x as f64 + 0.5, y as f64 + 1.05, z as f64 + 0.5);
-        
+
+        let position = dvec3(x as f64 + 0.5, y as f64 + 1.05, z as f64 + 0.5);
+        let dungeon = &player.world().extension;
+
+        if let Some((room_rc, _)) = dungeon.get_room(&position, player.collision_aabb_at(&position)) {
+            if room_rc.borrow().data.room_type == RoomType::Puzzle {
+                return;
+            }
+        }
         player.world_mut().spawn_particle(
             Particle::SpellWitch,
             player.position.as_vec3(), 
