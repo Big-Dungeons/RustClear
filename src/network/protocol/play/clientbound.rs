@@ -628,7 +628,7 @@ impl PacketSerializable for Teams {
     }
 }
 
-// todo test, this might not work
+// test this, it might not work
 packet_serializable! {
     pub struct CustomPayload<'a> {
         pub channel: SizedString<20>,

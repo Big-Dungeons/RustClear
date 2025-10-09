@@ -1,11 +1,13 @@
 use crate::dungeon::dungeon_player::DungeonPlayer;
 use crate::inventory::item::get_item_stack;
 use crate::inventory::item_stack::ItemStack;
-use crate::network::binary::nbt::NBT;
+use crate::network::binary::nbt::serialize::TAG_COMPOUND_ID;
+use crate::network::binary::nbt::{NBTNode, NBT};
 use crate::network::protocol::play::clientbound::{OpenWindow, SetSlot, WindowItems};
 use crate::network::protocol::play::serverbound::ClickWindow;
 use crate::player::player::{Player, PlayerExtension};
 use crate::types::chat_component::ChatComponent;
+use std::collections::HashMap;
 
 pub trait Menu<P : PlayerExtension> {
     
@@ -160,8 +162,17 @@ impl Menu<DungeonPlayer> for DungeonMenu {
                             NBT::string("Name", &format!("§7{}", player.profile.username)),
                             NBT::list_from_string("Lore", &item_name.to_string())
                         ]),
-                        // todo: make it use same profile as player, so it doesn't need to fetch it
-                        NBT::string("SkullOwner", &player.profile.username),
+                        NBT::compound("SkullOwner", vec![
+                            NBT::string("Id", &player.profile.uuid.hyphenated().to_string()),
+                            NBT::compound("Properties", vec![
+                                NBT::list("textures", TAG_COMPOUND_ID, vec![
+                                    NBTNode::Compound(HashMap::from([(
+                                        "Value".to_string(),
+                                        NBTNode::String(player.profile.properties["textures"].value.to_string())
+                                    )]))
+                                ])
+                            ])
+                        ]),
                     ])),
                 });
                 items[13] = Some(ItemStack {
