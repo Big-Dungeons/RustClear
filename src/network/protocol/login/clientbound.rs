@@ -3,6 +3,7 @@ use crate::network::packets::packet_serialize::PacketSerializable;
 use crate::register_packets;
 use blocks::packet_serializable;
 use bytes::BytesMut;
+use fstr::FString;
 
 register_packets! {
     // LoginDisconnect = 0x00;
@@ -13,7 +14,7 @@ register_packets! {
 
 packet_serializable! {
     pub struct LoginSuccess {
-        pub uuid: String,
-        pub name: String,
+        pub uuid: FString,
+        pub name: FString,
     }
 }

@@ -1,7 +1,8 @@
 use crate::network::binary::nbt::{NBTNode, NBT};
 use crate::network::binary::nbt::serialize::*;
 use crate::utils::get_vec;
-use bytes::{Buf, BytesMut};
+use bytes::Buf;
+use fstr::FString;
 use std::collections::HashMap;
 
 // should use anyhow, client can maliciously send invalid nbt data
@@ -72,7 +73,7 @@ fn read_entry(buffer: &mut impl Buf, tag: u8) -> NBTNode {
             NBTNode::List { type_id, children: nodes }
         }
         TAG_COMPOUND_ID => {
-            let mut nodes: HashMap<String, NBTNode> = HashMap::new();
+            let mut nodes: HashMap<FString, NBTNode> = HashMap::new();
             loop {
                 let tag = buffer.get_u8();
                 if tag == TAG_END_ID {
@@ -105,7 +106,9 @@ fn read_entry(buffer: &mut impl Buf, tag: u8) -> NBTNode {
     }
 }
 
-fn read_string(buffer: &mut impl Buf) -> String {
+fn read_string(buffer: &mut impl Buf) -> FString {
     let size = buffer.get_u16() as usize;
-    String::from_utf8(get_vec(buffer, size)).unwrap()
+    let str = FString::from_bytes(&buffer.chunk()[..size]).unwrap();
+    buffer.advance(size);
+    str
 }

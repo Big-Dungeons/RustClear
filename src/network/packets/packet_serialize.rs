@@ -1,5 +1,6 @@
 use crate::network::binary::var_int::{var_int_size, write_var_int, VarInt};
 use bytes::{BufMut, BytesMut};
+use fstr::FString;
 use uuid::Uuid;
 
 pub trait PacketSerializable {
@@ -180,5 +181,15 @@ impl PacketSerializable for Uuid {
     }
     fn write(&self, buf: &mut BytesMut) {
         buf.put_u128(self.as_u128());
+    }
+}
+
+impl PacketSerializable for FString {
+    fn write_size(&self) -> usize {
+        var_int_size(self.len() as i32) + self.len()
+    }
+    
+    fn write(&self, buf: &mut bytes::BytesMut) {
+        self.as_str().write(buf);
     }
 }

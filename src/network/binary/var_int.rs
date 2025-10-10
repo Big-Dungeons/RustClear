@@ -4,7 +4,7 @@ use bytes::{Buf, BufMut};
 #[derive(PartialEq, Eq)]
 pub struct VarInt(pub i32);
 
-pub fn peek_var_int(buf: &mut impl Buf) -> Option<(i32, usize)> {
+pub fn peek_var_int(buf: &impl Buf) -> Option<(i32, usize)> {
     let mut num_read = 0;
     let mut result = 0;
 

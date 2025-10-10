@@ -20,6 +20,7 @@ reqwest = "0.12.23"
 zip = "5.1.1"
 maplit = "1.0.2"
 enumset = "1.1.10"
+fstr = { path = "crates/fstr" }
 
 [profile.dev.package."*"]
 opt-level = 3

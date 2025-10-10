@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use crate::network::binary::var_int::peek_var_int;
 use crate::network::connection_state::ConnectionState;
 use crate::network::connection_state::ConnectionState::*;
@@ -8,7 +10,9 @@ use crate::network::protocol::handshake::serverbound::HandshakePacket;
 use crate::network::protocol::login::serverbound::Login;
 use crate::network::protocol::play::serverbound::Play;
 use crate::network::protocol::status::serverbound::Status;
-use crate::player::player::ClientId;
+use crate::player::player::{ClientId, GameProfile};
+use crate::replays::record::record_message::RecordMessage;
+use crate::replays::run_record::get_handle;
 use bytes::{Buf, Bytes, BytesMut};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
@@ -18,6 +22,8 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 pub struct Client {
     pub client_id: ClientId,
     pub connection_state: ConnectionState,
+    
+    pub game_profile: Option<GameProfile>,
 }
 
 impl Client {
@@ -25,6 +31,8 @@ impl Client {
         Self {
             client_id,
             connection_state: Handshaking,
+            
+            game_profile: None,
         }
     }
 }
@@ -84,8 +92,12 @@ async fn read_packets(
         match client.connection_state {
             Handshaking => parse_from_packets::<HandshakePacket>(&mut buffer, client, context).await,
             Status => parse_from_packets::<Status>(&mut buffer, client, context).await,
-            Login => parse_from_packets::<Login>(&mut buffer, client, context).await,
+            Login => { 
+                parse_from_packets::<Login>(&mut buffer, client, context).await;
+                // get_handle().send(RecordMessage::Record { received: Instant::now(), game_profile: client.game_profile.clone().unwrap(), packet: buffer.clone() }).unwrap();
+            }
             Play => {
+                // get_handle().send(RecordMessage::Record { received: Instant::now(), game_profile: client.game_profile.clone().unwrap(), packet: buffer.clone() }).unwrap();
                 match Play::read(&mut buffer) {
                     Ok(packet) => {
                         if let Err(err) = packet.process(client, context).await {

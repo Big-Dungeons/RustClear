@@ -18,6 +18,7 @@ use crate::world::chunk::chunk_grid::ChunkDiff;
 use crate::world::world::VIEW_DISTANCE;
 use crate::world::world::{World, WorldExtension};
 use glam::{dvec3, DVec3, IVec3, Vec3};
+use fstr::FString;
 use std::collections::HashMap;
 use std::f32::consts::PI;
 use uuid::Uuid;
@@ -26,15 +27,15 @@ pub type ClientId = usize;
 
 #[derive(Debug, Clone)]
 pub struct GameProfileProperty {
-    pub value: String,
-    pub signature: Option<String>
+    pub value: FString,
+    pub signature: Option<FString>
 }
 
 #[derive(Debug, Clone)]
 pub struct GameProfile {
     pub uuid: Uuid,
-    pub username: String,
-    pub properties: HashMap<String, GameProfileProperty>
+    pub username: FString,
+    pub properties: HashMap<FString, GameProfileProperty>
 }
 
 #[allow(unused_variables)]
@@ -232,7 +233,7 @@ impl<E : PlayerExtension> Player<E> {
         
         self.sent_block_placement = false;
         self.last_position = self.position;
-        self.flush_packets()
+        self.flush_packets();
     }
     
     pub fn play_sound_at(&mut self, sound: Sound, volume: f32, pitch: f32, position: DVec3) {

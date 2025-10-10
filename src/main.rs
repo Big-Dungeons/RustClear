@@ -12,16 +12,22 @@ use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::protocol::play::serverbound::EntityInteractionType;
 use crate::network::run_network::run_network_thread;
 use crate::player::player::Player;
-use crate::utils::seeded_rng::{seeded_rng, SeededRng};
+use crate::utils::seeded_rng::SeededRng;
 use crate::world::world::World;
 use anyhow::bail;
 use glam::{ivec3, DVec3};
+use crate::replays::record::record_message::RecordMessage;
+use crate::replays::run_record::{get_handle, run_record_thread};
+use fstr::FString;
 use rand::prelude::IndexedRandom;
+use rand::rng;
+use tokio::time::sleep;
 use std::collections::HashMap;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::unbounded_channel;
 
+mod replays;
 mod assets;
 mod world;
 mod player;
@@ -33,6 +39,8 @@ mod entity;
 mod block;
 mod inventory;
 mod constants;
+
+const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -47,15 +55,26 @@ async fn main() -> anyhow::Result<()> {
         network_tx.clone(),
         main_tx,
     ));
+    // tokio::spawn(run_record_thread());
 
     let rng_seed: u64 = rand::random();
     SeededRng::set_seed(rng_seed);
 
     let dungeon_strings = &get_assets().dungeon_seeds;
+    let dungeon_seed = dungeon_strings.choose(&mut rng()).unwrap();
+    
     let room_data_storage = &get_assets().room_data;
 
+    // sleep(Duration::from_secs(3)).await;
+    // get_handle().send(RecordMessage::Start { seed: FString::new(dungeon_seed), rng_seed, at: Instant::now() }).unwrap();
+    
+    // // tokio::spawn(async {
+    // //     sleep(Duration::from_secs(30)).await;
+    // //     get_handle().send(RecordMessage::Save).unwrap();
+    // // });
+    
     let dungeon = Dungeon::from_string(
-        dungeon_strings.choose(&mut seeded_rng()).unwrap(),
+        dungeon_seed,
         &room_data_storage
     )?;
 

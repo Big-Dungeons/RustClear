@@ -1,3 +1,5 @@
+use fstr::FString;
+
 use crate::dungeon::dungeon_player::DungeonPlayer;
 use crate::inventory::item::get_item_stack;
 use crate::inventory::item_stack::ItemStack;
@@ -167,8 +169,8 @@ impl Menu<DungeonPlayer> for DungeonMenu {
                             NBT::compound("Properties", vec![
                                 NBT::list("textures", TAG_COMPOUND_ID, vec![
                                     NBTNode::Compound(HashMap::from([(
-                                        "Value".to_string(),
-                                        NBTNode::String(player.profile.properties["textures"].value.to_string())
+                                        "Value".into(),
+                                        NBTNode::String(player.profile.properties["textures"].value.clone())
                                     )]))
                                 ])
                             ])

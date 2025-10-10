@@ -1,4 +1,4 @@
-use crate::network::binary::nbt::nbt::{NBTNode, NBT};
+use crate::{network::binary::nbt::nbt::{NBTNode, NBT}};
 
 pub const TAG_END_ID: u8 = 0;
 pub const TAG_BYTE_ID: u8 = 1;
@@ -17,9 +17,9 @@ pub const TAG_LONG_ARRAY_ID: u8 = 12;
 pub fn serialize_nbt(nbt: &NBT) -> Vec<u8> {
     let mut vec = Vec::new();
     vec.push(TAG_COMPOUND_ID);
-    write_string(&mut vec, &nbt.root_name);
+    write_string(&mut vec, nbt.root_name.as_str());
     for (str, node) in &nbt.nodes {
-        write_entry(str, node, &mut vec);
+        write_entry(str.as_str(), node, &mut vec);
     }
     vec.push(TAG_END_ID);
     vec
@@ -69,7 +69,7 @@ pub fn write_entry(name: &str, node: &NBTNode, vec: &mut Vec<u8>) {
         NBTNode::String(value) => {
             vec.push(TAG_STRING_ID);
             write_string(vec, name);
-            write_string(vec, value);
+            write_string(vec, value.as_str());
         }
         NBTNode::List { type_id, children } => {
             vec.push(TAG_LIST_ID);
@@ -84,7 +84,7 @@ pub fn write_entry(name: &str, node: &NBTNode, vec: &mut Vec<u8>) {
             vec.push(TAG_COMPOUND_ID);
             write_string(vec, name);
             for (str, node) in nodes {
-                write_entry(str, node, vec);
+                write_entry(str.as_str(), node, vec);
             }
             vec.push(TAG_END_ID);
         }
@@ -132,7 +132,7 @@ fn write_unnamed_entry(node: &NBTNode, vec: &mut Vec<u8>) {
             vec.extend_from_slice(value);
         }
         NBTNode::String(value) => {
-            write_string(vec, value);
+            write_string(vec, value.as_str());
         }
         NBTNode::List { type_id, children, .. } => {
             vec.push(*type_id);
@@ -143,7 +143,7 @@ fn write_unnamed_entry(node: &NBTNode, vec: &mut Vec<u8>) {
         }
         NBTNode::Compound(nodes) => {
             for (str, node) in nodes {
-                write_entry(str, node, vec);
+                write_entry(str.as_str(), node, vec);
             }
             vec.push(TAG_END_ID);
         }
@@ -168,14 +168,14 @@ fn write_string(vec: &mut Vec<u8>, name: &str) {
 }
 
 fn string_size(s: &str) -> usize {
-    2 + s.as_bytes().len()
+    2 + s.len()
 }
 
 pub fn nbt_write_size(nbt: &NBT) -> usize {
     let mut size = 1;
-    size += string_size(&nbt.root_name);
+    size += string_size(nbt.root_name.as_str());
     for (name, node) in &nbt.nodes {
-        size += 1 + string_size(name) + entry_size(node);
+        size += 1 + string_size(name.as_str()) + entry_size(node);
     }
     size += 1;
     size
@@ -189,7 +189,7 @@ fn entry_size(node: &NBTNode) -> usize {
         NBTNode::Float(_) => 4,
         NBTNode::Double(_) => 8,
         NBTNode::ByteArray(bytes) => 4 + bytes.len(),
-        NBTNode::String(s) => string_size(s),
+        NBTNode::String(s) => string_size(s.as_str()),
         NBTNode::List { type_id: _, children } => {
             let mut size = 1 + 4;
             for child in children {
@@ -200,7 +200,7 @@ fn entry_size(node: &NBTNode) -> usize {
         NBTNode::Compound(nodes) => {
             let mut size = 0;
             for (name, node) in nodes {
-                size += 1 + string_size(name) + entry_size(node);
+                size += 1 + string_size(name.as_str()) + entry_size(node);
             }
             size += 1;
             size

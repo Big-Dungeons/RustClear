@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 use crate::assets::get_assets;
 use crate::network::packets::packet::IdentifiedPacket;
 use crate::network::packets::packet_serialize::PacketSerializable;
-use crate::register_packets;
+use crate::{register_packets, VERSION};
 use blocks::packet_serializable;
 use bytes::BytesMut;
 
@@ -37,12 +37,11 @@ packet_serializable! {
 
 pub static STATUS_RESPONSE_JSON: LazyLock<String> = LazyLock::new(|| {
     let encoded_image = &get_assets().icon_data;
-    let version = env!("CARGO_PKG_VERSION");
 
     format!(r#"{{
         "version": {{ "name": "1.8.9", "protocol": 47 }},
         "players": {{ "max": 1, "online": 0 }},
-        "description": {{ "text": "RustClear", "color": "gold", "extra": [{{ "text": " version ", "color": "gray" }}, {{ "text": "{version}", "color": "green" }}] }},
+        "description": {{ "text": "RustClear", "color": "gold", "extra": [{{ "text": " version ", "color": "gray" }}, {{ "text": "{VERSION}", "color": "green" }}] }},
         "favicon": "data:image/png;base64,{encoded_image}"
     }}"#)
 });
