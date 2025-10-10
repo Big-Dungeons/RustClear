@@ -1,38 +1,30 @@
 use crate::assets::{get_assets, load_assets};
-use crate::block::blocks::Blocks;
-use crate::block::rotatable::Rotatable;
 use crate::dungeon::door::door::DoorType;
 use crate::dungeon::dungeon::{Dungeon, DungeonState};
 use crate::dungeon::dungeon_player::DungeonPlayer;
-use crate::entity::entity::{EntityBase, EntityImpl};
-use crate::entity::entity_metadata::{EntityMetadata, EntityVariant};
-use crate::inventory::menu::{DungeonMenu, OpenContainer};
-use crate::network::internal_packets::{MainThreadMessage, NetworkThreadMessage};
-use crate::network::packets::packet_buffer::PacketBuffer;
-use crate::network::protocol::play::serverbound::EntityInteractionType;
-use crate::network::run_network::run_network_thread;
-use crate::player::player::Player;
-use crate::utils::seeded_rng::{seeded_rng, SeededRng};
-use crate::world::world::World;
+use crate::dungeon::menus::DungeonMenu;
 use anyhow::bail;
-use glam::{ivec3, DVec3};
+use glam::ivec3;
 use rand::prelude::IndexedRandom;
+use server::block::blocks::Blocks;
+use server::block::rotatable::Rotatable;
+use server::entity::entity::{EntityBase, EntityImpl};
+use server::entity::entity_metadata::{EntityMetadata, EntityVariant};
+use server::inventory::menu::OpenContainer;
+use server::network::internal_packets::{MainThreadMessage, NetworkThreadMessage};
+use server::network::packets::packet_buffer::PacketBuffer;
+use server::network::protocol::play::serverbound::EntityInteractionType;
+use server::network::run_network::run_network_thread;
+use server::player::player::Player;
+use server::utils::seeded_rng::{seeded_rng, SeededRng};
+use server::world::world::World;
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::unbounded_channel;
 
 mod assets;
-mod world;
-mod player;
 mod dungeon;
-mod network;
-mod utils;
-mod types;
-mod entity;
-mod block;
-mod inventory;
-mod constants;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -159,12 +151,6 @@ async fn main() -> anyhow::Result<()> {
         world.tick();
         // println!("elapsed {:?}", start.elapsed())
     }
-}
-
-pub fn get_chunk_position(position: DVec3) -> (i32, i32) {
-    let x = (position.x.floor() as i32) >> 4;
-    let z = (position.z.floor() as i32) >> 4;
-    (x, z)
 }
 
 fn load_doors_into_world(world: &mut World<Dungeon>) {

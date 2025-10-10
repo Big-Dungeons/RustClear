@@ -3,6 +3,7 @@ use crate::entity::entity::EntityId;
 use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::protocol::play::clientbound::ChunkData;
 use crate::player::player::ClientId;
+use glam::DVec3;
 
 pub struct ChunkSection {
     solid_block_amount: u16,
@@ -138,4 +139,10 @@ impl Chunk {
     pub fn has_players(&self) -> bool {
         !self.players.is_empty()
     }
+}
+
+pub fn get_chunk_position(position: DVec3) -> (i32, i32) {
+    let x = (position.x.floor() as i32) >> 4;
+    let z = (position.z.floor() as i32) >> 4;
+    (x, z)
 }

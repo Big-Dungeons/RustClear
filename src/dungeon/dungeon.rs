@@ -1,5 +1,3 @@
-use crate::block::block_parameter::Axis;
-use crate::block::rotatable::Rotatable;
 use crate::dungeon::door::door::{Door, DoorType};
 use crate::dungeon::door::door_positions::DOOR_POSITIONS;
 use crate::dungeon::dungeon_player::DungeonPlayer;
@@ -7,20 +5,21 @@ use crate::dungeon::items::dungeon_items::DungeonItem;
 use crate::dungeon::map::DungeonMap;
 use crate::dungeon::room::room::{Room, RoomNeighbour, RoomSegment};
 use crate::dungeon::room::room_data::{get_random_data_with_type, RoomData, RoomShape, RoomType};
-use crate::entity::npc_asset::NpcAsset;
-use crate::inventory::menu::OpenContainer;
-use crate::network::binary::var_int::VarInt;
-use crate::network::protocol::play::clientbound::{Chat, EntityProperties, PlayerAbilities};
-use crate::player::attribute::{Attribute, AttributeMap, AttributeModifier};
-use crate::player::player::{ClientId, GameProfile, Player};
-use crate::player::sidebar::Sidebar;
-use crate::types::aabb::AABB;
-use crate::types::chat_component::ChatComponent;
-use crate::utils::hasher::deterministic_hasher::DeterministicHashMap;
-use crate::world::world::{World, WorldExtension};
 use anyhow::bail;
 use glam::{ivec3, DVec3, IVec2};
 use maplit::hashmap;
+use server::block::block_parameter::Axis;
+use server::block::rotatable::Rotatable;
+use server::entity::npc_asset::NpcAsset;
+use server::inventory::menu::OpenContainer;
+use server::network::binary::var_int::VarInt;
+use server::network::protocol::play::clientbound::{Chat, EntityProperties, PlayerAbilities};
+use server::player::attribute::{Attribute, AttributeMap, AttributeModifier};
+use server::player::sidebar::Sidebar;
+use server::types::aabb::AABB;
+use server::types::chat_component::ChatComponent;
+use server::utils::hasher::deterministic_hasher::DeterministicHashMap;
+use server::{ClientId, GameProfile, Player, World, WorldExtension};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -201,9 +200,17 @@ impl WorldExtension for Dungeon {
     }
 }
 
-impl World<Dungeon> {
+// you cannot use impl on stuff outside the crate the struct us in.
+// so this is a workaround to get the same effect
+pub trait WorldDungeon {
+    fn start_dungeon(&mut self);
+    fn has_dungeon_started(&self) -> bool;
+    fn update_ready_status(&mut self, player: &mut Player<DungeonPlayer>);
+}
+
+impl WorldDungeon for World<Dungeon> {
     
-    pub fn start_dungeon(&mut self) {
+    fn start_dungeon(&mut self) {
         for player in self.players.iter_mut() {
             if let OpenContainer::Menu(_) = player.open_container {
                 player.open_container(OpenContainer::None)
@@ -225,11 +232,11 @@ impl World<Dungeon> {
         }
     }
     
-    pub const fn has_dungeon_started(&self) -> bool {
+    fn has_dungeon_started(&self) -> bool {
         matches!(self.extension.state, DungeonState::Started { .. })
     }
     
-    pub fn update_ready_status(&mut self, player: &mut Player<DungeonPlayer>) {
+    fn update_ready_status(&mut self, player: &mut Player<DungeonPlayer>) {
         assert!(!matches!(self.state, DungeonState::Started { .. }), "tried to ready up when dungeon has already started");
 
         let is_ready = player.extension.is_ready;

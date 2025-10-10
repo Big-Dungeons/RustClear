@@ -1,6 +1,5 @@
 use std::sync::LazyLock;
 
-use crate::assets::get_assets;
 use crate::network::packets::packet::IdentifiedPacket;
 use crate::network::packets::packet_serialize::PacketSerializable;
 use crate::register_packets;
@@ -32,17 +31,17 @@ packet_serializable! {
     }
 }
 
-// not real sure where to put this, but here should be fine for now.
-
+// todo:
+// make this be defined outside of the crate 
 
 pub static STATUS_RESPONSE_JSON: LazyLock<String> = LazyLock::new(|| {
-    let encoded_image = &get_assets().icon_data;
+    // let encoded_image = &get_assets().icon_data;
     let version = env!("CARGO_PKG_VERSION");
 
     format!(r#"{{
         "version": {{ "name": "1.8.9", "protocol": 47 }},
         "players": {{ "max": 1, "online": 0 }},
         "description": {{ "text": "RustClear", "color": "gold", "extra": [{{ "text": " version ", "color": "gray" }}, {{ "text": "{version}", "color": "green" }}] }},
-        "favicon": "data:image/png;base64,{encoded_image}"
+        "favicon": "data:image/png;base64,<data>"
     }}"#)
 });

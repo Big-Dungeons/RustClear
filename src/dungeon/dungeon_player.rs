@@ -1,21 +1,20 @@
-use crate::constants::PotionEffect;
-use crate::dungeon::dungeon::{Dungeon, DungeonState};
+use crate::dungeon::dungeon::{Dungeon, DungeonState, WorldDungeon};
 use crate::dungeon::items::ability::{Ability, ActiveAbility, Cooldown};
 use crate::dungeon::items::dungeon_items::DungeonItem;
 use crate::dungeon::room::room::Room;
-use crate::inventory::item::get_item_stack;
-use crate::inventory::item_stack::ItemStack;
-use crate::network::protocol::play::clientbound::{AddEffect, BlockChange, Chat};
-use crate::network::protocol::play::serverbound::PlayerDiggingAction;
-use crate::player::packet_handling::BlockInteractResult;
-use crate::player::player::{Player, PlayerExtension};
-use crate::player::sidebar::Sidebar;
-use crate::types::chat_component::ChatComponent;
-use crate::types::direction::Direction;
-use crate::world::world::World;
 use chrono::Local;
 use glam::IVec3;
 use indoc::{formatdoc, indoc};
+use server::constants::PotionEffect;
+use server::inventory::item::get_item_stack;
+use server::inventory::item_stack::ItemStack;
+use server::network::protocol::play::clientbound::{AddEffect, BlockChange, Chat};
+use server::network::protocol::play::serverbound::PlayerDiggingAction;
+use server::player::packet_handling::BlockInteractResult;
+use server::player::sidebar::Sidebar;
+use server::types::chat_component::ChatComponent;
+use server::types::direction::Direction;
+use server::{Player, PlayerExtension, World};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -55,7 +54,7 @@ impl PlayerExtension for DungeonPlayer {
             });
         }
 
-        player.update_sidebar();
+        DungeonPlayer::update_sidebar(player);
         
         let mut abilities = player.extension.active_abilities.take();
         abilities.retain_mut(|active| {
@@ -133,17 +132,26 @@ impl PlayerExtension for DungeonPlayer {
     }
 }
 
-impl Player<DungeonPlayer> {
+pub trait PlayerDungeonPlayer {
+    fn item_cooldown(&self, item: &DungeonItem) -> Option<&Cooldown>;
+    fn add_item_cooldown(&mut self, item: &DungeonItem, cooldown: Cooldown);
+    fn add_item_ability(&mut self, ability: Ability);
+    fn ready(&mut self);
+    fn get_current_room(&self) -> Option<Rc<RefCell<Room>>>;
+    fn try_open_door(&mut self, world: &mut World<Dungeon>, position: &IVec3);
+}
+
+impl PlayerDungeonPlayer for Player<DungeonPlayer> {
     
-    pub fn item_cooldown(&self, item: &DungeonItem) -> Option<&Cooldown> {
+    fn item_cooldown(&self, item: &DungeonItem) -> Option<&Cooldown> {
         self.extension.cooldowns.get(item)
     }
     
-    pub fn add_item_cooldown(&mut self, item: &DungeonItem, cooldown: Cooldown) {
+    fn add_item_cooldown(&mut self, item: &DungeonItem, cooldown: Cooldown) {
         self.extension.cooldowns.insert(*item, cooldown);
     }
     
-    pub fn add_item_ability(&mut self, ability: Ability) {
+    fn add_item_ability(&mut self, ability: Ability) {
         let active_ability = ActiveAbility {
             ability,
             ticks_active: 0,
@@ -151,19 +159,19 @@ impl Player<DungeonPlayer> {
         self.extension.active_abilities.get_mut().push(active_ability)
     }
 
-    pub fn ready(&mut self) {
+    fn ready(&mut self) {
         self.extension.is_ready = !self.extension.is_ready;
         self.world_mut().update_ready_status(self);
     }
 
-    pub fn get_current_room(&self) -> Option<Rc<RefCell<Room>>> {
+    fn get_current_room(&self) -> Option<Rc<RefCell<Room>>> {
         if let Some((room, _)) = &self.extension.current_room {
             return Some(room.clone())
         }
         None
     }
     
-    pub fn try_open_door(&mut self, world: &mut World<Dungeon>, position: &IVec3) {
+    fn try_open_door(&mut self, world: &mut World<Dungeon>, position: &IVec3) {
         if world.has_dungeon_started() {
             if let Some(room_rc) = self.get_current_room() {
                 for neighbour in room_rc.borrow().neighbours() {
@@ -189,16 +197,18 @@ impl Player<DungeonPlayer> {
             }
         }
     }
+}
 
-
-    fn update_sidebar(&mut self) {
+impl DungeonPlayer {
+    
+    fn update_sidebar(player: &mut Player<DungeonPlayer>) {
         // really scuffed icl
-        
+
         let now = Local::now();
         let date = now.format("%m/%d/%y").to_string();
         let time = now.format("%-I:%M%P").to_string();
 
-        let room_id = if let Some(room_rc) = self.get_current_room() {
+        let room_id = if let Some(room_rc) = player.get_current_room() {
             let room = room_rc.borrow();
             &*room.data.id.clone()
         } else {
@@ -206,7 +216,7 @@ impl Player<DungeonPlayer> {
         };
 
         let (sb_month, sb_day, day_suffix) = get_sb_date();
-        let sidebar = &mut self.extension.sidebar;
+        let sidebar = &mut player.extension.sidebar;
 
         sidebar.push(&*formatdoc! {r#"
                 §e§lSKYBLOCK
@@ -220,11 +230,11 @@ impl Player<DungeonPlayer> {
 
         });
 
-        let world = self.world();
+        let world = player.world();
         match &world.state {
             DungeonState::NotStarted | DungeonState::Starting { .. } => {
                 // can't use one outside because of borrow checker
-                let sidebar = &mut self.extension.sidebar;
+                let sidebar = &mut player.extension.sidebar;
 
                 for player in world.players.iter() {
                     let color = if player.extension.is_ready { 'a' } else { 'c' };
@@ -237,8 +247,8 @@ impl Player<DungeonPlayer> {
                 }
             }
             DungeonState::Started { ticks } => {
-                let sidebar = &mut self.extension.sidebar;
-                
+                let sidebar = &mut player.extension.sidebar;
+
                 // this is scuffed but it works
                 let seconds = ticks / 20;
                 let time = if seconds >= 60 {
@@ -257,12 +267,12 @@ impl Player<DungeonPlayer> {
                 };
                 // TODO: cleared percentage
                 // clear percentage is based on amount of tiles that are cleared.
-                
+
                 let (has_blood_key, wither_key_count) = (
                     if world.blood_key_count != 0 { "§a✓" } else { "§c✖" },
                     world.wither_key_count,
                 );
-                
+
                 sidebar.push(&*formatdoc! {r#"
                         Keys: §c■ {has_blood_key} §8■ §a{wither_key_count}x
                         Time elapsed: §a§a{time}
@@ -272,16 +282,16 @@ impl Player<DungeonPlayer> {
                     clear_percent = "0",
                     score = "0",
                 });
-                
-                if world.players.len() == 1 { 
+
+                if world.players.len() == 1 {
                     sidebar.push(indoc! {r#"
                         §3§lSolo
                         
                     "#});
                 } else {
-                    for player in world.players.iter() {
-                        if player.client_id != self.client_id {
-                            sidebar.push(&*format!("§e[M] §7{}", player.profile.username));
+                    for p in world.players.iter() {
+                        if p.client_id != player.client_id {
+                            sidebar.push(&*format!("§e[M] §7{}", p.profile.username));
                         }
                     }
                     sidebar.new_line();
@@ -289,7 +299,7 @@ impl Player<DungeonPlayer> {
             }
         }
 
-        self.extension.sidebar.flush(&mut self.packet_buffer);
+        player.extension.sidebar.flush(&mut player.packet_buffer);
     }
 }
 

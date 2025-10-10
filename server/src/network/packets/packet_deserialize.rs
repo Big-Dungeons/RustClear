@@ -1,7 +1,6 @@
 use crate::{network::binary::var_int::{read_var_int, VarInt}, utils::get_vec};
-use anyhow::{Context, bail};
+use anyhow::{bail, Context};
 use bytes::Buf;
-use uuid::Uuid;
 
 pub trait PacketDeserializable: Sized {
     fn read(buffer: &mut impl Buf) -> anyhow::Result<Self>;

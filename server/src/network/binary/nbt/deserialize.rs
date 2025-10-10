@@ -1,7 +1,7 @@
-use crate::network::binary::nbt::{NBTNode, NBT};
 use crate::network::binary::nbt::serialize::*;
+use crate::network::binary::nbt::{NBTNode, NBT};
 use crate::utils::get_vec;
-use bytes::{Buf, BytesMut};
+use bytes::Buf;
 use std::collections::HashMap;
 
 // should use anyhow, client can maliciously send invalid nbt data

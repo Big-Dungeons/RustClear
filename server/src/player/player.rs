@@ -1,6 +1,5 @@
 use crate::constants::Sound;
 use crate::entity::entity::EntityId;
-use crate::get_chunk_position;
 use crate::inventory::item::{get_item_stack, Item};
 use crate::inventory::item_stack::ItemStack;
 use crate::inventory::menu::OpenContainer;
@@ -14,6 +13,7 @@ use crate::network::protocol::play::clientbound::{ConfirmTransaction, PlayerData
 use crate::network::protocol::play::serverbound::PlayerDiggingAction;
 use crate::player::packet_handling::BlockInteractResult;
 use crate::types::aabb::AABB;
+use crate::world::chunk::chunk::get_chunk_position;
 use crate::world::chunk::chunk_grid::ChunkDiff;
 use crate::world::world::VIEW_DISTANCE;
 use crate::world::world::{World, WorldExtension};

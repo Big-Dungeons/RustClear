@@ -8,8 +8,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "base64",
- "blocks",
- "bytes",
  "chrono",
  "enumset",
  "glam",
@@ -17,8 +15,8 @@ dependencies = [
  "maplit",
  "rand",
  "reqwest",
- "serde",
  "serde_json",
+ "server",
  "tokio",
  "uuid",
  "zip",
@@ -1368,6 +1366,22 @@ dependencies = [
  "itoa",
  "ryu",
  "serde",
+]
+
+[[package]]
+name = "server"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "blocks",
+ "bytes",
+ "enumset",
+ "glam",
+ "rand",
+ "serde",
+ "serde_json",
+ "tokio",
+ "uuid",
 ]
 
 [[package]]
