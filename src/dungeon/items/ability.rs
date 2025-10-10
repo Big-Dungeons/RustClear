@@ -1,9 +1,9 @@
-use crate::constants::Sound;
 use crate::dungeon::dungeon_player::DungeonPlayer;
-use crate::network::protocol::play::clientbound::PositionLook;
-use crate::player::player::Player;
 use enumset::EnumSet;
 use glam::DVec3;
+use server::constants::Sound;
+use server::network::protocol::play::clientbound::PositionLook;
+use server::Player;
 
 #[derive(Copy, Clone)]
 pub struct Cooldown {

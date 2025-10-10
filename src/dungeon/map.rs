@@ -1,8 +1,8 @@
-use crate::block::block_parameter::Axis;
 use crate::dungeon::door::door::DoorType;
 use crate::dungeon::room::room::Room;
 use crate::dungeon::room::room_data::{RoomData, RoomShape, RoomType::*};
-use crate::network::protocol::play::clientbound::Maps;
+use server::block::block_parameter::Axis;
+use server::network::protocol::play::clientbound::Maps;
 use std::cmp::{max, min};
 
 const DUNGEON_MAP_ID: i32 = 1;

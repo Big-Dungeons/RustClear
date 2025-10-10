@@ -1,15 +1,15 @@
-use crate::dungeon::dungeon_player::DungeonPlayer;
+use crate::dungeon::dungeon_player::{DungeonPlayer, PlayerDungeonPlayer};
 use crate::dungeon::items::ability::{Ability, Cooldown};
 use crate::dungeon::items::etherwarp::etherwarp;
 use crate::dungeon::items::instant_transmission::instant_transmission;
-use crate::inventory::item::Item;
-use crate::inventory::item_stack::ItemStack;
-use crate::network::binary::nbt::serialize::TAG_COMPOUND_ID;
-use crate::network::binary::nbt::{NBTNode, NBT};
-use crate::network::protocol::play::clientbound::Chat;
-use crate::player::player::Player;
-use crate::types::chat_component::ChatComponent;
 use indoc::indoc;
+use server::inventory::item::Item;
+use server::inventory::item_stack::ItemStack;
+use server::network::binary::nbt::serialize::TAG_COMPOUND_ID;
+use server::network::binary::nbt::{NBTNode, NBT};
+use server::network::protocol::play::clientbound::Chat;
+use server::types::chat_component::ChatComponent;
+use server::Player;
 use std::collections::HashMap;
 
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]

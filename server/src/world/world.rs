@@ -2,12 +2,12 @@ use crate::constants::Particle;
 use crate::entity::entity::{Entity, EntityId, EntityImpl};
 use crate::entity::entity_metadata::EntityMetadata;
 use crate::entity::npc_asset::NpcAsset;
-use crate::get_chunk_position;
 use crate::network::binary::var_int::VarInt;
 use crate::network::internal_packets::{MainThreadMessage, NetworkThreadMessage};
 use crate::network::packets::packet::ProcessPacket;
 use crate::network::protocol::play::clientbound::{DestroyEntites, JoinGame, Particles, PlayerData, PlayerListItem, PositionLook};
 use crate::player::player::{ClientId, GameProfile, Player, PlayerExtension};
+use crate::world::chunk::chunk::get_chunk_position;
 use crate::world::chunk::chunk_grid::ChunkGrid;
 use enumset::EnumSet;
 use glam::{DVec3, Vec3};
@@ -81,11 +81,10 @@ impl<E : WorldExtension> World<E> {
         client_id: ClientId,
         extension: E::Player
     ) -> &mut Player<E::Player> {
-        let self_ptr: *mut World<E> = self;
-        let entity_id = self.new_entity_id();
         
+        let entity_id = self.new_entity_id();
         let mut player = Player::new(
-            self_ptr,
+            self,
             profile,
             client_id,
             entity_id, 
@@ -113,7 +112,7 @@ impl<E : WorldExtension> World<E> {
             chunk_z,
             VIEW_DISTANCE + 1,
             |chunk, x, z| {
-                player.write_packet(&chunk.get_chunk_data(x, z, true));
+                chunk.write_chunk_data(x, z, true, &mut player.packet_buffer);
             }
         );
         
@@ -169,10 +168,10 @@ impl<E : WorldExtension> World<E> {
         pitch: f32,
         entity_impl: T
     ) -> &mut Entity<E> {
+        
         let entity_id = self.new_entity_id();
-        let self_ptr: *mut World<E> = self;
         let mut entity = Entity::new(
-            self_ptr,
+            self,
             entity_metadata,
             entity_id,
             position,

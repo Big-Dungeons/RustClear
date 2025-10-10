@@ -1,13 +1,13 @@
-use crate::block::block_parameter::Axis;
-use crate::block::blocks::Blocks;
-use crate::block::rotatable::Rotatable;
 use crate::dungeon::door::door_entity::DoorEntityImpl;
 use crate::dungeon::dungeon::Dungeon;
-use crate::utils::seeded_rng::seeded_rng;
-use crate::world::chunk::chunk_grid::ChunkGrid;
-use crate::world::world::World;
 use glam::{ivec3, DVec3, IVec3};
 use rand::prelude::IndexedRandom;
+use server::block::block_parameter::Axis;
+use server::block::blocks::Blocks;
+use server::block::rotatable::Rotatable;
+use server::utils::seeded_rng::seeded_rng;
+use server::world::chunk::chunk_grid::ChunkGrid;
+use server::World;
 use std::collections::HashMap;
 
 #[derive(Hash, Eq, PartialEq)]

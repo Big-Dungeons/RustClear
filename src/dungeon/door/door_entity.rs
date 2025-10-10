@@ -1,11 +1,11 @@
-use crate::block::blocks::Blocks;
 use crate::dungeon::dungeon::Dungeon;
-use crate::entity::entity::{EntityBase, EntityImpl};
-use crate::entity::entity_metadata::{EntityMetadata, EntityVariant};
-use crate::network::binary::var_int::VarInt;
-use crate::network::packets::packet_buffer::PacketBuffer;
-use crate::network::protocol::play::clientbound::{DestroyEntites, EntityAttach, EntityRelativeMove, SpawnMob, SpawnObject};
 use glam::ivec3;
+use server::block::blocks::Blocks;
+use server::entity::entity::{EntityBase, EntityImpl};
+use server::entity::entity_metadata::{EntityMetadata, EntityVariant};
+use server::network::binary::var_int::VarInt;
+use server::network::packets::packet_buffer::PacketBuffer;
+use server::network::protocol::play::clientbound::{DestroyEntites, EntityAttach, EntityRelativeMove, SpawnMob, SpawnObject};
 
 pub struct DoorEntityImpl {
     pub block: Blocks,

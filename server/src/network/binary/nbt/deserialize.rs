@@ -1,5 +1,5 @@
-use crate::network::binary::nbt::{NBTNode, NBT};
 use crate::network::binary::nbt::serialize::*;
+use crate::network::binary::nbt::{NBTNode, NBT};
 use crate::utils::get_vec;
 use bytes::Buf;
 use fstr::FString;

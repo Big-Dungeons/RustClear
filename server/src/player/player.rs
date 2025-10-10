@@ -1,6 +1,5 @@
 use crate::constants::Sound;
 use crate::entity::entity::EntityId;
-use crate::get_chunk_position;
 use crate::inventory::item::{get_item_stack, Item};
 use crate::inventory::item_stack::ItemStack;
 use crate::inventory::menu::OpenContainer;
@@ -14,6 +13,7 @@ use crate::network::protocol::play::clientbound::{ConfirmTransaction, PlayerData
 use crate::network::protocol::play::serverbound::PlayerDiggingAction;
 use crate::player::packet_handling::BlockInteractResult;
 use crate::types::aabb::AABB;
+use crate::world::chunk::chunk::get_chunk_position;
 use crate::world::chunk::chunk_grid::ChunkDiff;
 use crate::world::world::VIEW_DISTANCE;
 use crate::world::world::{World, WorldExtension};
@@ -21,6 +21,7 @@ use glam::{dvec3, DVec3, IVec3, Vec3};
 use fstr::FString;
 use std::collections::HashMap;
 use std::f32::consts::PI;
+use std::ptr::NonNull;
 use uuid::Uuid;
 
 pub type ClientId = usize;
@@ -56,7 +57,7 @@ pub trait PlayerExtension : Sized {
 }
 
 pub struct Player<E : PlayerExtension> {
-    world: *mut World<E::World>,
+    world: NonNull<World<E::World>>,
 
     pub packet_buffer: PacketBuffer,
 
@@ -90,7 +91,7 @@ pub struct Player<E : PlayerExtension> {
 impl<E : PlayerExtension> Player<E> {
 
     pub fn new(
-        world: *mut World<E::World>,
+        world: &mut World<E::World>,
         game_profile: GameProfile,
         client_id: ClientId,
         entity_id: EntityId,
@@ -100,7 +101,7 @@ impl<E : PlayerExtension> Player<E> {
         extension: E,
     ) -> Self {
         Self {
-            world,
+            world: NonNull::from_mut(world),
 
             packet_buffer: PacketBuffer::new(),
 
@@ -131,11 +132,11 @@ impl<E : PlayerExtension> Player<E> {
     }
 
     pub fn world<'a>(&self) -> &'a World<E::World> {
-        unsafe { self.world.as_ref().expect("world is null") }
+        unsafe { self.world.as_ref() }
     }
 
-    pub fn world_mut<'a>(&self) -> &'a mut World<E::World> {
-        unsafe { self.world.as_mut().expect("world is null") }
+    pub fn world_mut<'a>(&mut self) -> &'a mut World<E::World> {
+        unsafe { self.world.as_mut() }
     }
 
     pub fn write_packet<P : IdentifiedPacket + PacketSerializable>(&mut self, packet: &P) {
@@ -192,7 +193,7 @@ impl<E : PlayerExtension> Player<E> {
                         return;
                     };
                     if diff == ChunkDiff::New {
-                        self.write_packet(&chunk.get_chunk_data(x, z, true));
+                        chunk.write_chunk_data(x, z, true, &mut self.packet_buffer);
                         for entity_id in chunk.entities.iter_mut() {
                             if let Some(index) = world.entity_map.get(entity_id) {
                                 let entity = &mut world.entities[*index];
@@ -211,8 +212,7 @@ impl<E : PlayerExtension> Player<E> {
                             }
                         }
                     }
-                    let chunk_data = chunk_grid.empty_chunk.get_chunk_data(x, z, true);
-                    self.write_packet(&chunk_data);
+                    chunk_grid.empty_chunk.write_chunk_data(x, z, true, &mut self.packet_buffer);
                 }
             )
         }
