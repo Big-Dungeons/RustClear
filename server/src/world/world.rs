@@ -113,7 +113,7 @@ impl<E : WorldExtension> World<E> {
             chunk_z,
             VIEW_DISTANCE + 1,
             |chunk, x, z| {
-                player.write_packet(&chunk.get_chunk_data(x, z, true));
+                chunk.write_chunk_data(x, z, true, &mut player.packet_buffer);
             }
         );
         

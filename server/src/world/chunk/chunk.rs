@@ -9,15 +9,18 @@ pub struct ChunkSection {
     solid_block_amount: u16,
     data: [u16; 4096],
 }
-
-// could make the data a packet buffer? like store the chunk just as the packet
-// so instead of serializing the chunk for packet you just copy chunk packet buffer
-
 pub struct Chunk {
     pub chunk_sections: [Option<ChunkSection>; 16],
     pub packet_buffer: PacketBuffer,
     pub players: Vec<ClientId>,
-    pub entities: Vec<EntityId>
+    pub entities: Vec<EntityId>,
+
+    // contains the chunk data packet,
+    // and is updated when a player tries to access it and is dirty,
+    // ideally we would somehow store blocks in the packet buffer,
+    // however it'd be annoying
+    cached_chunk_data: PacketBuffer,
+    dirty: bool,
 }
 
 impl Chunk {
@@ -28,6 +31,9 @@ impl Chunk {
             packet_buffer: PacketBuffer::new(),
             players: Vec::new(),
             entities: Vec::new(),
+
+            cached_chunk_data: PacketBuffer::new(),
+            dirty: false,
         }
     }
     
@@ -58,60 +64,66 @@ impl Chunk {
                 section.solid_block_amount += 1;
             }
             section.data[index as usize] = block_state_id;
+            self.dirty = true;
         }
     }
 
-    pub fn get_chunk_data(&self, x: i32, z: i32, new: bool) -> ChunkData {
-        let mut bitmask = 0u16;
-        
-        for index in 0..16 {
-            if let Some(section) = &self.chunk_sections[index] {
-                if section.solid_block_amount != 0 {
-                    bitmask |= 1 << index;
+    pub fn write_chunk_data(&mut self, x: i32, z: i32, new: bool, into: &mut PacketBuffer) {
+        if self.dirty {
+            let mut bitmask = 0u16;
+
+            for index in 0..16 {
+                if let Some(section) = &self.chunk_sections[index] {
+                    if section.solid_block_amount != 0 {
+                        bitmask |= 1 << index;
+                    }
                 }
             }
-        }
 
-        let section_count = bitmask.count_ones() as usize;
-        let data_size: usize = section_count * 12288 + if new { 256 } else { 0 };
+            let section_count = bitmask.count_ones() as usize;
+            let data_size: usize = section_count * 12288 + if new { 256 } else { 0 };
 
-        let mut data = vec![0u8; data_size];
-        let mut offset = 0;
+            let mut data = vec![0u8; data_size];
+            let mut offset = 0;
 
-        for section in self.chunk_sections.iter().flatten() {
-            if section.solid_block_amount == 0 {
-                continue
+            for section in self.chunk_sections.iter().flatten() {
+                if section.solid_block_amount == 0 {
+                    continue
+                }
+                for block in section.data {
+                    data[offset] = (block & 0xFF) as u8;
+                    data[offset + 1] = ((block >> 8) & 0xFF) as u8;
+                    offset += 2;
+                }
+            };
+
+            // currently all blocks have max skylight and regular light,
+            // however ive come across issues, where it seems clients recalculate light (due to it being invalid?)
+            // causing massive fps drops
+
+            if section_count != 0 {
+                for _ in 0..4096 {
+                    data[offset] = 255;
+                    offset += 1;
+                }
             }
-            for block in section.data {
-                data[offset] = (block & 0xFF) as u8;
-                data[offset + 1] = ((block >> 8) & 0xFF) as u8;
-                offset += 2;
+            if new {
+                for _ in 0..256 {
+                    data[offset] = 1;
+                    offset += 1;
+                }
             }
-        };
-
-        // currently all blocks have max skylight and regular light, 
-        // however ive come across issues, where it seems clients recalculate light (due to it being invalid?) 
-        // causing massive fps drops
-
-        if section_count != 0 {
-            for _ in 0..4096 {
-                data[offset] = 255;
-                offset += 1;
-            }
+            self.cached_chunk_data.clear();
+            self.cached_chunk_data.write_packet(&ChunkData {
+                chunk_x: x,
+                chunk_z: z,
+                is_new_chunk: new,
+                bitmask,
+                data,
+            });
+            self.dirty = false;
         }
-        if new {
-            for _ in 0..256 {
-                data[offset] = 1;
-                offset += 1;
-            }
-        }
-        ChunkData {
-            chunk_x: x,
-            chunk_z: z,
-            is_new_chunk: new,
-            bitmask,
-            data,
-        }
+        into.copy_from(&self.cached_chunk_data);
     }
 
     // maybe use hashset instead for these methods?
