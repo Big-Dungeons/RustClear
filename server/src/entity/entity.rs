@@ -7,6 +7,7 @@ use crate::player::player::{Player, PlayerExtension};
 use crate::world::chunk::chunk::get_chunk_position;
 use crate::world::world::{World, WorldExtension};
 use glam::DVec3;
+use std::ptr::NonNull;
 
 pub type EntityId = i32;
 
@@ -28,7 +29,7 @@ pub trait EntityImpl<W : WorldExtension, P : PlayerExtension = <W as WorldExtens
 }
 
 pub struct EntityBase<W : WorldExtension> {
-    world: *mut World<W>,
+    world: NonNull<World<W>>,
     pub id: EntityId,
     
     pub position: DVec3,
@@ -47,11 +48,11 @@ pub struct EntityBase<W : WorldExtension> {
 impl<W : WorldExtension> EntityBase<W> {
 
     pub fn world<'a>(&self) -> &'a World<W> {
-        unsafe { self.world.as_ref().expect("world is null") }
+        unsafe { self.world.as_ref() }
     }
 
-    pub fn world_mut<'a>(&self) -> &'a mut World<W> {
-        unsafe { self.world.as_mut().expect("world is null") }
+    pub fn world_mut<'a>(&mut self) -> &'a mut World<W> {
+        unsafe { self.world.as_mut() }
     }
 
     pub fn write_spawn_packet(&self, buffer: &mut PacketBuffer) {
@@ -126,7 +127,7 @@ pub struct Entity<W : WorldExtension> {
 impl<W : WorldExtension> Entity<W> {
     
     pub fn new<E : EntityImpl<W> + 'static>(
-        world: *mut World<W>,
+        world: &mut World<W>,
         entity_metadata: Option<EntityMetadata>,
         entity_id: EntityId,
         position: DVec3,
@@ -135,7 +136,7 @@ impl<W : WorldExtension> Entity<W> {
         entity_impl: E
     ) -> Self {
         let entity_base = EntityBase {
-            world,
+            world: NonNull::from_mut(world),
             id: entity_id,
             position,
             velocity: DVec3::ZERO,

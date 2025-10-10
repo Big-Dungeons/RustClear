@@ -81,11 +81,10 @@ impl<E : WorldExtension> World<E> {
         client_id: ClientId,
         extension: E::Player
     ) -> &mut Player<E::Player> {
-        let self_ptr: *mut World<E> = self;
-        let entity_id = self.new_entity_id();
         
+        let entity_id = self.new_entity_id();
         let mut player = Player::new(
-            self_ptr,
+            self,
             profile,
             client_id,
             entity_id, 
@@ -169,10 +168,10 @@ impl<E : WorldExtension> World<E> {
         pitch: f32,
         entity_impl: T
     ) -> &mut Entity<E> {
+        
         let entity_id = self.new_entity_id();
-        let self_ptr: *mut World<E> = self;
         let mut entity = Entity::new(
-            self_ptr,
+            self,
             entity_metadata,
             entity_id,
             position,

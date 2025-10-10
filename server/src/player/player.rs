@@ -20,6 +20,7 @@ use crate::world::world::{World, WorldExtension};
 use glam::{dvec3, DVec3, IVec3, Vec3};
 use std::collections::HashMap;
 use std::f32::consts::PI;
+use std::ptr::NonNull;
 use uuid::Uuid;
 
 pub type ClientId = usize;
@@ -55,7 +56,7 @@ pub trait PlayerExtension : Sized {
 }
 
 pub struct Player<E : PlayerExtension> {
-    world: *mut World<E::World>,
+    world: NonNull<World<E::World>>,
 
     pub packet_buffer: PacketBuffer,
 
@@ -89,7 +90,7 @@ pub struct Player<E : PlayerExtension> {
 impl<E : PlayerExtension> Player<E> {
 
     pub fn new(
-        world: *mut World<E::World>,
+        world: &mut World<E::World>,
         game_profile: GameProfile,
         client_id: ClientId,
         entity_id: EntityId,
@@ -99,7 +100,7 @@ impl<E : PlayerExtension> Player<E> {
         extension: E,
     ) -> Self {
         Self {
-            world,
+            world: NonNull::from_mut(world),
 
             packet_buffer: PacketBuffer::new(),
 
@@ -130,11 +131,11 @@ impl<E : PlayerExtension> Player<E> {
     }
 
     pub fn world<'a>(&self) -> &'a World<E::World> {
-        unsafe { self.world.as_ref().expect("world is null") }
+        unsafe { self.world.as_ref() }
     }
 
-    pub fn world_mut<'a>(&self) -> &'a mut World<E::World> {
-        unsafe { self.world.as_mut().expect("world is null") }
+    pub fn world_mut<'a>(&mut self) -> &'a mut World<E::World> {
+        unsafe { self.world.as_mut() }
     }
 
     pub fn write_packet<P : IdentifiedPacket + PacketSerializable>(&mut self, packet: &P) {
