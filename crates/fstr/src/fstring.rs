@@ -13,6 +13,7 @@ use crate::{import_shared, inner::Inner, shared::Shared, Fstr};
 /// FStrings must be explicitely created to and from string slices to ensure allocations are explicit. 
 /// if you dont need an owned slice but may pass it around somewhere that does, you can use an Fstr or &FString.
 /// &'static strs can be made using FString::from() and will not allocate.
+/// non static strs can be made into FStrings using either FString::new() or str.to_fstring()
 /// 
 /// FStrings do not implicitely deref into strs to prevent str view methods (ex: most str iterators) from being used over FString versions.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
