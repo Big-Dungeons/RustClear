@@ -17,8 +17,8 @@ use crate::world::chunk::chunk::get_chunk_position;
 use crate::world::chunk::chunk_grid::ChunkDiff;
 use crate::world::world::VIEW_DISTANCE;
 use crate::world::world::{World, WorldExtension};
-use glam::{dvec3, DVec3, IVec3, Vec3};
 use fstr::FString;
+use glam::{dvec3, DVec3, IVec3, Vec3};
 use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::ptr::NonNull;
@@ -77,6 +77,7 @@ pub struct Player<E : PlayerExtension> {
     pub is_sneaking: bool,
 
     pub window_id: i8,
+    // todo: make certain areas not need to claim ownership
     pub open_container: OpenContainer<E>,
     pub inventory: Inventory<E::Item>,
     pub held_slot: u8,
@@ -194,7 +195,7 @@ impl<E : PlayerExtension> Player<E> {
                     };
                     if diff == ChunkDiff::New {
                         chunk.write_chunk_data(x, z, true, &mut self.packet_buffer);
-                        for entity_id in chunk.entities.iter_mut() {
+                        for entity_id in chunk.entities.iter() {
                             if let Some(index) = world.entity_map.get(entity_id) {
                                 let entity = &mut world.entities[*index];
                                 entity.base.write_spawn_packet(&mut self.packet_buffer);
@@ -204,7 +205,7 @@ impl<E : PlayerExtension> Player<E> {
                         return;
                     } else {
                         // could maybe just rely on client to despawn?
-                        for entity_id in chunk.entities.iter_mut() {
+                        for entity_id in chunk.entities.iter() {
                             if let Some(index) = world.entity_map.get(entity_id) {
                                 let entity = &mut world.entities[*index];
                                 entity.base.write_despawn_packet(&mut self.packet_buffer);
@@ -314,7 +315,7 @@ impl<E : PlayerExtension> Player<E> {
                 chunk_z,
                 VIEW_DISTANCE,
                 |chunk, _, _| {
-                    for entity_id in chunk.entities.iter_mut() {
+                    for entity_id in chunk.entities.iter() {
                         if let Some(index) = world.entity_map.get(entity_id) {
                             let entity = &mut world.entities[*index];
                             entity.base.write_spawn_packet(&mut self.packet_buffer);

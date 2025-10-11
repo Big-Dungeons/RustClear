@@ -7,8 +7,8 @@ use crate::network::internal_packets::{MainThreadMessage, NetworkThreadMessage};
 use crate::network::packets::packet::ProcessPacket;
 use crate::network::protocol::play::clientbound::{DestroyEntites, JoinGame, Particles, PlayerData, PlayerListItem, PositionLook};
 use crate::player::player::{ClientId, GameProfile, Player, PlayerExtension};
-use crate::world::chunk::chunk::get_chunk_position;
 use crate::world::chunk::chunk_grid::ChunkGrid;
+use crate::world::chunk::get_chunk_position;
 use enumset::EnumSet;
 use glam::{DVec3, Vec3};
 use std::collections::HashMap;
@@ -103,9 +103,11 @@ impl<E : WorldExtension> World<E> {
             level_type: "",
             reduced_debug_info: false,
         });
-        
-        let chunk_x = (player.position.x.floor() as i32) >> 4;
-        let chunk_z = (player.position.z.floor() as i32) >> 4;
+
+        let (chunk_x, chunk_z) = get_chunk_position(player.position);
+        if let Some(chunk) = self.chunk_grid.get_chunk_mut(chunk_x, chunk_z) {
+            chunk.insert_player(client_id)
+        }
 
         self.chunk_grid.for_each_in_view(
             chunk_x,
@@ -215,11 +217,17 @@ impl<E : WorldExtension> World<E> {
         // and order wasn't preserved there so it should be fine. 
         if let Some(index) = self.player_map.remove(&client_id) {
             let last_index = self.players.len() - 1;
-            self.players.swap_remove(index);
-            
+            let player = self.players.swap_remove(index);
+
             if last_index != index {
                 let moved_id = self.players[index].client_id;
                 self.player_map.insert(moved_id, index);
+            }
+
+            let (chunk_x, chunk_z) = get_chunk_position(player.position);
+
+            if let Some(chunk) = self.chunk_grid.get_chunk_mut(chunk_x, chunk_z) {
+                chunk.remove_player(client_id)
             }
         }
     }
@@ -245,7 +253,8 @@ impl<E : WorldExtension> World<E> {
                 let (chunk_x, chunk_z) = get_chunk_position(entity.base.position);
                 
                 if let Some(chunk) = self.chunk_grid.get_chunk_mut(chunk_x, chunk_z) {
-                    entity.entity_impl.despawn(&mut entity.base, &mut chunk.packet_buffer)
+                    entity.entity_impl.despawn(&mut entity.base, &mut chunk.packet_buffer);
+                    chunk.remove_entity(entity_id);
                 }
                 
                 if last_index != index { 
