@@ -1,7 +1,7 @@
 use crate::dungeon::dungeon_player::{DungeonPlayer, PlayerDungeonPlayer};
 use server::inventory::item_stack::ItemStack;
 use server::inventory::menu::Menu;
-use server::network::binary::nbt::serialize::TAG_COMPOUND_ID;
+use server::network::binary::nbt::TAG_COMPOUND_ID;
 use server::network::binary::nbt::{NBTNode, NBT};
 use server::network::protocol::play::serverbound::ClickWindow;
 use server::Player;

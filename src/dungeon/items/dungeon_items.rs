@@ -5,7 +5,7 @@ use crate::dungeon::items::instant_transmission::instant_transmission;
 use indoc::indoc;
 use server::inventory::item::Item;
 use server::inventory::item_stack::ItemStack;
-use server::network::binary::nbt::serialize::TAG_COMPOUND_ID;
+use server::network::binary::nbt::TAG_COMPOUND_ID;
 use server::network::binary::nbt::{NBTNode, NBT};
 use server::network::protocol::play::clientbound::Chat;
 use server::types::chat_component::ChatComponent;

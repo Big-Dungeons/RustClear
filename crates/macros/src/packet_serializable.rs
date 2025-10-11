@@ -2,7 +2,7 @@ use proc_macro::TokenStream;
 use proc_macro2::Ident;
 use quote::quote;
 use syn::parse::{Parse, ParseStream};
-use syn::{parse_macro_input, token, Expr, Generics, Token, Type, Visibility};
+use syn::{parse_macro_input, token, Attribute, Expr, Generics, Token, Type, Visibility};
 
 struct Field {
     vis: Visibility,
@@ -42,6 +42,7 @@ impl Parse for Field {
 }
 
 struct PacketStruct {
+    attrs: Vec<Attribute>,
     vis: Visibility,
     struct_token: Token![struct],
     name: Ident,
@@ -52,6 +53,7 @@ struct PacketStruct {
 
 impl Parse for PacketStruct {
     fn parse(input: ParseStream) -> syn::Result<Self> {
+        let attrs: Vec<Attribute> = input.call(Attribute::parse_outer)?;
         let vis: Visibility = input.parse()?;
         let struct_token: Token![struct] = input.parse()?;
         let name: Ident = input.parse()?;
@@ -66,6 +68,7 @@ impl Parse for PacketStruct {
         }
 
         Ok(Self {
+            attrs,
             vis,
             struct_token,
             name,
@@ -79,6 +82,7 @@ impl Parse for PacketStruct {
 pub fn packet_serializable_macro(input: TokenStream) -> TokenStream {
     let parsed = parse_macro_input!(input as PacketStruct);
     let PacketStruct {
+        attrs,
         vis,
         name,
         generics,
@@ -121,6 +125,7 @@ pub fn packet_serializable_macro(input: TokenStream) -> TokenStream {
     });
 
     quote! {
+        #(#attrs)*
         #vis struct #name #generics {
             #(#struct_fields)*
         }
