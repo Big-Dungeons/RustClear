@@ -2,11 +2,11 @@ use crate::assets::{get_assets, load_assets};
 use crate::dungeon::door::door::DoorType;
 use crate::dungeon::dungeon::{Dungeon, DungeonState};
 use crate::dungeon::dungeon_player::DungeonPlayer;
+use crate::dungeon::menus::MortMenu;
 use anyhow::bail;
-use glam::{ivec3, DVec3};
+use glam::ivec3;
 use rand::prelude::IndexedRandom;
 use rand::rng;
-use crate::dungeon::menus::DungeonMenu;
 use server::block::blocks::Blocks;
 use server::block::rotatable::Rotatable;
 use server::entity::entity::{EntityBase, EntityImpl};
@@ -17,10 +17,10 @@ use server::network::packets::packet_buffer::PacketBuffer;
 use server::network::protocol::play::serverbound::EntityInteractionType;
 use server::network::run_network::run_network_thread;
 use server::player::player::Player;
-use server::utils::seeded_rng::{seeded_rng, SeededRng};
+use server::utils::seeded_rng::SeededRng;
 use server::world::world::World;
 use std::collections::HashMap;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::unbounded_channel;
 
@@ -130,7 +130,7 @@ async fn main() -> anyhow::Result<()> {
                 if let DungeonState::Started { .. } = player.world().state {
                     return;
                 }
-                player.open_container(OpenContainer::Menu(Box::new(DungeonMenu::Mort)))
+                player.open_container(OpenContainer::Menu(Box::new(MortMenu {})))
             }
         }
 
