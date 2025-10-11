@@ -49,7 +49,7 @@ impl PlayerExtension for DungeonPlayer {
                 entity_id: player.entity_id,
                 effect_id: PotionEffect::NightVision,
                 amplifier: 0,
-                duration: 200,
+                duration: 600,
                 hide_particles: true,
             });
         }

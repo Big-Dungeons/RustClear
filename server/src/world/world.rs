@@ -37,6 +37,7 @@ pub struct World<E : WorldExtension> {
     pub players: Vec<Player<E::Player>>,
     pub player_map: HashMap<ClientId, usize>,
     pub npc_profiles: HashMap<&'static str, GameProfile>,
+    
     entity_id: i32,
     pub entities: Vec<Entity<E>>,
     pub entity_map: HashMap<EntityId, usize>,
