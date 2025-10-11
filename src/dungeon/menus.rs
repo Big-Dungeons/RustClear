@@ -1,4 +1,4 @@
-use crate::dungeon::dungeon_player::{DungeonPlayer, PlayerDungeonPlayer};
+use crate::dungeon::dungeon_player::DungeonPlayer;
 use server::inventory::item_stack::ItemStack;
 use server::inventory::menu::Menu;
 use server::network::binary::nbt::TAG_COMPOUND_ID;
@@ -83,7 +83,7 @@ impl Menu<DungeonPlayer> for MortMenu {
 
     fn click_window(&mut self, player: &mut Player<DungeonPlayer>, packet: &ClickWindow) {
         match packet.slot_id {
-            4 | 13 => player.ready(),
+            4 | 13 => DungeonPlayer::ready(player),
             // 49 => {
             // close
             // },

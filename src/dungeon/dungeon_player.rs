@@ -1,4 +1,4 @@
-use crate::dungeon::dungeon::{Dungeon, DungeonState, WorldDungeon};
+use crate::dungeon::dungeon::{Dungeon, DungeonState};
 use crate::dungeon::items::ability::{Ability, ActiveAbility, Cooldown};
 use crate::dungeon::items::dungeon_items::DungeonItem;
 use crate::dungeon::room::room::Room;
@@ -82,7 +82,7 @@ impl PlayerExtension for DungeonPlayer {
                 
                 // only doors can be interacted with left click I think
                 let world = player.world_mut();
-                player.try_open_door(world, &position);
+                DungeonPlayer::try_open_door(player, world, &position);
             }
             PlayerDiggingAction::FinishDestroyBlock => {
                 restore_block = true;
@@ -118,7 +118,7 @@ impl PlayerExtension for DungeonPlayer {
             }
             
             let world = player.world_mut();
-            player.try_open_door(world, &block.position);
+            DungeonPlayer::try_open_door(player, world, &block.position);
         }
 
         let held_item = *player.inventory.get_hotbar_slot(player.held_slot as usize);
@@ -132,48 +132,39 @@ impl PlayerExtension for DungeonPlayer {
     }
 }
 
-pub trait PlayerDungeonPlayer {
-    fn item_cooldown(&self, item: &DungeonItem) -> Option<&Cooldown>;
-    fn add_item_cooldown(&mut self, item: &DungeonItem, cooldown: Cooldown);
-    fn add_item_ability(&mut self, ability: Ability);
-    fn ready(&mut self);
-    fn get_current_room(&self) -> Option<Rc<RefCell<Room>>>;
-    fn try_open_door(&mut self, world: &mut World<Dungeon>, position: &IVec3);
-}
+impl DungeonPlayer {
 
-impl PlayerDungeonPlayer for Player<DungeonPlayer> {
-    
-    fn item_cooldown(&self, item: &DungeonItem) -> Option<&Cooldown> {
-        self.extension.cooldowns.get(item)
+    pub fn item_cooldown(&self, item: &DungeonItem) -> Option<&Cooldown> {
+        self.cooldowns.get(item)
     }
-    
-    fn add_item_cooldown(&mut self, item: &DungeonItem, cooldown: Cooldown) {
-        self.extension.cooldowns.insert(*item, cooldown);
+
+    pub fn add_item_cooldown(&mut self, item: &DungeonItem, cooldown: Cooldown) {
+        self.cooldowns.insert(*item, cooldown);
     }
-    
-    fn add_item_ability(&mut self, ability: Ability) {
+
+    pub fn add_item_ability(&mut self, ability: Ability) {
         let active_ability = ActiveAbility {
             ability,
             ticks_active: 0,
         };
-        self.extension.active_abilities.get_mut().push(active_ability)
+        self.active_abilities.get_mut().push(active_ability)
     }
 
-    fn ready(&mut self) {
-        self.extension.is_ready = !self.extension.is_ready;
-        self.world_mut().update_ready_status(self);
+    pub fn ready(player: &mut Player<Self>) {
+        player.extension.is_ready = !player.extension.is_ready;
+        Dungeon::update_ready_status(player.world_mut(), player);
     }
 
-    fn get_current_room(&self) -> Option<Rc<RefCell<Room>>> {
-        if let Some((room, _)) = &self.extension.current_room {
+    pub fn get_current_room(&self) -> Option<Rc<RefCell<Room>>> {
+        if let Some((room, _)) = &self.current_room {
             return Some(room.clone())
         }
         None
     }
-    
-    fn try_open_door(&mut self, world: &mut World<Dungeon>, position: &IVec3) {
-        if world.has_dungeon_started() {
-            if let Some(room_rc) = self.get_current_room() {
+
+    pub fn try_open_door(player: &mut Player<Self>, world: &mut World<Dungeon>, position: &IVec3) {
+        if world.has_started() {
+            if let Some(room_rc) = player.extension.get_current_room() {
                 for neighbour in room_rc.borrow().neighbours() {
                     {
                         let mut door = neighbour.door.borrow_mut();
@@ -183,7 +174,7 @@ impl PlayerDungeonPlayer for Player<DungeonPlayer> {
                         }
                         if !door.can_open(world) {
                             // todo: proper chat message and sound
-                            self.write_packet(&Chat {
+                            player.write_packet(&Chat {
                                 component: ChatComponent::new("no key"),
                                 chat_type: 0,
                             });
@@ -197,9 +188,6 @@ impl PlayerDungeonPlayer for Player<DungeonPlayer> {
             }
         }
     }
-}
-
-impl DungeonPlayer {
     
     fn update_sidebar(player: &mut Player<DungeonPlayer>) {
         // really scuffed icl
@@ -208,7 +196,7 @@ impl DungeonPlayer {
         let date = now.format("%m/%d/%y").to_string();
         let time = now.format("%-I:%M%P").to_string();
 
-        let room_id = if let Some(room_rc) = player.get_current_room() {
+        let room_id = if let Some(room_rc) = player.extension.get_current_room() {
             let room = room_rc.borrow();
             &*room.data.id.clone()
         } else {

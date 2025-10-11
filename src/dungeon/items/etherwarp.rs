@@ -1,4 +1,4 @@
-use crate::dungeon::dungeon_player::{DungeonPlayer, PlayerDungeonPlayer};
+use crate::dungeon::dungeon_player::DungeonPlayer;
 use crate::dungeon::room::room_data::RoomType;
 use glam::{dvec3, vec3, DVec3};
 use server::constants::{Particle, Sound};
@@ -22,7 +22,7 @@ enum EtherResult {
 pub fn etherwarp(player: &mut Player<DungeonPlayer>) {
     // temporary, but just to test,
     // since some puzzles let you teleport in them, and others don't
-    if let Some(room_rc) = player.get_current_room() {
+    if let Some(room_rc) = player.extension.get_current_room() {
         match room_rc.borrow().data.room_type {
             RoomType::Trap | RoomType::Puzzle => return,
             _ => {}

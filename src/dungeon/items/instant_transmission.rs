@@ -1,4 +1,4 @@
-use crate::dungeon::dungeon_player::{DungeonPlayer, PlayerDungeonPlayer};
+use crate::dungeon::dungeon_player::DungeonPlayer;
 use crate::dungeon::items::etherwarp::VALID_ETHER_WARP_BLOCK_IDS;
 use crate::dungeon::room::room_data::RoomType;
 use glam::{dvec3, DVec3, IVec3};
@@ -11,7 +11,7 @@ pub fn instant_transmission(
     player: &mut Player<DungeonPlayer>,
     distance: f64,
 ) {
-    if let Some(room_rc) = player.get_current_room() {
+    if let Some(room_rc) = player.extension.get_current_room() {
         match room_rc.borrow().data.room_type {
             RoomType::Trap | RoomType::Puzzle => return,
             _ => {}
