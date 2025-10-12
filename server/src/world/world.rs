@@ -291,7 +291,7 @@ impl<E : WorldExtension> World<E> {
             MainThreadMessage::PacketReceived { client_id, packet } => {
                 if let Some(index) = self.player_map.get(&client_id) {
                     let player = &mut self.players[*index];
-                    packet.process_with_player(player)
+                    packet.process(player)
                 }
             }
             MainThreadMessage::ClientDisconnected { client_id } => {

@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::bail;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum ConnectionState {
@@ -9,7 +9,7 @@ pub enum ConnectionState {
 }
 
 impl ConnectionState {
-    pub fn from_id(id: i32) -> Result<ConnectionState> {
+    pub fn from_id(id: i32) -> anyhow::Result<ConnectionState> {
         Ok(match id {
             -1 => ConnectionState::Handshaking,
             0 => ConnectionState::Play,

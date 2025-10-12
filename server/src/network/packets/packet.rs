@@ -1,7 +1,4 @@
-use crate::network::client::Client;
-use crate::network::internal_packets::{MainThreadMessage, NetworkThreadMessage};
 use crate::player::player::{Player, PlayerExtension};
-use tokio::sync::mpsc::UnboundedSender;
 
 /// used for client bound packets, to identify them
 pub trait IdentifiedPacket {
@@ -20,20 +17,11 @@ macro_rules! register_packets {
     };
 }
 
-pub struct ProcessContext<'a> {
-    pub network_thread_tx: &'a UnboundedSender<NetworkThreadMessage>,
-    pub main_thread_tx: &'a UnboundedSender<MainThreadMessage>,
-}
-
 pub trait ProcessPacket {
-    async fn process<'a>(&self, _: &mut Client, _: ProcessContext<'a>) -> anyhow::Result<()> {
-        Ok(())
-    }
-    
     /// processes (play) packet sent by the player.
     /// 
     /// this must be run on the main thread.
-    fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {}
+    fn process<P : PlayerExtension>(&self, player: &mut Player<P>) {}
 }
 
 // since this doesn't need to be imported often (unlike client bound packets)
@@ -66,22 +54,11 @@ macro_rules! register_serverbound_packets {
         }
         
         impl crate::network::packets::packet::ProcessPacket for $enum_name {
-            async fn process<'a>(&self, client: &mut Client, ctx: crate::network::packets::packet::ProcessContext<'a>) -> anyhow::Result<()> {
-                use crate::network::packets::packet::ProcessPacket;
+            fn process<P : crate::player::player::PlayerExtension>(&self, player: &mut  crate::player::player::Player<P>) {
                 match self {
                     $(
                         $enum_name::$packet_type(inner) => {
-                            <_ as ProcessPacket>::process(inner, client, ctx).await
-                        }
-                    )*
-                }
-            }
-            
-            fn process_with_player<P : crate::player::player::PlayerExtension>(&self, player: &mut  crate::player::player::Player<P>) {
-                match self {
-                    $(
-                        $enum_name::$packet_type(inner) => {
-                            <_ as ProcessPacket>::process_with_player(inner, player)
+                            <_ as ProcessPacket>::process(inner, player)
                         }
                     )*
                 }

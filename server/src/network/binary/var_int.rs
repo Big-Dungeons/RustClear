@@ -1,8 +1,16 @@
 use bytes::{Buf, BufMut};
+use std::ops::Deref;
 
 #[repr(transparent)]
-#[derive(PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct VarInt(pub i32);
+
+impl Deref for VarInt {
+    type Target = i32;
+    fn deref(&self) -> &i32 {
+        &self.0
+    }
+}
 
 pub fn peek_var_int(buf: &impl Buf) -> Option<(i32, usize)> {
     let mut num_read = 0;
