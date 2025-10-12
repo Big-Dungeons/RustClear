@@ -2,7 +2,6 @@ use fstr::FString;
 
 use crate::network::packets::packet_deserialize::PacketDeserializable;
 use crate::network::packets::packet_serialize::PacketSerializable;
-use crate::utils::get_vec;
 use anyhow::bail;
 use bytes::{Buf, BufMut, BytesMut};
 use std::collections::HashMap;
@@ -290,11 +289,10 @@ fn node_size(node: &NBTNode) -> usize {
     }
 }
 
-// todo: handle errors
 impl PacketDeserializable for NBT {
     fn read(buffer: &mut impl Buf) -> anyhow::Result<Self> {
-        let name = read_string_nbt(buffer);
-        let node = read_node(buffer, TAG_COMPOUND_ID);
+        let name = read_string_nbt(buffer)?;
+        let node = read_node(buffer, TAG_COMPOUND_ID)?;
 
         if let NBTNode::Compound(nodes) = node {
             return Ok(NBT {
@@ -308,62 +306,53 @@ impl PacketDeserializable for NBT {
 
 impl PacketDeserializable for Option<NBT> {
     fn read(buffer: &mut impl Buf) -> anyhow::Result<Self> {
-        if buffer.get_u8() != TAG_COMPOUND_ID {
+        if u8::read(buffer)? != TAG_COMPOUND_ID {
             return Ok(None);
         };
         Ok(Some(NBT::read(buffer)?))
     }
 }
 
-fn read_string_nbt(buffer: &mut impl Buf) -> FString {
-    let size = buffer.get_u16() as usize;
-    let str = FString::from_bytes(&buffer.chunk()[..size]).unwrap();
-    buffer.advance(size);
-    str
+fn read_string_nbt(buffer: &mut impl Buf) -> anyhow::Result<FString> {
+    let length = u16::read(buffer)? as usize;
+    if buffer.remaining() < length {
+        bail!("Not enough bytes for string")
+    }
+    let str = FString::from_bytes(&buffer.chunk()[..length])?;
+    buffer.advance(length);
+    Ok(str)
 }
 
-fn read_node(buffer: &mut impl Buf, tag: u8) -> NBTNode {
-    match tag {
-        TAG_BYTE_ID => {
-            let value = buffer.get_i8();
-            NBTNode::Byte(value)
-        }
-        TAG_SHORT_ID => {
-            let value = buffer.get_i16();
-            NBTNode::Short(value)
-        }
-        TAG_INT_ID => {
-            let value = buffer.get_i32();
-            NBTNode::Int(value)
-        }
-        TAG_LONG_ID => {
-            let value = buffer.get_i64();
-            NBTNode::Long(value)
-        }
-        TAG_FLOAT_ID => {
-            let value = buffer.get_f32();
-            NBTNode::Float(value)
-        }
-        TAG_DOUBLE_ID => {
-            let value = buffer.get_f64();
-            NBTNode::Double(value)
-        }
+fn read_node(buffer: &mut impl Buf, tag: u8) -> anyhow::Result<NBTNode> {
+    let node = match tag {
+        TAG_BYTE_ID => NBTNode::Byte(PacketDeserializable::read(buffer)?),
+        TAG_SHORT_ID => NBTNode::Short(PacketDeserializable::read(buffer)?),
+        TAG_INT_ID => NBTNode::Int(PacketDeserializable::read(buffer)?),
+        TAG_LONG_ID => NBTNode::Long(PacketDeserializable::read(buffer)?),
+        TAG_FLOAT_ID => NBTNode::Float(PacketDeserializable::read(buffer)?),
+        TAG_DOUBLE_ID => NBTNode::Double(PacketDeserializable::read(buffer)?),
+
 
         TAG_BYTE_ARRAY_ID => {
-            let array_len = buffer.get_i32() as usize;
-            let vec = get_vec(buffer, array_len);
+            // would be faster to do one check for the whole array
+            // and do an unchecked read for u8, but im too lazy
+            let length = u8::read(buffer)? as usize;
+            let mut vec: Vec<u8> = Vec::with_capacity(length);
+            for _ in 0..length {
+                vec.push(u8::read(buffer)?)
+            }
             NBTNode::ByteArray(vec)
         }
         TAG_STRING_ID => {
-            let value = read_string_nbt(buffer);
+            let value = read_string_nbt(buffer)?;
             NBTNode::String(value)
         }
         TAG_LIST_ID => {
-            let type_id = buffer.get_u8();
-            let list_len = buffer.get_i32();
+            let type_id = u8::read(buffer)?;
+            let list_len = i32::read(buffer)?;
             let mut nodes: Vec<NBTNode> = Vec::new();
             for _ in 0..list_len {
-                let node = read_node(buffer, type_id);
+                let node = read_node(buffer, type_id)?;
                 nodes.push(node)
             }
             NBTNode::List { type_id, children: nodes }
@@ -371,33 +360,34 @@ fn read_node(buffer: &mut impl Buf, tag: u8) -> NBTNode {
         TAG_COMPOUND_ID => {
             let mut nodes: HashMap<FString, NBTNode> = HashMap::new();
             loop {
-                let tag = buffer.get_u8();
+                let tag = u8::read(buffer)?;
                 if tag == TAG_END_ID {
                     break;
                 } else {
-                    let name = read_string_nbt(buffer);
-                    let node = read_node(buffer, tag);
+                    let name = read_string_nbt(buffer)?;
+                    let node = read_node(buffer, tag)?;
                     nodes.insert(name, node);
                 }
             }
             NBTNode::Compound(nodes)
         }
         TAG_INT_ARRAY_ID => {
-            let array_len = buffer.get_i32() as usize;
-            let mut vec: Vec<i32> = Vec::with_capacity(array_len);
-            for _ in 0..array_len {
-                vec.push(buffer.get_i32())
+            let length = i32::read(buffer)? as usize;
+            let mut vec: Vec<i32> = Vec::with_capacity(length);
+            for _ in 0..length {
+                vec.push(i32::read(buffer)?)
             }
             NBTNode::IntArray(vec)
         }
         TAG_LONG_ARRAY_ID => {
-            let array_len = buffer.get_i32() as usize;
-            let mut vec: Vec<i64> = Vec::with_capacity(array_len);
-            for _ in 0..array_len {
-                vec.push(buffer.get_i64())
+            let length = i64::read(buffer)? as usize;
+            let mut vec: Vec<i64> = Vec::with_capacity(length);
+            for _ in 0..length {
+                vec.push(i64::read(buffer)?)
             }
             NBTNode::LongArray(vec)
         }
         _ => unreachable!()
-    }
+    };
+    Ok(node)
 }

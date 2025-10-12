@@ -1,5 +1,5 @@
 use crate::{network::binary::var_int::{read_var_int, VarInt}, utils::get_vec};
-use anyhow::{bail, Context};
+use anyhow::bail;
 use bytes::Buf;
 use fstr::FString;
 
@@ -178,11 +178,14 @@ impl PacketDeserializable for VarInt {
 
 impl PacketDeserializable for String {
     fn read(buffer: &mut impl Buf) -> anyhow::Result<Self> {
-        let len = read_var_int(buffer).context("failed to read string length")? as usize;
-        if len > 32767 {
-            bail!("String too long. {:?} > 32767", len);
+        let length = *VarInt::read(buffer)? as usize;
+        if buffer.remaining() < length {
+            bail!("not enough bytes for string")
         }
-        match String::from_utf8(get_vec(buffer, len)) {
+        if length > 32767 {
+            bail!("String too long. {:?} > 32767", length);
+        }
+        match String::from_utf8(get_vec(buffer, length)) {
             Ok(string) => Ok(string),
             Err(_) => bail!("failed to read string"),
         }
@@ -191,12 +194,15 @@ impl PacketDeserializable for String {
 
 impl PacketDeserializable for FString {
     fn read(buffer: &mut impl Buf) -> anyhow::Result<Self> {
-        let len = read_var_int(buffer).context("failed to read string length")? as usize;
-        if len > 32767 {
-            bail!("String too long. {:?} > 32767", len);
+        let length = *VarInt::read(buffer)? as usize;
+        if buffer.remaining() < length {
+            bail!("not enough bytes for string")
         }
-        let str = Self::from_bytes(&buffer.chunk()[..len])?;
-        buffer.advance(len);
+        if length > 32767 {
+            bail!("String too long. {:?} > 32767", length);
+        }
+        let str = Self::from_bytes(&buffer.chunk()[..length])?;
+        buffer.advance(length);
         Ok(str)
     }
 }
