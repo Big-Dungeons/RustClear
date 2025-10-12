@@ -176,7 +176,6 @@ fn handle_status(
     let mut packet_buffer = PacketBuffer::new();
     match packet_id {
         0x00 => {
-            println!("status: {status}");
             packet_buffer.write_packet(&StatusResponse {
                 status,
             });
