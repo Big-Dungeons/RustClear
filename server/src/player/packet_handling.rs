@@ -40,7 +40,11 @@ impl ProcessPacket for UseEntity {
 
 // I don't know if any implementation will be needed,
 // but just in case imma keep it here
-impl ProcessPacket for PlayerUpdate {}
+impl ProcessPacket for PlayerUpdate {
+    fn process<P: PlayerExtension>(&self, _: &mut Player<P>) {
+
+    }
+}
 
 // anti cheat stuff vvv important to do for all 3
 
@@ -115,7 +119,11 @@ impl ProcessPacket for HeldItemChange {
 }
 
 // will be useful if we want to add stuff like mage beam
-impl ProcessPacket for ArmSwing {}
+impl ProcessPacket for ArmSwing {
+    fn process<P: PlayerExtension>(&self, _: &mut Player<P>) {
+        // lc
+    }
+}
 
 impl ProcessPacket for PlayerAction {
     fn process<P : PlayerExtension>(&self, player: &mut Player<P>) {
@@ -144,10 +152,15 @@ impl ProcessPacket for ClickWindow {
 }
 
 impl ProcessPacket for serverbound::ConfirmTransaction {
-    // wd sync stuff
+    fn process<P: PlayerExtension>(&self, _: &mut Player<P>) {
+        // anti cheat
+    }
 }
 
 impl ProcessPacket for TabComplete {
+    fn process<P: PlayerExtension>(&self, _: &mut Player<P>) {
+        // for commands, we should have some tree system instead of recreating the mess that is mc 1.8.9 CommandBase
+    }
     // fn process<P : PlayerExtension>(&self, player: &mut Player<P>) {
     //     if !self.message.starts_with("/") {
     //         return;
@@ -211,7 +224,10 @@ impl ProcessPacket for TabComplete {
 }
 
 impl ProcessPacket for ClientSettings {
-    // render distance stuff if needed
+    fn process<P: PlayerExtension>(&self, _: &mut Player<P>) {
+        // todo: outer layer
+
+    }
 }
 
 impl ProcessPacket for ClientStatus {

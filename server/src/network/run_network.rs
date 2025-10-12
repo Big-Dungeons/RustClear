@@ -13,6 +13,7 @@ pub async fn run_network_thread(
     mut network_rx: UnboundedReceiver<NetworkThreadMessage>,
     network_tx: UnboundedSender<NetworkThreadMessage>,
     main_tx: UnboundedSender<MainThreadMessage>,
+    status: &'static str
 ) {
     let listener = TcpListener::bind("127.0.0.1:4972").await.unwrap();
     println!("Network thread listening on 127.0.0.1:4972");
@@ -31,9 +32,15 @@ pub async fn run_network_thread(
                 client_id_counter += 1;
 
                 let (client_tx, client_rx) = mpsc::unbounded_channel::<ClientHandlerMessage>();
-
                 clients.insert(client_id, client_tx);
-                tokio::spawn(handle_client(client_id, socket, client_rx, main_tx.clone(), network_tx.clone()));
+                tokio::spawn(handle_client(
+                    client_id,
+                    socket,
+                    client_rx,
+                    main_tx.clone(),
+                    network_tx.clone(),
+                    status
+                ));
             }
 
             // this can never be none since this function owns a network_tx.

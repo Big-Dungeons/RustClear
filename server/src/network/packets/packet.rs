@@ -1,8 +1,16 @@
 use crate::player::player::{Player, PlayerExtension};
 
-/// used for client bound packets, to identify them
+/// Used to identify packets sent to the client.
 pub trait IdentifiedPacket {
     const PACKET_ID: i32;
+}
+
+/// Must be used on packets sent from a valid player to process them.
+pub trait ProcessPacket {
+    /// processes (play) packet sent by the player.
+    ///
+    /// this must be run on the main thread.
+    fn process<P : PlayerExtension>(&self, player: &mut Player<P>);
 }
 
 /// Implements IdentifiedPacket for all entries with the corresponding packet id.
@@ -15,13 +23,6 @@ macro_rules! register_packets {
             }
         )*
     };
-}
-
-pub trait ProcessPacket {
-    /// processes (play) packet sent by the player.
-    /// 
-    /// this must be run on the main thread.
-    fn process<P : PlayerExtension>(&self, player: &mut Player<P>) {}
 }
 
 // since this doesn't need to be imported often (unlike client bound packets)

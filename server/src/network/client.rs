@@ -49,6 +49,8 @@ pub async fn handle_client(
     mut rx: UnboundedReceiver<ClientHandlerMessage>,
     main_tx: UnboundedSender<MainThreadMessage>,
     network_tx: UnboundedSender<NetworkThreadMessage>,
+    // maybe make mutable?, so it can update the player count, etc
+    status: &'static str
 ) {
     let mut client = Client::new(client_id);
     let mut bytes = BytesMut::new();
@@ -60,7 +62,13 @@ pub async fn handle_client(
                     Ok(0) => break, // channel closed normally
                     Ok(_) => {
                         // channel closes, if client sends invalid packets.
-                        if let Err(err) = read_packets(&mut bytes, &mut client, &network_tx, &main_tx).await {
+                        if let Err(err) = read_packets(
+                            &mut bytes,
+                            &mut client,
+                            &network_tx,
+                            &main_tx,
+                            status
+                        ).await {
                             eprintln!("client {client_id:?} errored: {err}");
                             break;
                         }
@@ -94,7 +102,8 @@ async fn read_packets(
     buffer: &mut BytesMut,
     client: &mut Client,
     network_thread_tx: &UnboundedSender<NetworkThreadMessage>,
-    main_thread_tx: &UnboundedSender<MainThreadMessage>
+    main_thread_tx: &UnboundedSender<MainThreadMessage>,
+    status: &'static str
 ) -> anyhow::Result<()> {
     while let Some(mut buffer) = try_read_packet_slice(buffer) {
         match client.connection_state {
@@ -102,7 +111,7 @@ async fn read_packets(
                 handle_handshake(&mut buffer, client)?;
             }
             Status => {
-                handle_status(&mut buffer, client, network_thread_tx)?;
+                handle_status(&mut buffer, client, network_thread_tx, status)?;
             }
             Login => {
                 handle_login(&mut buffer, client, network_thread_tx, main_thread_tx)?;
@@ -166,13 +175,20 @@ fn handle_handshake(buffer: &mut impl Buf, client: &mut Client) -> anyhow::Resul
     }
 }
 
-fn handle_status(buffer: &mut impl Buf, client: &mut Client, network_tx: &UnboundedSender<NetworkThreadMessage>) -> anyhow::Result<()> {
+fn handle_status(
+    buffer: &mut impl Buf,
+    client: &mut Client,
+    network_tx: &UnboundedSender<NetworkThreadMessage>,
+    status: &'static str
+) -> anyhow::Result<()> {
     let packet_id = *VarInt::read(buffer)?;
     let mut packet_buffer = PacketBuffer::new();
     match packet_id {
         0x00 => {
-            // todo: customizable response
-            packet_buffer.write_packet(&StatusResponse::default());
+            println!("status: {status}");
+            packet_buffer.write_packet(&StatusResponse {
+                status,
+            });
         }
         0x01 => {
             let status_ping = StatusPing::read(buffer)?;

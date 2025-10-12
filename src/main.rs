@@ -27,48 +27,57 @@ use tokio::sync::mpsc::unbounded_channel;
 mod assets;
 mod dungeon;
 
-// const VERSION: &'static str = env!("CARGO_PKG_VERSION");
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // todo: either a config file with repo/path or command line args.
-    load_assets("assets", "https://github.com/Big-Dungeons/ClearData/archive/refs/heads/main.zip").await?;
+    load_assets(
+        "assets",
+        "https://github.com/Big-Dungeons/ClearData/archive/refs/heads/main.zip",
+    )
+    .await?;
     let (network_tx, network_rx) = unbounded_channel::<NetworkThreadMessage>();
     let (main_tx, mut main_rx) = unbounded_channel::<MainThreadMessage>();
 
     let mut tick_interval = tokio::time::interval(Duration::from_millis(50));
-    tokio::spawn(run_network_thread(
-        network_rx,
-        network_tx.clone(),
-        main_tx,
+    tokio::spawn(run_network_thread(network_rx, network_tx.clone(), main_tx,
+        r#"{
+            "version": {
+                "name": "1.8.9",
+                "protocol": 47
+            },
+            "players": {
+                "max": 1,
+                "online": 0
+            },
+            "description": {
+                "text": "RustClear",
+                "color": "gold",
+                "extra": [
+                    {
+                        "text": " version ",
+                        "color": "gray"
+                    },
+                    {
+                        "text": "{version}",
+                        "color": "green"
+                    }
+                ]
+            },
+            "favicon": "data:image/png;base64,<data>"
+        }"#,
     ));
-    // tokio::spawn(run_record_thread());
 
     let rng_seed: u64 = rand::random();
     SeededRng::set_seed(rng_seed);
 
     let dungeon_strings = &get_assets().dungeon_seeds;
     let dungeon_seed = dungeon_strings.choose(&mut rng()).unwrap();
-    
+
     let room_data_storage = &get_assets().room_data;
 
-    // sleep(Duration::from_secs(3)).await;
-    // get_handle().send(RecordMessage::Start { seed: FString::new(dungeon_seed), rng_seed, at: Instant::now() }).unwrap();
-    
-    // // tokio::spawn(async {
-    // //     sleep(Duration::from_secs(30)).await;
-    // //     get_handle().send(RecordMessage::Save).unwrap();
-    // // });
-    
-    let dungeon = Dungeon::from_string(
-        dungeon_seed,
-        &room_data_storage
-    )?;
+    let dungeon = Dungeon::from_string(dungeon_seed, &room_data_storage)?;
 
-    let mut world = World::new(
-        network_tx,
-        dungeon,
-    );
+    let mut world = World::new(network_tx, dungeon);
 
     for room in world.extension.rooms.iter() {
         room.borrow().load_into_world(&mut world.chunk_grid);
@@ -82,26 +91,26 @@ async fn main() -> anyhow::Result<()> {
         }
 
         impl EntityImpl<Dungeon> for Test {
-            fn spawn(&mut self, _: &mut EntityBase<Dungeon>, _: &mut PacketBuffer) {
-            }
-            fn despawn(&mut self, _: &mut EntityBase<Dungeon>, _: &mut PacketBuffer) {
-            }
+            fn spawn(&mut self, _: &mut EntityBase<Dungeon>, _: &mut PacketBuffer) {}
+            fn despawn(&mut self, _: &mut EntityBase<Dungeon>, _: &mut PacketBuffer) {}
             fn tick(&self, entity: &mut EntityBase<Dungeon>, _: &mut PacketBuffer) {
                 if entity.ticks_existed % 5 == 0 {
                     return;
                 }
 
                 let world = entity.world();
-                let player: Option<&Player<DungeonPlayer>> = world.players
+                let player: Option<&Player<DungeonPlayer>> = world
+                    .players
                     .iter()
                     .filter(|p| entity.position.distance(p.position) <= 5.0)
                     .min_by(|a, b| {
-                        entity.position
+                        entity
+                            .position
                             .distance(a.position)
                             .partial_cmp(&entity.position.distance(b.position))
                             .unwrap()
                     });
-                
+
                 if let Some(player) = player {
                     let (yaw, pitch) = {
                         let direction = player.position - entity.position;
@@ -119,10 +128,10 @@ async fn main() -> anyhow::Result<()> {
                 }
             }
             fn interact(
-                &self, 
+                &self,
                 _: &mut EntityBase<Dungeon>,
                 player: &mut Player<DungeonPlayer>,
-                action: &EntityInteractionType
+                action: &EntityInteractionType,
             ) {
                 if let EntityInteractionType::InteractAt = action {
                     return;
@@ -136,29 +145,31 @@ async fn main() -> anyhow::Result<()> {
 
         let entrance = world.extension.entrance_room();
         let entrance = entrance.borrow();
-        let mut position = entrance.get_world_block_position(ivec3(15, 69, 4)).as_dvec3();
+        let mut position = entrance
+            .get_world_block_position(ivec3(15, 69, 4))
+            .as_dvec3();
         position.x += 0.5;
         position.z += 0.5;
-        
+
         let yaw = 0.0.rotate(entrance.rotation);
         world.spawn_entity(
             Some(EntityMetadata::new(EntityVariant::NPC { npc_id: "mort" })),
             position,
             yaw,
             0.0,
-            Test { yaw, pitch: 0.0 }
+            Test { yaw, pitch: 0.0 },
         );
     }
-    
+
     loop {
         tick_interval.tick().await;
         // let start = Instant::now();
-        
+
         loop {
             match main_rx.try_recv() {
                 Ok(message) => world.process_event(message),
                 Err(TryRecvError::Empty) => break,
-                Err(TryRecvError::Disconnected) => bail!("Network thread dropped its reciever.")
+                Err(TryRecvError::Disconnected) => bail!("Network thread dropped its reciever."),
             }
         }
 
@@ -168,7 +179,6 @@ async fn main() -> anyhow::Result<()> {
 }
 
 fn load_doors_into_world(world: &mut World<Dungeon>) {
-    
     // Might be a good idea to make a new format for storing doors so that indexes etc don't need to be hard coded.
     // But this works for now...
     let door_data: &Vec<Vec<Blocks>> = &get_assets().door_data;
@@ -190,10 +200,11 @@ fn load_doors_into_world(world: &mut World<Dungeon>) {
                 ],
             ),
         ]
-            .into_iter(),
+        .into_iter(),
     );
-    
+
     for door in world.extension.doors.iter() {
-        door.borrow().load_into_world(&mut world.chunk_grid, &door_type_blocks)
+        door.borrow()
+            .load_into_world(&mut world.chunk_grid, &door_type_blocks)
     }
 }
