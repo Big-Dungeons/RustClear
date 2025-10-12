@@ -290,7 +290,7 @@ fn node_size(node: &NBTNode) -> usize {
     }
 }
 
-
+// todo: handle errors
 impl PacketDeserializable for NBT {
     fn read(buffer: &mut impl Buf) -> anyhow::Result<Self> {
         let name = read_string_nbt(buffer);

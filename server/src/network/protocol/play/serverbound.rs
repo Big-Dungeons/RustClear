@@ -1,6 +1,5 @@
 use crate::inventory::item_stack::ItemStack;
 use crate::network::binary::var_int::VarInt;
-use crate::network::client::Client;
 use crate::network::packets::packet::ProcessPacket;
 use crate::network::packets::packet_deserialize::PacketDeserializable;
 use crate::network::protocol::play::serverbound::ClientStatus::{OpenInventory, PerformRespawn, RequestStats};
@@ -71,13 +70,13 @@ pub struct UseEntity {
 
 impl PacketDeserializable for UseEntity {
     fn read(buffer: &mut impl Buf) -> anyhow::Result<Self> {
-        let entity_id: VarInt = PacketDeserializable::read(buffer)?;
-        let action: EntityInteractionType = PacketDeserializable::read(buffer)?;
+        let entity_id: VarInt = VarInt::read(buffer)?;
+        let action: EntityInteractionType = EntityInteractionType::read(buffer)?;
         let hit_vec = if action == EntityInteractionType::InteractAt { 
             Some(Vec3::new(
-                PacketDeserializable::read(buffer)?,
-                PacketDeserializable::read(buffer)?,
-                PacketDeserializable::read(buffer)?,
+                f32::read(buffer)?,
+                f32::read(buffer)?,
+                f32::read(buffer)?,
             ))
         } else {
             None

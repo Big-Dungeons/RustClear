@@ -102,7 +102,7 @@ async fn read_packets(
     buffer: &mut BytesMut,
     client: &mut Client,
     network_thread_tx: &UnboundedSender<NetworkThreadMessage>,
-    main_thread_tx: &UnboundedSender<MainThreadMessage>,
+    main_tx: &UnboundedSender<MainThreadMessage>,
     status: &'static str
 ) -> anyhow::Result<()> {
     while let Some(mut buffer) = try_read_packet_slice(buffer) {
@@ -114,24 +114,15 @@ async fn read_packets(
                 handle_status(&mut buffer, client, network_thread_tx, status)?;
             }
             Login => {
-                handle_login(&mut buffer, client, network_thread_tx, main_thread_tx)?;
+                handle_login(&mut buffer, client, network_thread_tx, main_tx)?;
             }
             Play => {
-                match Play::read(&mut buffer) {
-                    Ok(packet) => {
-                        // if let Err(err) = packet.process(client, context).await {
-                        //     eprintln!("error processing {err}");
-                        //     continue
-                        // }
-                        let _ = main_thread_tx.send(
-                            MainThreadMessage::PacketReceived {
-                                client_id: client.id,
-                                packet
-                            }
-                        );
-                    }
-                    Err(err) => eprintln!("Failed to parse packet from {err}"),
+                let packet = Play::read(&mut buffer)?;
+                if let Play::Invalid(packet_id) = packet {
+                    eprintln!("invalid packet: 0x{packet_id:02x}");
+                    continue;
                 }
+                main_tx.send(MainThreadMessage::PacketReceived { client_id: client.id, packet })?;
             }
         }
     }

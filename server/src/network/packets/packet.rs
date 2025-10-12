@@ -34,6 +34,7 @@ macro_rules! register_serverbound_packets {
         $( $packet_type:ident = $id:literal );* $(;)?
     ) => {
         pub enum $enum_name {
+            Invalid(i32), // temporary, since not all packets are implemented, and without this it will error
             $( $packet_type($packet_type), )*
         }
         
@@ -46,7 +47,7 @@ macro_rules! register_serverbound_packets {
                                 <$packet_type as crate::network::packets::packet_deserialize::PacketDeserializable>::read(buffer)?
                             )),
                         )*
-                    _ => anyhow::bail!(": invalid packet 0x{:02x}", packet_id),
+                    _ => Ok($enum_name::Invalid(packet_id)),
                     }
                 } else {
                     anyhow::bail!("failed to read var_int")
@@ -62,6 +63,7 @@ macro_rules! register_serverbound_packets {
                             <_ as ProcessPacket>::process(inner, player)
                         }
                     )*
+                    $enum_name::Invalid(_) => unreachable!()
                 }
             }
         }
