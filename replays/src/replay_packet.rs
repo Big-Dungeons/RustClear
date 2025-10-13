@@ -43,7 +43,12 @@ impl ReplayPacket {
         let profile = ProfileId::new(Uuid::from_u128(buffer.get_u128()));
         
         let data_len = buffer.get_u32() as usize;
-        let packet = buffer.copy_to_bytes(data_len);
+        
+        // we cant copy_to_bytes here since it will keep the data alive in the vec.
+        // we need to ensure the bytesmut arc never increments so it can fix itself rather than allocate again.
+        let mut packet_data = vec![0u8; data_len];
+        buffer.copy_to_slice(&mut packet_data);
+        let packet = Bytes::from(packet_data);
         
         Self {
             since_start,

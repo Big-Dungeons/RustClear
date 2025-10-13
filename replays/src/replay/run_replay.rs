@@ -1,7 +1,8 @@
 use std::time::Instant;
 
 use bytes::BytesMut;
-use tokio::{fs::File, io, sync::mpsc::{UnboundedReceiver, UnboundedSender, error::SendError, unbounded_channel}, task::AbortHandle};
+use fstr::FString;
+use tokio::{fs::File, io, sync::{mpsc::{UnboundedReceiver, UnboundedSender, error::SendError, unbounded_channel}, oneshot}, task::AbortHandle};
 
 use crate::{ReplayCallback, error::BufferError, replay::{replay_buffer::ReplayBuffer, replay_message::ReplayMessage}};
 
@@ -27,8 +28,18 @@ impl<T: Send + 'static> ReplayHandler<T> {
         Self { tx, abort: handle }
     }
     
-    pub fn send(&self, message: ReplayMessage<T>) -> Result<(), SendError<ReplayMessage<T>>> {
-        self.tx.send(message)
+    pub async fn load(&self, file: FString, ) -> anyhow::Result<T> {
+        let (tx, rx) = oneshot::channel();
+        self.tx.send(ReplayMessage::Load { file, sender: tx })?;
+        Ok(rx.await??)
+    }
+    
+    pub fn start(&self, at: Instant) -> Result<(), SendError<ReplayMessage<T>>> {
+        self.tx.send(ReplayMessage::Start { at })
+    }
+    
+    pub fn end(&self) -> Result<(), SendError<ReplayMessage<T>>> {
+        self.tx.send(ReplayMessage::End)
     }
     
     pub fn abort(&self) {
@@ -72,7 +83,7 @@ impl<T: Send + 'static, C: ReplayCallback> ReplayRunner<T, C> {
                     res = buf.get_packet(), if play.is_some() => {
                         match res {
                             Ok(packet) => self.callback.callback(packet).await,
-                            Err(BufferError::Pending) => continue,
+                            Err(BufferError::Pending) => continue, // hopefully impossible?
                             Err(BufferError::EndOfFile) => {
                                 buffer = None;
                                 play = None;

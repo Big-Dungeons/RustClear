@@ -3,17 +3,18 @@ use std::{collections::VecDeque, time::Instant};
 use bytes::{Buf, BytesMut};
 use tokio::{fs::File, io::{self, AsyncReadExt}, time::sleep_until};
 
-use crate::{error::BufferError, replay_packet::ReplayPacket};
+use crate::{VERSION, error::BufferError, replay_packet::ReplayPacket};
 
 #[derive(Debug)]
 pub struct ReplayBuffer {
     reader: File,
 
     buffer: BytesMut,
+    end_of_file: bool,
     packets: VecDeque<ReplayPacket>,
     pending: usize,
-
-    pub start: Instant
+    
+    pub start: Instant,
 }
 
 impl ReplayBuffer {
@@ -22,6 +23,7 @@ impl ReplayBuffer {
             reader: file,
 
             buffer: BytesMut::with_capacity(8 * 1024),
+            end_of_file: false,
             packets: VecDeque::with_capacity(30),
             pending: 30,
 
@@ -29,20 +31,19 @@ impl ReplayBuffer {
         }
     }
 
-    pub async fn initialize(&mut self) -> Result<(), io::Error> {
+    pub async fn initialize(&mut self) -> Result<(), BufferError> {
         self.reader.read_buf(&mut self.buffer).await?;
-        if self.buffer.remaining() < size_of::<u64>() {
-            return Err(io::Error::other(BufferError::Pending))
-        }
-        let length = self.buffer.get_u64() as usize;
+        let length = self.buffer.try_get_u64()? as usize;
         if self.buffer.remaining() < length {
-            return Err(io::Error::other(BufferError::Pending))
+            return Err(BufferError::Pending)
         }
 
-        let version = self.buffer.split_to(length);
-        println!("{}", version.len());
-        let str = str::from_utf8(&version).map_err(|e| io::Error::other(e))?;
-        println!("version: {}", str);
+        let version_bytes = self.buffer.split_to(length);
+        let version = str::from_utf8(&version_bytes).map_err(|e| io::Error::other(e))?;
+        
+        if version != VERSION {
+            eprintln!("Versions dont match!");
+        }
 
         Ok(())
     }
@@ -67,6 +68,7 @@ impl ReplayBuffer {
             let Err(BufferError::Pending) = res else { return res };
             let read = self.reader.read_buf(&mut self.buffer).await?;
             if read == 0 {
+                self.end_of_file = true;
                 return Err(BufferError::EndOfFile)
             }
             continue
@@ -75,30 +77,28 @@ impl ReplayBuffer {
 
     /// this should be cancel safe (hopefully)
     pub async fn fill_pending(&mut self) -> Result<(), BufferError> {
-        if self.pending == 0 {
-            return Ok(());
+        while self.pending > 0 {
+            if self.buffer.remaining() < ReplayPacket::LEN_SIZE { break };
+            let size = (&self.buffer.chunk()[..ReplayPacket::LEN_SIZE]).get_u32() as usize; // we need to peek this u32, which is why we get a reference and then get from the reference instead of the buffer directly
+            if self.buffer.remaining() < ReplayPacket::LEN_SIZE + size { break };
+            self.buffer.advance(ReplayPacket::LEN_SIZE);
+            self.packets.push_back(ReplayPacket::deserialize(&mut self.buffer));
+            self.pending -= 1;
         }
-
-        loop {
-            while self.pending > 0 {
-                if self.buffer.remaining() < ReplayPacket::LEN_SIZE { break };
-                let size = (&self.buffer.chunk()[..ReplayPacket::LEN_SIZE]).get_u32() as usize; // we need to peek this u32, which is why we get a reference and then get from the reference instead of the buffer directly
-                if self.buffer.remaining() < ReplayPacket::LEN_SIZE + size { break };
-                self.buffer.advance(ReplayPacket::LEN_SIZE);
-                self.packets.push_back(ReplayPacket::deserialize(&mut self.buffer));
-                self.pending -= 1;
-            }
-            
-            if self.pending == 0 { return Ok(()) }
-
-            let n = self.reader.read_buf(&mut self.buffer).await?;
-
-            return if n == 0 && self.packets.is_empty() {
-                Err(BufferError::EndOfFile)
-            } else {
-                Ok(())
-            }
+        
+        if self.pending == 0 { return Ok(()) }
+        
+        if !self.end_of_file {
+            let read: usize = self.reader.read_buf(&mut self.buffer).await?;
+            if read == 0 { self.end_of_file = true; }
         }
+        
+        if self.packets.is_empty() {
+            if self.end_of_file { return Err(BufferError::EndOfFile) }
+            else { return Err(BufferError::Pending) }
+        }
+        
+        return Ok(())
     }
 
     /// this should be cancel safe

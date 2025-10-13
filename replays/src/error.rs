@@ -1,4 +1,5 @@
 use std::{error::Error, fmt::Display, str::Utf8Error};
+use bytes::TryGetError;
 use tokio::io;
 
 
@@ -25,6 +26,12 @@ impl From<io::Error> for BufferError {
 impl From<Utf8Error> for BufferError {
     fn from(value: Utf8Error) -> Self {
         Self::Other(anyhow::Error::from(value))
+    }
+}
+
+impl From<TryGetError> for BufferError {
+    fn from(_: TryGetError) -> Self {
+        Self::Pending
     }
 }
 
