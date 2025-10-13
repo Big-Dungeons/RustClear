@@ -13,5 +13,6 @@ uuid = { version = "1.17.0", features = ["v4"] }
 rand = "0.9.1"
 blocks = { path = "../crates/macros" }
 fstr = { path = "../crates/fstr"}
+replays = { path = "../replays" }
 glam = "0.30.5"
 enumset = "1.1.10"

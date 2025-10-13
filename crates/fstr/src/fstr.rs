@@ -1,4 +1,4 @@
-use std::{fmt::Display, ops::RangeBounds, ptr::slice_from_raw_parts, slice};
+use std::{fmt::Display, ops::RangeBounds};
 
 use arcstr::Substr;
 

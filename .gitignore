@@ -2,3 +2,5 @@ target/
 src/room_data/
 src/room_data
 /assets/
+/saved_replays
+/server/saved_replays

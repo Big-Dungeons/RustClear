@@ -3,7 +3,7 @@ use crate::dungeon::door::door::DoorType;
 use crate::dungeon::dungeon::{Dungeon, DungeonState};
 use crate::dungeon::dungeon_player::DungeonPlayer;
 use anyhow::bail;
-use glam::{ivec3, DVec3};
+use glam::{ivec3};
 use rand::prelude::IndexedRandom;
 use rand::rng;
 use crate::dungeon::menus::DungeonMenu;
@@ -17,10 +17,10 @@ use server::network::packets::packet_buffer::PacketBuffer;
 use server::network::protocol::play::serverbound::EntityInteractionType;
 use server::network::run_network::run_network_thread;
 use server::player::player::Player;
-use server::utils::seeded_rng::{seeded_rng, SeededRng};
+use server::utils::seeded_rng::SeededRng;
 use server::world::world::World;
 use std::collections::HashMap;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::unbounded_channel;
 
@@ -49,17 +49,17 @@ async fn main() -> anyhow::Result<()> {
 
     let dungeon_strings = &get_assets().dungeon_seeds;
     let dungeon_seed = dungeon_strings.choose(&mut rng()).unwrap();
-    
+
     let room_data_storage = &get_assets().room_data;
 
     // sleep(Duration::from_secs(3)).await;
     // get_handle().send(RecordMessage::Start { seed: FString::new(dungeon_seed), rng_seed, at: Instant::now() }).unwrap();
-    
+
     // // tokio::spawn(async {
     // //     sleep(Duration::from_secs(30)).await;
     // //     get_handle().send(RecordMessage::Save).unwrap();
     // // });
-    
+
     let dungeon = Dungeon::from_string(
         dungeon_seed,
         &room_data_storage
@@ -101,7 +101,7 @@ async fn main() -> anyhow::Result<()> {
                             .partial_cmp(&entity.position.distance(b.position))
                             .unwrap()
                     });
-                
+
                 if let Some(player) = player {
                     let (yaw, pitch) = {
                         let direction = player.position - entity.position;
@@ -119,7 +119,7 @@ async fn main() -> anyhow::Result<()> {
                 }
             }
             fn interact(
-                &self, 
+                &self,
                 _: &mut EntityBase<Dungeon>,
                 player: &mut Player<DungeonPlayer>,
                 action: &EntityInteractionType
@@ -139,7 +139,7 @@ async fn main() -> anyhow::Result<()> {
         let mut position = entrance.get_world_block_position(ivec3(15, 69, 4)).as_dvec3();
         position.x += 0.5;
         position.z += 0.5;
-        
+
         let yaw = 0.0.rotate(entrance.rotation);
         world.spawn_entity(
             Some(EntityMetadata::new(EntityVariant::NPC { npc_id: "mort" })),
@@ -149,11 +149,11 @@ async fn main() -> anyhow::Result<()> {
             Test { yaw, pitch: 0.0 }
         );
     }
-    
+
     loop {
         tick_interval.tick().await;
         // let start = Instant::now();
-        
+
         loop {
             match main_rx.try_recv() {
                 Ok(message) => world.process_event(message),
@@ -168,7 +168,7 @@ async fn main() -> anyhow::Result<()> {
 }
 
 fn load_doors_into_world(world: &mut World<Dungeon>) {
-    
+
     // Might be a good idea to make a new format for storing doors so that indexes etc don't need to be hard coded.
     // But this works for now...
     let door_data: &Vec<Vec<Blocks>> = &get_assets().door_data;
@@ -192,7 +192,7 @@ fn load_doors_into_world(world: &mut World<Dungeon>) {
         ]
             .into_iter(),
     );
-    
+
     for door in world.extension.doors.iter() {
         door.borrow().load_into_world(&mut world.chunk_grid, &door_type_blocks)
     }

@@ -3,6 +3,13 @@ name = "RustClear"
 version = "0.1.0"
 edition = "2024"
 
+[workspace]
+members = [
+    "server",
+    "replays",
+    "crates/*"
+]
+
 [dependencies]
 tokio = { version = "1.45.1", features = ["rt", "rt-multi-thread", "macros", "net", "io-util", "sync", "time", "fs"] }
 anyhow = "1.0.98"
@@ -11,6 +18,7 @@ uuid = { version = "1.17.0", features = ["v4"] }
 rand = "0.9.1"
 indoc = "2.0.6"
 server = { path = "server" }
+replays = { path = "replays" }
 chrono = "0.4.41"
 base64 = "0.22.1"
 glam = "0.30.5"
