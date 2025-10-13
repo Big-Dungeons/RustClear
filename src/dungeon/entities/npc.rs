@@ -1,0 +1,47 @@
+use crate::dungeon::dungeon::Dungeon;
+use crate::dungeon::dungeon_player::DungeonPlayer;
+use server::entity::entity::{EntityBase, EntityImpl};
+use server::network::packets::packet_buffer::PacketBuffer;
+use server::network::protocol::play::serverbound::EntityInteractionType;
+use server::Player;
+
+pub struct InteractableNPC {
+    pub default_yaw: f32,
+    pub default_pitch: f32,
+    pub interact_callback: fn(player: &mut Player<DungeonPlayer>)
+}
+
+impl EntityImpl<Dungeon> for InteractableNPC {
+    fn spawn(&mut self, _: &mut EntityBase<Dungeon>, _: &mut PacketBuffer) {}
+    fn despawn(&mut self, _: &mut EntityBase<Dungeon>, _: &mut PacketBuffer) {}
+
+    fn tick(&self, entity: &mut EntityBase<Dungeon>, _: &mut PacketBuffer) {
+        if entity.ticks_existed % 5 == 0 {
+            return;
+        }
+        let world = entity.world();
+
+        let player: Option<&Player<DungeonPlayer>> = world.players.iter()
+            .filter(|p| entity.position.distance(p.position) <= 5.0)
+            .min_by(|a, b| {
+                let dist_a = entity.position.distance(a.position);
+                let dist_b = entity.position.distance(b.position);
+                dist_a.partial_cmp(&dist_b).unwrap()
+            });
+
+        if let Some(player) = player {
+            let direction = player.position - entity.position;
+            let horizontal_dist = (direction.x.powi(2) + direction.z.powi(2)).sqrt();
+            
+            entity.yaw = (direction.z.atan2(direction.x).to_degrees() - 90.0) as f32;
+            entity.pitch = (-direction.y.atan2(horizontal_dist).to_degrees()) as f32;
+        } else {
+            entity.yaw = self.default_yaw;
+            entity.pitch = self.default_pitch;
+        }
+    }
+
+    fn interact(&self, _: &mut EntityBase<Dungeon>, player: &mut Player<DungeonPlayer>, _: &EntityInteractionType) {
+        (self.interact_callback)(player);
+    }
+}

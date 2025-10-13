@@ -1,19 +1,15 @@
 use crate::assets::{get_assets, load_assets};
 use crate::dungeon::dungeon::{Dungeon, DungeonState};
-use crate::dungeon::dungeon_player::DungeonPlayer;
+use crate::dungeon::entities::npc::InteractableNPC;
 use crate::dungeon::menus::MortMenu;
 use anyhow::bail;
 use glam::ivec3;
 use rand::prelude::IndexedRandom;
 use rand::rng;
 use server::block::rotatable::Rotatable;
-use server::entity::entity::{EntityBase, EntityImpl};
 use server::entity::entity_metadata::{EntityMetadata, EntityVariant};
 use server::inventory::menu::OpenContainer;
 use server::network::network::start_network;
-use server::network::packets::packet_buffer::PacketBuffer;
-use server::network::protocol::play::serverbound::EntityInteractionType;
-use server::player::player::Player;
 use server::utils::seeded_rng::SeededRng;
 use server::world::world::World;
 use std::sync::Arc;
@@ -80,82 +76,27 @@ async fn main() -> anyhow::Result<()> {
     }
     load_doors_into_world(&mut world);
 
-    {
-        struct Test {
-            yaw: f32,
-            pitch: f32,
-        }
 
-        impl EntityImpl<Dungeon> for Test {
-            fn spawn(&mut self, _: &mut EntityBase<Dungeon>, _: &mut PacketBuffer) {}
-            fn despawn(&mut self, _: &mut EntityBase<Dungeon>, _: &mut PacketBuffer) {}
-            fn tick(&self, entity: &mut EntityBase<Dungeon>, _: &mut PacketBuffer) {
-                if entity.ticks_existed % 5 == 0 {
-                    return;
-                }
+    let entrance = world.extension.entrance_room();
+    let entrance = entrance.borrow();
+    let mut position = entrance.get_world_block_position(ivec3(15, 69, 4)).as_dvec3();
 
-                let world = entity.world();
-                let player: Option<&Player<DungeonPlayer>> = world
-                    .players
-                    .iter()
-                    .filter(|p| entity.position.distance(p.position) <= 5.0)
-                    .min_by(|a, b| {
-                        entity
-                            .position
-                            .distance(a.position)
-                            .partial_cmp(&entity.position.distance(b.position))
-                            .unwrap()
-                    });
+    position.x += 0.5;
+    position.z += 0.5;
 
-                if let Some(player) = player {
-                    let (yaw, pitch) = {
-                        let direction = player.position - entity.position;
-                        let yaw = direction.z.atan2(direction.x).to_degrees() - 90.0;
-                        let horizontal_dist = (direction.x.powi(2) + direction.z.powi(2)).sqrt();
-                        let pitch = -direction.y.atan2(horizontal_dist).to_degrees();
-
-                        (yaw, pitch)
-                    };
-                    entity.yaw = yaw as f32;
-                    entity.pitch = pitch as f32;
-                } else {
-                    entity.yaw = self.yaw;
-                    entity.pitch = self.pitch;
-                }
+    let yaw = 0.0.rotate(entrance.rotation);
+    world.spawn_entity(
+        Some(EntityMetadata::new(EntityVariant::NPC { npc_id: "mort" })),
+        position, yaw, 0.0,
+        InteractableNPC { default_yaw: yaw, default_pitch: 0.0, interact_callback: |player| {
+            // todo: messages / dialogue
+            if let DungeonState::Started { .. } = player.world().state {
+                return;
             }
-            fn interact(
-                &self,
-                _: &mut EntityBase<Dungeon>,
-                player: &mut Player<DungeonPlayer>,
-                action: &EntityInteractionType,
-            ) {
-                if let EntityInteractionType::InteractAt = action {
-                    return;
-                }
-                if let DungeonState::Started { .. } = player.world().state {
-                    return;
-                }
-                player.open_container(OpenContainer::Menu(Box::new(MortMenu {})))
-            }
-        }
+            player.open_container(OpenContainer::Menu(Box::new(MortMenu {})))
+        }},
+    );
 
-        let entrance = world.extension.entrance_room();
-        let entrance = entrance.borrow();
-        let mut position = entrance
-            .get_world_block_position(ivec3(15, 69, 4))
-            .as_dvec3();
-        position.x += 0.5;
-        position.z += 0.5;
-
-        let yaw = 0.0.rotate(entrance.rotation);
-        world.spawn_entity(
-            Some(EntityMetadata::new(EntityVariant::NPC { npc_id: "mort" })),
-            position,
-            yaw,
-            0.0,
-            Test { yaw, pitch: 0.0 },
-        );
-    }
 
     let mut tick_interval = tokio::time::interval(Duration::from_millis(50));
 
