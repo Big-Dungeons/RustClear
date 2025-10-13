@@ -1,10 +1,11 @@
-use std::{io::{Cursor, Read}, path::{Path, PathBuf}, sync::OnceLock};
-
 use crate::assets::load_asset::{DoorDataAssets, DungeonStorageAssets, FaviconAssets, LoadAsset, RoomDataAssets};
+use crate::dungeon::door::door::DoorType;
 use crate::dungeon::room::room_data::RoomData;
 use anyhow::anyhow;
 use server::block::blocks::Blocks;
 use server::utils::hasher::deterministic_hasher::DeterministicHashMap;
+use std::collections::HashMap;
+use std::{io::{Cursor, Read}, path::{Path, PathBuf}, sync::OnceLock};
 use tokio::fs;
 use zip::ZipArchive;
 
@@ -12,7 +13,7 @@ static ASSETS: OnceLock<Assets> = OnceLock::new();
 
 pub struct Assets {
     pub dungeon_seeds: Vec<&'static str>,
-    pub door_data: Vec<Vec<Blocks>>,
+    pub door_data: HashMap<DoorType, Vec<Vec<Blocks>>>,
     pub room_data: DeterministicHashMap<usize, RoomData>,
     pub icon_data: String,
 }

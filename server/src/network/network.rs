@@ -1,22 +1,37 @@
 use crate::network::client::handle_client;
 use core::panic;
 use std::collections::HashMap;
+use std::sync::Arc;
 use tokio::net::TcpListener;
-use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 
 use crate::network::internal_packets::{ClientHandlerMessage, MainThreadMessage, NetworkThreadMessage};
 use crate::player::player::ClientId;
 
+type Sender<T> = UnboundedSender<T>;
+type Receiver<T> = UnboundedReceiver<T>;
+
 type ClientMap = HashMap<ClientId, UnboundedSender<ClientHandlerMessage>>;
 
-pub async fn run_network_thread(
-    mut network_rx: UnboundedReceiver<NetworkThreadMessage>,
-    network_tx: UnboundedSender<NetworkThreadMessage>,
-    main_tx: UnboundedSender<MainThreadMessage>,
-    status: &'static str
+pub fn start_network(
+    ip: &'static str,
+    status: Arc<String> // should probably be mutable
+) -> (Sender<NetworkThreadMessage>, Receiver<MainThreadMessage>) {
+    let (network_tx, network_rx) = unbounded_channel::<NetworkThreadMessage>();
+    let (main_tx, main_rx) = unbounded_channel::<MainThreadMessage>();
+    tokio::spawn(run_network_thread(ip, status, network_rx, network_tx.clone(), main_tx));
+    (network_tx, main_rx)
+}
+
+async fn run_network_thread(
+    ip: &'static str,
+    status: Arc<String>,
+    mut network_rx: Receiver<NetworkThreadMessage>,
+    network_tx: Sender<NetworkThreadMessage>,
+    main_tx: Sender<MainThreadMessage>,
 ) {
-    let listener = TcpListener::bind("127.0.0.1:4972").await.unwrap();
-    println!("Network thread listening on 127.0.0.1:4972");
+    let listener = TcpListener::bind(ip).await.unwrap();
+    println!("Network thread listening on {ip}");
 
     let mut clients: ClientMap = HashMap::new();
     let mut client_id_counter: ClientId = 1;
@@ -31,15 +46,18 @@ pub async fn run_network_thread(
                 let client_id: ClientId = client_id_counter;
                 client_id_counter += 1;
 
-                let (client_tx, client_rx) = mpsc::unbounded_channel::<ClientHandlerMessage>();
-                clients.insert(client_id, client_tx);
+                // do we need tx and rx for each client?
+                //
+                let (client_tx, client_rx) = unbounded_channel::<ClientHandlerMessage>();
+                clients.insert(client_id, client_tx.clone());
                 tokio::spawn(handle_client(
                     client_id,
                     socket,
+                    client_tx,
                     client_rx,
                     main_tx.clone(),
                     network_tx.clone(),
-                    status
+                    status.clone()
                 ));
             }
 
@@ -66,7 +84,9 @@ pub async fn run_network_thread(
                         }
                     }
             
-                    NetworkThreadMessage::ConnectionClosed { client_id } => disconnect_client(client_id, &main_tx, &mut clients),
+                    NetworkThreadMessage::ConnectionClosed { client_id } => {
+                        disconnect_client(client_id, &main_tx, &mut clients)
+                    }
                 }
             }
         }

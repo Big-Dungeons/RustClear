@@ -330,7 +330,7 @@ impl<E : PlayerExtension> Player<E> {
     // to not appear in tab list, it must be removed
     #[cold]
     fn remove_npc_profiles(&mut self) {
-        if self.ticks_existed == 10 {
+        if self.ticks_existed == 20 {
             let world = self.world_mut();
             let npc_data: Vec<PlayerData> = world.npc_profiles
                 .iter()
