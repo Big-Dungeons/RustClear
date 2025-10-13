@@ -443,6 +443,7 @@ name = "fstr"
 version = "0.1.0"
 dependencies = [
  "arcstr",
+ "uuid",
 ]
 
 [[package]]

@@ -1,5 +1,7 @@
 use std::{borrow::Borrow, fmt::Display, hash::Hash, ops::RangeBounds, str::Utf8Error};
 
+use uuid::{Uuid, fmt::Hyphenated};
+
 use crate::{import_shared, inner::Inner, shared::Shared, Fstr};
 
 /// Cheaply clonable, immutable string, with the same stack size as a String.
@@ -98,6 +100,18 @@ impl Shared for FString {
 impl From<&Fstr<'_>> for FString {
     fn from(value: &Fstr<'_>) -> Self {
         value.to_owned()
+    }
+}
+
+impl From<&Uuid> for FString {
+    fn from(value: &Uuid) -> Self {
+        FString::new(value.as_hyphenated().encode_lower(&mut Uuid::encode_buffer()))
+    }
+}
+
+impl From<Uuid> for FString {
+    fn from(value: Uuid) -> Self {
+        FString::new(value.hyphenated().encode_lower(&mut Uuid::encode_buffer()))
     }
 }
 

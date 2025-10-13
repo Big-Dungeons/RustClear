@@ -30,39 +30,15 @@ mod dungeon;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // todo: either a config file with repo/path or command line args.
-    load_assets(
-        "assets",
-        "https://github.com/Big-Dungeons/ClearData/archive/refs/heads/main.zip",
-    )
-    .await?;
+    load_assets("assets", "https://github.com/Big-Dungeons/ClearData/archive/refs/heads/main.zip").await?;
     let (network_tx, network_rx) = unbounded_channel::<NetworkThreadMessage>();
     let (main_tx, mut main_rx) = unbounded_channel::<MainThreadMessage>();
 
     let mut tick_interval = tokio::time::interval(Duration::from_millis(50));
     tokio::spawn(run_network_thread(network_rx, network_tx.clone(), main_tx,
-        r#"{
-            "version": {
-                "name": "1.8.9",
-                "protocol": 47
-            },
-            "players": {
-                "max": 1,
-                "online": 0
-            },
-            "description": {
-                "text": "RustClear",
-                "color": "gold",
-                "extra": [
-                    {
-                        "text": " version ",
-                        "color": "gray"
-                    },
-                    {
-                        "text": "{version}",
-                        "color": "green"
-                    }
-                ]
-            },
+        r#"{"version": { "name": "1.8.9", "protocol": 47 },
+            "players": { "max": 1, "online": 0 },
+            "description": { "text": "RustClear", "color": "gold", "extra": [{ "text": " version ", "color": "gray" }, { "text": "{version}", "color": "green" }] },
             "favicon": "data:image/png;base64,<data>"
         }"#,
     ));

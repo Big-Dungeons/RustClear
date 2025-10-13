@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 arcstr = { version = "1.2.0", features = ["substr", "std"] }
+uuid = "1.18.1"

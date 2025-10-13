@@ -1,4 +1,5 @@
 use crate::dungeon::dungeon_player::DungeonPlayer;
+use fstr::{FString, ToFString};
 use server::inventory::item_stack::ItemStack;
 use server::inventory::menu::Menu;
 use server::network::binary::nbt::TAG_COMPOUND_ID;
@@ -44,13 +45,13 @@ impl Menu<DungeonPlayer> for MortMenu {
                     "display",
                     vec![
                         NBT::string("Name", &format!("§7{}", player.profile.username)),
-                        NBT::list_from_string("Lore", &item_name.to_string()),
+                        NBT::list_from_string("Lore", item_name.to_fstring()),
                     ],
                 ),
                 NBT::compound(
                     "SkullOwner",
                     vec![
-                        NBT::string("Id", &player.profile.uuid.hyphenated().to_string()),
+                        NBT::string("Id", player.profile.uuid.to_fstring()),
                         NBT::compound(
                             "Properties",
                             vec![NBT::list(
