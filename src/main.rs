@@ -1,5 +1,4 @@
 use crate::assets::{get_assets, load_assets};
-use crate::dungeon::door::door::DoorType;
 use crate::dungeon::dungeon::{Dungeon, DungeonState};
 use crate::dungeon::dungeon_player::DungeonPlayer;
 use crate::dungeon::menus::MortMenu;
@@ -7,22 +6,19 @@ use anyhow::bail;
 use glam::ivec3;
 use rand::prelude::IndexedRandom;
 use rand::rng;
-use server::block::blocks::Blocks;
 use server::block::rotatable::Rotatable;
 use server::entity::entity::{EntityBase, EntityImpl};
 use server::entity::entity_metadata::{EntityMetadata, EntityVariant};
 use server::inventory::menu::OpenContainer;
-use server::network::internal_packets::{MainThreadMessage, NetworkThreadMessage};
+use server::network::network::start_network;
 use server::network::packets::packet_buffer::PacketBuffer;
 use server::network::protocol::play::serverbound::EntityInteractionType;
-use server::network::run_network::run_network_thread;
 use server::player::player::Player;
 use server::utils::seeded_rng::SeededRng;
 use server::world::world::World;
-use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc::error::TryRecvError;
-use tokio::sync::mpsc::unbounded_channel;
 
 mod assets;
 mod dungeon;
@@ -35,11 +31,11 @@ async fn main() -> anyhow::Result<()> {
         "https://github.com/Big-Dungeons/ClearData/archive/refs/heads/main.zip",
     )
     .await?;
-    let (network_tx, network_rx) = unbounded_channel::<NetworkThreadMessage>();
-    let (main_tx, mut main_rx) = unbounded_channel::<MainThreadMessage>();
+    // ^^^ for rooms/doors this is really pointless, because there is no reason to customize them, especially once finalised
+    // I can understand it for favicon tho
 
-    let mut tick_interval = tokio::time::interval(Duration::from_millis(50));
-    tokio::spawn(run_network_thread(network_rx, network_tx.clone(), main_tx,
+
+    let (tx, mut rx) = start_network("127.0.0.1:4972", Arc::new(
         r#"{
             "version": {
                 "name": "1.8.9",
@@ -64,7 +60,7 @@ async fn main() -> anyhow::Result<()> {
                 ]
             },
             "favicon": "data:image/png;base64,<data>"
-        }"#,
+        }"#.into()
     ));
 
     let rng_seed: u64 = rand::random();
@@ -77,7 +73,7 @@ async fn main() -> anyhow::Result<()> {
 
     let dungeon = Dungeon::from_string(dungeon_seed, &room_data_storage)?;
 
-    let mut world = World::new(network_tx, dungeon);
+    let mut world = World::new(tx, dungeon);
 
     for room in world.extension.rooms.iter() {
         room.borrow().load_into_world(&mut world.chunk_grid);
@@ -161,12 +157,14 @@ async fn main() -> anyhow::Result<()> {
         );
     }
 
+    let mut tick_interval = tokio::time::interval(Duration::from_millis(50));
+
     loop {
         tick_interval.tick().await;
         // let start = Instant::now();
 
         loop {
-            match main_rx.try_recv() {
+            match rx.try_recv() {
                 Ok(message) => world.process_event(message),
                 Err(TryRecvError::Empty) => break,
                 Err(TryRecvError::Disconnected) => bail!("Network thread dropped its reciever."),
@@ -179,33 +177,9 @@ async fn main() -> anyhow::Result<()> {
 }
 
 fn load_doors_into_world(world: &mut World<Dungeon>) {
-
-    // Might be a good idea to make a new format for storing doors so that indexes etc don't need to be hard coded.
-    // But this works for now...
-    let door_data: &Vec<Vec<Blocks>> = &get_assets().door_data;
-
-    let door_type_blocks: HashMap<DoorType, Vec<Vec<Blocks>>> = HashMap::from_iter(
-        vec![
-            (DoorType::Blood, vec![door_data[0].clone()]),
-            (DoorType::Entrance, vec![door_data[1].clone()]),
-            (
-                DoorType::Normal,
-                vec![
-                    door_data[1].clone(),
-                    door_data[2].clone(),
-                    door_data[3].clone(),
-                    door_data[4].clone(),
-                    door_data[5].clone(),
-                    door_data[6].clone(),
-                    door_data[7].clone(),
-                ],
-            ),
-        ]
-        .into_iter(),
-    );
+    let door_type_blocks = &get_assets().door_data;
 
     for door in world.extension.doors.iter() {
-        door.borrow()
-            .load_into_world(&mut world.chunk_grid, &door_type_blocks)
+        door.borrow().load_into_world(&mut world.chunk_grid, &door_type_blocks)
     }
 }
