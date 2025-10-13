@@ -107,15 +107,9 @@ async fn read_packets(
 ) -> anyhow::Result<()> {
     while let Some(mut buffer) = try_read_packet_slice(buffer) {
         match client.connection_state {
-            Handshaking => {
-                handle_handshake(&mut buffer, client)?;
-            }
-            Status => {
-                handle_status(&mut buffer, client, network_thread_tx, status)?;
-            }
-            Login => {
-                handle_login(&mut buffer, client, network_thread_tx, main_tx)?;
-            }
+            Handshaking => handle_handshake(&mut buffer, client)?,
+            Status => handle_status(&mut buffer, client, network_thread_tx, status)?,
+            Login => handle_login(&mut buffer, client, network_thread_tx, main_tx)?,
             Play => {
                 let packet = Play::read(&mut buffer)?;
                 if let Play::Invalid(packet_id) = packet {
@@ -226,7 +220,7 @@ fn handle_login(
             };
 
             packet_buffer.write_packet(&LoginSuccess {
-                uuid: FString::new(&*uuid.hyphenated().to_string()),
+                uuid: uuid.hyphenated().to_string(),
                 name: game_profile.username.clone(),
             });
             network_tx.send(packet_buffer.get_packet_message(client.id))?;

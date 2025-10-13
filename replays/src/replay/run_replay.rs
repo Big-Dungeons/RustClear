@@ -15,8 +15,10 @@ impl<T: Send + 'static> ReplayHandler<T> {
     /// spawns the replay task and returns a handle to it.
     /// 
     /// the init function is used to get data prepended in the replay, such as seed data.
-    /// youy may want to validate this.
+    /// It gives a BytesMut, but it should not have data added, only read.
+    /// if the init function returns a BufferError::Pending, it will poll the buffer for more data and try again if it read bytes.
     /// this must match the init data put in the start message initializer for the saved replay.
+    /// 
     /// the callback will be run every time a packet is recieved at its correct time.
     pub fn spawn<C: ReplayCallback + 'static>(init: fn(&mut BytesMut) -> Result<T, BufferError>, callback: C) -> Self {
         let (tx, rx) = unbounded_channel();

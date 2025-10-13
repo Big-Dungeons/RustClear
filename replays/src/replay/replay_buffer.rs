@@ -65,7 +65,10 @@ impl ReplayBuffer {
         loop {
             let res = f(&mut self.buffer);
             let Err(BufferError::Pending) = res else { return res };
-            self.reader.read_buf(&mut self.buffer).await?;
+            let read = self.reader.read_buf(&mut self.buffer).await?;
+            if read == 0 {
+                return Err(BufferError::EndOfFile)
+            }
             continue
         }
     }

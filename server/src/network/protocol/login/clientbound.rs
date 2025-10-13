@@ -14,7 +14,7 @@ register_packets! {
 
 packet_serializable! {
     pub struct LoginSuccess {
-        pub uuid: FString,
+        pub uuid: String,
         pub name: FString,
     }
 }
