@@ -9,7 +9,7 @@ use crate::types::direction::Direction;
 use glam::IVec3;
 
 impl ProcessPacket for serverbound::KeepAlive {
-    fn process_with_player<P : PlayerExtension>(&self, _: &mut Player<P>) {
+    fn process<P : PlayerExtension>(&self, _: &mut Player<P>) {
         // if player.last_keep_alive == self.id {
         //     if let Ok(since) = SystemTime::now().duration_since(UNIX_EPOCH) {
         //         let since = since.as_millis() as i32 - player.last_keep_alive;
@@ -21,7 +21,7 @@ impl ProcessPacket for serverbound::KeepAlive {
 }
 
 impl ProcessPacket for ChatMessage {
-    fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
+    fn process<P : PlayerExtension>(&self, player: &mut Player<P>) {
         player.write_packet(&Chat {
             component: ChatComponent::new(String::from_utf8(self.message.as_bytes().to_vec()).unwrap()),
             chat_type: 0,
@@ -30,7 +30,7 @@ impl ProcessPacket for ChatMessage {
 }
 
 impl ProcessPacket for UseEntity {
-    fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
+    fn process<P : PlayerExtension>(&self, player: &mut Player<P>) {
         if let Some(index) = player.world_mut().entity_map.get(&self.entity_id.0) {
             let entity = &mut player.world_mut().entities[*index];
             entity.entity_impl.interact(&mut entity.base, player, &self.action)
@@ -40,12 +40,16 @@ impl ProcessPacket for UseEntity {
 
 // I don't know if any implementation will be needed,
 // but just in case imma keep it here
-impl ProcessPacket for PlayerUpdate {}
+impl ProcessPacket for PlayerUpdate {
+    fn process<P: PlayerExtension>(&self, _: &mut Player<P>) {
+
+    }
+}
 
 // anti cheat stuff vvv important to do for all 3
 
 impl ProcessPacket for PlayerPosition {
-    fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
+    fn process<P : PlayerExtension>(&self, player: &mut Player<P>) {
         player.position.x = self.x;
         player.position.y = self.y;
         player.position.z = self.z;
@@ -53,14 +57,14 @@ impl ProcessPacket for PlayerPosition {
 }
 
 impl ProcessPacket for PlayerLook {
-    fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
+    fn process<P : PlayerExtension>(&self, player: &mut Player<P>) {
         player.yaw = self.yaw;
         player.pitch = self.pitch;
     }
 }
 
 impl ProcessPacket for PlayerPositionLook {
-    fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
+    fn process<P : PlayerExtension>(&self, player: &mut Player<P>) {
         player.position.x = self.x;
         player.position.y = self.y;
         player.position.z = self.z;
@@ -70,7 +74,7 @@ impl ProcessPacket for PlayerPositionLook {
 }
 
 impl ProcessPacket for PlayerDigging {
-    fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
+    fn process<P : PlayerExtension>(&self, player: &mut Player<P>) {
         P::dig(player, self.position.0, &self.action);
     }
 }
@@ -81,7 +85,7 @@ pub struct BlockInteractResult {
 }
 
 impl ProcessPacket for PlayerBlockPlacement {
-    fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
+    fn process<P : PlayerExtension>(&self, player: &mut Player<P>) {
         if !player.sent_block_placement {
             player.sent_block_placement = true;
             
@@ -107,7 +111,7 @@ impl ProcessPacket for PlayerBlockPlacement {
 }
 
 impl ProcessPacket for HeldItemChange {
-    fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
+    fn process<P : PlayerExtension>(&self, player: &mut Player<P>) {
         // warn player if invalid packets
         let item_slot = self.slot_id.clamp(0, 8) as u8;
         player.held_slot = item_slot;
@@ -115,10 +119,14 @@ impl ProcessPacket for HeldItemChange {
 }
 
 // will be useful if we want to add stuff like mage beam
-impl ProcessPacket for ArmSwing {}
+impl ProcessPacket for ArmSwing {
+    fn process<P: PlayerExtension>(&self, _: &mut Player<P>) {
+        // lc
+    }
+}
 
 impl ProcessPacket for PlayerAction {
-    fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
+    fn process<P : PlayerExtension>(&self, player: &mut Player<P>) {
         match self.action {
             PlayerActionType::StartSneaking => player.is_sneaking = true,
             PlayerActionType::StopSneaking => player.is_sneaking = false,
@@ -128,14 +136,14 @@ impl ProcessPacket for PlayerAction {
 }
 
 impl ProcessPacket for serverbound::CloseWindow {
-    fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
+    fn process<P : PlayerExtension>(&self, player: &mut Player<P>) {
         player.open_container(OpenContainer::None)
         // player.open_ui(UI::None)
     }
 }
 
 impl ProcessPacket for ClickWindow {
-    fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
+    fn process<P : PlayerExtension>(&self, player: &mut Player<P>) {
         // need to take ownership because of borrow checker
         let mut container = std::mem::replace(&mut player.open_container, OpenContainer::None);
         container.click_window(player, self);
@@ -144,11 +152,16 @@ impl ProcessPacket for ClickWindow {
 }
 
 impl ProcessPacket for serverbound::ConfirmTransaction {
-    // wd sync stuff
+    fn process<P: PlayerExtension>(&self, _: &mut Player<P>) {
+        // anti cheat
+    }
 }
 
 impl ProcessPacket for TabComplete {
-    // fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
+    fn process<P: PlayerExtension>(&self, _: &mut Player<P>) {
+        // for commands, we should have some tree system instead of recreating the mess that is mc 1.8.9 CommandBase
+    }
+    // fn process<P : PlayerExtension>(&self, player: &mut Player<P>) {
     //     if !self.message.starts_with("/") {
     //         return;
     //     }
@@ -211,11 +224,14 @@ impl ProcessPacket for TabComplete {
 }
 
 impl ProcessPacket for ClientSettings {
-    // render distance stuff if needed
+    fn process<P: PlayerExtension>(&self, _: &mut Player<P>) {
+        // todo: outer layer
+
+    }
 }
 
 impl ProcessPacket for ClientStatus {
-    fn process_with_player<P : PlayerExtension>(&self, player: &mut Player<P>) {
+    fn process<P : PlayerExtension>(&self, player: &mut Player<P>) {
         match self {
             ClientStatus::OpenInventory => {
                 player.open_container(OpenContainer::Inventory)

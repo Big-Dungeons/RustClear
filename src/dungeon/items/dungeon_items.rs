@@ -1,11 +1,11 @@
-use crate::dungeon::dungeon_player::{DungeonPlayer, PlayerDungeonPlayer};
+use crate::dungeon::dungeon_player::DungeonPlayer;
 use crate::dungeon::items::ability::{Ability, Cooldown};
 use crate::dungeon::items::etherwarp::etherwarp;
 use crate::dungeon::items::instant_transmission::instant_transmission;
 use indoc::indoc;
 use server::inventory::item::Item;
 use server::inventory::item_stack::ItemStack;
-use server::network::binary::nbt::serialize::TAG_COMPOUND_ID;
+use server::network::binary::nbt::TAG_COMPOUND_ID;
 use server::network::binary::nbt::{NBTNode, NBT};
 use server::network::protocol::play::clientbound::Chat;
 use server::types::chat_component::ChatComponent;
@@ -170,7 +170,7 @@ impl Item for DungeonItem {
 
 impl DungeonItem {
     pub fn on_right_click(&self, player: &mut Player<DungeonPlayer>) {
-        if let Some(cooldown) = player.item_cooldown(self) {
+        if let Some(cooldown) = player.extension.item_cooldown(self) {
             if !cooldown.silent {
                 let string = format!("§cThis ability is on cooldown for {}s.", cooldown.ticks_remaining / 20);
                 player.write_packet(&Chat {
@@ -182,12 +182,12 @@ impl DungeonItem {
         }
         match self {
             DungeonItem::TacticalInsertion => {
-                player.add_item_ability(Ability::TacticalInsertion {
+                player.extension.add_item_ability(Ability::TacticalInsertion {
                     position: player.position,
                     yaw: player.yaw,
                     pitch: player.pitch,
                 });
-                player.add_item_cooldown(&DungeonItem::TacticalInsertion, Cooldown::from_seconds(20, false))
+                player.extension.add_item_cooldown(&DungeonItem::TacticalInsertion, Cooldown::from_seconds(20, false))
             }
             DungeonItem::AspectOfTheVoid => {
                 if player.is_sneaking {

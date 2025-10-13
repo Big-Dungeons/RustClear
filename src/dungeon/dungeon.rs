@@ -6,7 +6,6 @@ use crate::dungeon::map::DungeonMap;
 use crate::dungeon::room::room::{Room, RoomNeighbour, RoomSegment};
 use crate::dungeon::room::room_data::{get_random_data_with_type, RoomData, RoomShape, RoomType};
 use anyhow::bail;
-use fstr::FString;
 use glam::{ivec3, DVec3, IVec2};
 use maplit::hashmap;
 use server::block::block_parameter::Axis;
@@ -61,7 +60,7 @@ impl WorldExtension for Dungeon {
                 *tick -= 1;
                 if *tick == 0 {
                     dungeon.state = DungeonState::Started { ticks: 0 };
-                    world.start_dungeon();
+                    Dungeon::start_dungeon(world);
                 } else if *tick % 20 == 0 {
 
                     let seconds_remaining = *tick / 20;
@@ -201,18 +200,14 @@ impl WorldExtension for Dungeon {
     }
 }
 
-// you cannot use impl on stuff outside the crate the struct us in.
-// so this is a workaround to get the same effect
-pub trait WorldDungeon {
-    fn start_dungeon(&mut self);
-    fn has_dungeon_started(&self) -> bool;
-    fn update_ready_status(&mut self, player: &mut Player<DungeonPlayer>);
-}
+impl Dungeon {
 
-impl WorldDungeon for World<Dungeon> {
-    
-    fn start_dungeon(&mut self) {
-        for player in self.players.iter_mut() {
+    pub fn has_started(&self) -> bool {
+        matches!(self.state, DungeonState::Started { .. })
+    }
+
+    pub fn start_dungeon(world: &mut World<Self>) {
+        for player in world.players.iter_mut() {
             if let OpenContainer::Menu(_) = player.open_container {
                 player.open_container(OpenContainer::None)
             }
@@ -221,55 +216,48 @@ impl WorldDungeon for World<Dungeon> {
         }
 
         {
-            let entrance_room = self.entrance_room();
+            let entrance_room = world.entrance_room();
             entrance_room.borrow_mut().discovered = true;
-            self.map.draw_room(&entrance_room.borrow());
+            world.map.draw_room(&entrance_room.borrow());
         }
 
-        for neighbour in self.entrance_room().borrow().neighbours() {
-            neighbour.door.borrow_mut().open(self);
+        for neighbour in world.entrance_room().borrow().neighbours() {
+            neighbour.door.borrow_mut().open(world);
             neighbour.room.borrow_mut().discovered = true;
-            self.map.draw_room(&neighbour.room.borrow());
+            world.map.draw_room(&neighbour.room.borrow());
         }
     }
-    
-    fn has_dungeon_started(&self) -> bool {
-        matches!(self.extension.state, DungeonState::Started { .. })
-    }
-    
-    fn update_ready_status(&mut self, player: &mut Player<DungeonPlayer>) {
-        assert!(!matches!(self.state, DungeonState::Started { .. }), "tried to ready up when dungeon has already started");
+
+    pub fn update_ready_status(world: &mut World<Self>, player: &mut Player<DungeonPlayer>) {
+        assert!(!matches!(world.state, DungeonState::Started { .. }), "tried to ready up when dungeon has already started");
 
         let is_ready = player.extension.is_ready;
         let message = format!("§7{} {}!", player.profile.username, if is_ready { "§ais now ready" } else { "§cis no longer ready" });
-        
+
         let packet = Chat {
             component: ChatComponent::new(message),
             chat_type: 0,
         };
-        
-        for player in self.players.iter_mut() {
+
+        for player in world.players.iter_mut() {
             player.write_packet(&packet)
         }
-        
+
         if is_ready {
             let mut should_start = true;
 
-            for player in self.players.iter() {
+            for player in world.players.iter() {
                 if !player.extension.is_ready {
                     should_start = false
                 }
             }
             if should_start {
-                self.state = DungeonState::Starting { starts_in_ticks: 100 }
+                world.state = DungeonState::Starting { starts_in_ticks: 100 }
             }
         } else {
-            self.state = DungeonState::NotStarted
+            world.state = DungeonState::NotStarted
         }
     }
-}
-
-impl Dungeon {
 
     pub fn from_string(
         layout_str: &str,

@@ -4,6 +4,7 @@ use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::protocol::play::clientbound::ChunkData;
 use crate::player::player::ClientId;
 use glam::DVec3;
+use std::collections::HashSet;
 
 pub struct ChunkSection {
     solid_block_amount: u16,
@@ -12,8 +13,9 @@ pub struct ChunkSection {
 pub struct Chunk {
     pub chunk_sections: [Option<ChunkSection>; 16],
     pub packet_buffer: PacketBuffer,
-    pub players: Vec<ClientId>,
-    pub entities: Vec<EntityId>,
+
+    pub players: HashSet<ClientId>,
+    pub entities: HashSet<EntityId>,
 
     // contains the chunk data packet,
     // and is updated when a player tries to access it and is dirty,
@@ -29,8 +31,8 @@ impl Chunk {
         Self {
             chunk_sections: [const { None }; 16],
             packet_buffer: PacketBuffer::new(),
-            players: Vec::new(),
-            entities: Vec::new(),
+            players: HashSet::new(),
+            entities: HashSet::new(),
 
             cached_chunk_data: PacketBuffer::new(),
             dirty: false,
@@ -125,27 +127,24 @@ impl Chunk {
         }
         into.copy_from(&self.cached_chunk_data);
     }
-
-    // maybe use hashset instead for these methods?
-
     pub fn insert_player(&mut self, client_id: ClientId) {
-        self.players.push(client_id)
+        debug_assert!(!self.players.contains(&client_id), "player already in chunk");
+        self.players.insert(client_id);
     }
-    
+
     pub fn insert_entity(&mut self, entity_id: EntityId) {
-        self.entities.push(entity_id)
+        debug_assert!(!self.entities.contains(&entity_id), "entity already in chunk");
+        self.entities.insert(entity_id);
     }
-    
+
     pub fn remove_player(&mut self, client_id: ClientId) {
-        if let Some(index) = self.players.iter().position(|id| *id == client_id) {
-            self.players.remove(index);
-        }
+        debug_assert!(self.players.contains(&client_id), "player was never in this chunk");
+        self.players.remove(&client_id);
     }
 
     pub fn remove_entity(&mut self, entity_id: EntityId) {
-        if let Some(index) = self.entities.iter().position(|id| *id == entity_id) {
-            self.entities.remove(index);
-        }
+        debug_assert!(self.entities.contains(&entity_id), "entity was never in this chunk");
+        self.entities.remove(&entity_id);
     }
     
     pub fn has_players(&self) -> bool {
