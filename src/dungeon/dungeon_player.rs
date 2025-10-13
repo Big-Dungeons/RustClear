@@ -54,7 +54,9 @@ impl PlayerExtension for DungeonPlayer {
             });
         }
 
-        DungeonPlayer::update_sidebar(player);
+        if player.ticks_existed % 2 == 0 {
+            DungeonPlayer::update_sidebar(player);
+        }
         
         let mut abilities = player.extension.active_abilities.take();
         abilities.retain_mut(|active| {

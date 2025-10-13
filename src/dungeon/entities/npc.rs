@@ -8,7 +8,7 @@ use server::Player;
 pub struct InteractableNPC {
     pub default_yaw: f32,
     pub default_pitch: f32,
-    pub interact_callback: fn(player: &mut Player<DungeonPlayer>)
+    pub interact_callback: fn(player: &mut Player<DungeonPlayer>),
 }
 
 impl EntityImpl<Dungeon> for InteractableNPC {
@@ -19,9 +19,8 @@ impl EntityImpl<Dungeon> for InteractableNPC {
         if entity.ticks_existed % 5 == 0 {
             return;
         }
-        let world = entity.world();
 
-        let player: Option<&Player<DungeonPlayer>> = world.players.iter()
+        let player: Option<&Player<DungeonPlayer>> = entity.world().players.iter()
             .filter(|p| entity.position.distance(p.position) <= 5.0)
             .min_by(|a, b| {
                 let dist_a = entity.position.distance(a.position);
@@ -41,7 +40,12 @@ impl EntityImpl<Dungeon> for InteractableNPC {
         }
     }
 
-    fn interact(&self, _: &mut EntityBase<Dungeon>, player: &mut Player<DungeonPlayer>, _: &EntityInteractionType) {
+    fn interact(
+        &self,
+        _: &mut EntityBase<Dungeon>,
+        player: &mut Player<DungeonPlayer>,
+        _: &EntityInteractionType,
+    ) {
         (self.interact_callback)(player);
     }
 }

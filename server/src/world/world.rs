@@ -286,6 +286,7 @@ impl<E : WorldExtension> World<E> {
     pub fn process_event(&mut self, event: MainThreadMessage) {
         match event {
             MainThreadMessage::NewPlayer { client_id, profile } => {
+                println!("new player");
                 E::on_player_join(self, profile, client_id)
             }
             MainThreadMessage::PacketReceived { client_id, packet } => {
