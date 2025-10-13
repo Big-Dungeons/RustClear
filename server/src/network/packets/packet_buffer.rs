@@ -3,7 +3,7 @@ use crate::network::internal_packets::NetworkThreadMessage;
 use crate::network::packets::packet::IdentifiedPacket;
 use crate::network::packets::packet_serialize::PacketSerializable;
 use crate::player::player::ClientId;
-use bytes::BytesMut;
+use bytes::{Bytes, BytesMut};
 
 #[derive(Debug)]
 pub struct PacketBuffer {
@@ -29,8 +29,11 @@ impl PacketBuffer {
 
     /// gets a message for network thread to send the packets inside the buffer to the client.
     pub fn get_packet_message(&mut self, client_id: ClientId) -> NetworkThreadMessage {
-        let buffer = self.buffer.split().freeze();
-        NetworkThreadMessage::SendPackets { client_id, buffer }
+        NetworkThreadMessage::SendPackets { client_id, buffer: self.split_into_bytes() }
+    }
+
+    pub fn split_into_bytes(&mut self) -> Bytes {
+        self.buffer.split().freeze()
     }
 
     #[inline]

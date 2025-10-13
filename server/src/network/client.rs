@@ -36,6 +36,7 @@ pub struct Client {
 pub async fn handle_client(
     client_id: ClientId,
     mut socket: TcpStream,
+    tx: UnboundedSender<ClientHandlerMessage>,
     mut rx: UnboundedReceiver<ClientHandlerMessage>,
     main_tx: UnboundedSender<MainThreadMessage>,
     network_tx: UnboundedSender<NetworkThreadMessage>,
@@ -59,7 +60,7 @@ pub async fn handle_client(
                         if let Err(err) = read_packets(
                             &mut bytes,
                             &mut client,
-                            &network_tx,
+                            &tx,
                             &main_tx,
                             status.as_ref()
                         ).await {
@@ -95,15 +96,15 @@ pub async fn handle_client(
 async fn read_packets(
     buffer: &mut BytesMut,
     client: &mut Client,
-    network_thread_tx: &UnboundedSender<NetworkThreadMessage>,
+    client_tx: &UnboundedSender<ClientHandlerMessage>,
     main_tx: &UnboundedSender<MainThreadMessage>,
     status: &String
 ) -> anyhow::Result<()> {
     while let Some(mut buffer) = try_read_packet_slice(buffer) {
         match client.connection_state {
             Handshaking => handle_handshake(&mut buffer, client)?,
-            Status => handle_status(&mut buffer, client, network_thread_tx, status)?,
-            Login => handle_login(&mut buffer, client, network_thread_tx, main_tx)?,
+            Status => handle_status(&mut buffer, client_tx, status)?,
+            Login => handle_login(&mut buffer, client, client_tx, main_tx)?,
             Play => {
                 let packet = Play::read(&mut buffer)?;
                 if let Play::Invalid(packet_id) = packet {
@@ -156,8 +157,7 @@ fn handle_handshake(buffer: &mut impl Buf, client: &mut Client) -> anyhow::Resul
 
 fn handle_status(
     buffer: &mut impl Buf,
-    client: &mut Client,
-    network_tx: &UnboundedSender<NetworkThreadMessage>,
+    client_tx: &UnboundedSender<ClientHandlerMessage>,
     status: &String
 ) -> anyhow::Result<()> {
     let packet_id = *VarInt::read(buffer)?;
@@ -178,7 +178,7 @@ fn handle_status(
     }
     // instead of sending to network tx,
     // could just write directly to socket?
-    network_tx.send(packet_buffer.get_packet_message(client.id))?;
+    client_tx.send(ClientHandlerMessage::Send(packet_buffer.split_into_bytes()))?;
     Ok(())
 }
 
@@ -189,7 +189,7 @@ const FLAME_OF_WAR_SIG: &str = "UvRQflcS0w4KTJSN+fpqYxVBTwo6wb66JMp6seThrmSGwUmb
 fn handle_login(
     buffer: &mut impl Buf,
     client: &mut Client,
-    network_tx: &UnboundedSender<NetworkThreadMessage>,
+    client_tx: &UnboundedSender<ClientHandlerMessage>,
     main_tx: &UnboundedSender<MainThreadMessage>,
 ) -> anyhow::Result<()> {
     let packet_id = *VarInt::read(buffer)?;
@@ -219,7 +219,8 @@ fn handle_login(
                 uuid: uuid.hyphenated().to_string(),
                 name: game_profile.username.clone(),
             });
-            network_tx.send(packet_buffer.get_packet_message(client.id))?;
+            client_tx.send(ClientHandlerMessage::Send(packet_buffer.split_into_bytes()))?;
+            
             main_tx.send(MainThreadMessage::NewPlayer {
                 client_id: client.id,
                 profile: game_profile,

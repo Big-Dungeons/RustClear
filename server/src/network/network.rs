@@ -49,10 +49,11 @@ async fn run_network_thread(
                 // do we need tx and rx for each client?
                 //
                 let (client_tx, client_rx) = unbounded_channel::<ClientHandlerMessage>();
-                clients.insert(client_id, client_tx);
+                clients.insert(client_id, client_tx.clone());
                 tokio::spawn(handle_client(
                     client_id,
                     socket,
+                    client_tx,
                     client_rx,
                     main_tx.clone(),
                     network_tx.clone(),
