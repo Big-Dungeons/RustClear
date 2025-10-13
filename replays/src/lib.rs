@@ -3,13 +3,8 @@ mod replay;
 mod error;
 mod replay_packet;
 
-pub use record::profile_id::ProfileId as ProfileId;
-
 pub use replay::run_replay::ReplayHandler as ReplayHandler;
 pub use record::run_record::RecordHandler as RecordHandler;
-
-pub use record::record_message::RecordMessage as RecordMessage;
-pub use replay::replay_message::ReplayMessage as ReplayMessage;
 
 pub use replay::replay_callback::ReplayCallback as ReplayCallback;
 
@@ -26,16 +21,18 @@ mod tests {
     use tokio::sync::oneshot;
     use uuid::Uuid;
 
-    use crate::{ProfileId, RecordHandler, RecordMessage, ReplayCallback, ReplayHandler, ReplayMessage, ReplayPacket};
+    use crate::{RecordHandler, ReplayCallback, ReplayHandler, ReplayPacket};
 
     pub struct Callback {
-        last_packet: Option<ReplayPacket>
+        state: u64
     }
     
     impl ReplayCallback for Callback {
-        async fn callback(&mut self, packet: ReplayPacket) {
-            println!("packet data: {:?}", str::from_utf8(packet.packet.chunk()));
-            self.last_packet = Some(packet)
+        async fn callback(&mut self, mut packet: ReplayPacket) {
+            let data = packet.packet.get_u64();
+            println!("recieved: {}", data);
+            assert_eq!(data, self.state);
+            self.state += 1;
         }
     }
     
@@ -44,54 +41,34 @@ mod tests {
         let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
         let (tx, mut rx) = oneshot::channel::<PathBuf>();
         rt.block_on(async {
-            let handler = RecordHandler::spawn("test_replays");
-            handler.send(RecordMessage::start(Box::new(|mut buf| {
+            let recording = RecordHandler::spawn("test_replays");
+            
+            recording.start(Box::new(|mut buf| {
                 Box::pin(async move {
                     buf.write(&111u64.to_be_bytes()).await
                 })
-            }), Instant::now())).unwrap();
+            }), Instant::now()).unwrap();
+        
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            
+            for i in 0usize..500usize {
+                recording.record(
+                    Instant::now(), 
+                    Uuid::new_v4(), 
+                    Bytes::copy_from_slice(&i.to_be_bytes())
+                ).unwrap();
+                tokio::time::sleep(Duration::from_micros(100)).await;
+            }
             
             tokio::time::sleep(Duration::from_secs(1)).await;
             
-            handler.send(RecordMessage::Record { 
-                received: Instant::now(), 
-                profile: ProfileId::new(Uuid::new_v4()), 
-                packet: Bytes::from_static(b"1") 
-            }).unwrap();
-
-            tokio::time::sleep(Duration::from_secs(1)).await;
-            
-            handler.send(RecordMessage::Record { 
-                received: Instant::now(), 
-                profile: ProfileId::new(Uuid::new_v4()), 
-                packet: Bytes::from_static(b"2") 
-            }).unwrap();
-
-            tokio::time::sleep(Duration::from_secs(1)).await;
-            
-            handler.send(RecordMessage::Record { 
-                received: Instant::now(), 
-                profile: ProfileId::new(Uuid::new_v4()), 
-                packet: Bytes::from_static(b"3") 
-            }).unwrap();
-
-            tokio::time::sleep(Duration::from_secs(1)).await;
-            
-            handler.send(RecordMessage::Record { 
-                received: Instant::now(), 
-                profile: ProfileId::new(Uuid::new_v4()), 
-                packet: Bytes::from_static(b"4") 
-            }).unwrap();
-
-            tokio::time::sleep(Duration::from_secs(1)).await;
-            
-            handler.send(RecordMessage::Save { upload: Box::new(move |path_buf| {
+            recording.save(Box::new(move |path_buf| {
                 Box::pin(async move {
                     println!("saved to {:?}", path_buf);
                     tx.send(path_buf).unwrap();
                     Ok(())
                 })
-            }) }).unwrap();
+            })).unwrap();
             
             tokio::time::sleep(Duration::from_secs(1)).await;
         });
@@ -99,20 +76,17 @@ mod tests {
         rt.block_on(async {
             let path = rx.try_recv().unwrap();
             
-            let handler = ReplayHandler::spawn(|buf| {
+            let replay = ReplayHandler::spawn(|buf| {
                 Ok(buf.get_u64())
-            }, Callback { last_packet: None });
+            }, Callback { state: 0 });
             
-            let (tx, rx) = oneshot::channel();
-            handler.send(ReplayMessage::Load { file: path.to_str().unwrap().to_fstring(), sender: tx }).unwrap();
-            let res: u64 = rx.await.unwrap().unwrap();
-            
+            let res: u64 = replay.load(path.to_str().unwrap().to_fstring()).await.unwrap();
             assert_eq!(res, 111);
-            handler.send(ReplayMessage::Start { at: Instant::now() }).unwrap();
-            println!("started...");
+            
+            replay.start(Instant::now()).unwrap();
             tokio::time::sleep(Duration::from_secs(3)).await;
             
-            handler.send(ReplayMessage::End).unwrap();
+            replay.end().unwrap();
             tokio::time::sleep(Duration::from_secs(3)).await;
             println!("ended...");
         })
