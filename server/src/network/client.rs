@@ -38,9 +38,9 @@ impl ClientHandler {
     }
     
     // this does not inform the network thread about the read tasks shutdown.
-    pub async fn disconnect(&mut self) -> Result<(), io::Error> {
-        self.writer.shutdown().await?;
+    pub async fn disconnect(mut self) -> Result<(), io::Error> {
         self.handle.abort();
+        self.writer.shutdown().await?;
         Ok(())
     }
     

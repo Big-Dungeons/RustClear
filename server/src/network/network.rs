@@ -61,34 +61,29 @@ async fn run_network_thread(
                         if let Some(handler) = clients.get_mut(&client_id) {
                             if let Err(e) = handler.send(&buffer).await {
                                 eprintln!("Client {} handler failed to send: {}", client_id, e);
-                                disconnect_client(client_id, &main_tx, &mut clients);
+                                clients.remove(&client_id);
+                                main_tx.send(MainThreadMessage::ClientDisconnected { client_id }).expect("Main thread should never drop its network reciever.");
                             }
                         }
                     }
             
                     NetworkThreadMessage::DisconnectClient { client_id } => {
-                        if let Some(handler) = clients.get_mut(&client_id) {
+                        if let Some(handler) = clients.remove(&client_id) {
                             if let Err(e) = handler.disconnect().await {
                                 eprintln!("Client {} writer failed to shutdown: {}", client_id, e);
                             }
-                            disconnect_client(client_id, &main_tx, &mut clients);
+                            main_tx.send(MainThreadMessage::ClientDisconnected { client_id }).expect("Main thread should never drop its network reciever.");
                         }
                     }
             
                     NetworkThreadMessage::ConnectionClosed { client_id, connection_state } => {
-                        if connection_state == ConnectionState::Play {
-                            // we probably shouldnt tell the main thread a client it never added got disconnected? 
+                        // we probably shouldnt tell the main thread a client it never added got disconnected? 
+                        if clients.remove(&client_id).is_some() && connection_state == ConnectionState::Play {
                             main_tx.send(MainThreadMessage::ClientDisconnected { client_id }).expect("Main thread should never drop its network reciever.");
                         }
-                        clients.remove(&client_id);
                     }
                 }
             }
         }
     }
-}
-
-fn disconnect_client(client_id: ClientId, main_tx: &UnboundedSender<MainThreadMessage>, clients: &mut ClientMap) {
-    main_tx.send(MainThreadMessage::ClientDisconnected { client_id }).expect("Main thread should never drop its network reciever.");
-    clients.remove(&client_id);
 }
