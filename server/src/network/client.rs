@@ -10,7 +10,7 @@ use crate::network::protocol::login::serverbound::LoginStart;
 use crate::network::protocol::play::serverbound::Play;
 use crate::network::protocol::status::clientbound::{StatusPong, StatusResponse};
 use crate::network::protocol::status::serverbound::StatusPing;
-use crate::network::status::StatusBytes;
+use crate::types::status::StatusBytes;
 use crate::player::player::{ClientId, GameProfile};
 use crate::GameProfileProperty;
 use anyhow::bail;

@@ -1,8 +1,7 @@
 use crate::network::client::handle_client;
-use crate::network::status::Status;
+use crate::types::status::Status;
 use core::panic;
 use std::collections::HashMap;
-use std::sync::Arc;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 

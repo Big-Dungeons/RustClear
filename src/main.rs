@@ -10,7 +10,7 @@ use server::entity::entity_metadata::{EntityMetadata, EntityVariant};
 use server::inventory::menu::OpenContainer;
 use server::network::internal_packets::NetworkThreadMessage;
 use server::network::network::start_network;
-use server::network::status::Status;
+use server::types::status::Status;
 use server::types::chat_component::{ChatComponent, MCColors};
 use server::utils::seeded_rng::{seeded_rng, SeededRng};
 use server::world::world::World;
@@ -88,10 +88,10 @@ async fn main() -> anyhow::Result<()> {
     let status = Status::new(1, 0, text, get_assets().icon_data);
     let (tx, mut rx) = start_network("127.0.0.1:4972", status);
     
-    let mut tick_interval = tokio::time::interval(Duration::from_millis(50));
     let mut world = initialize_world(tx)?;
     spawn_mort(&mut world);
 
+    let mut tick_interval = tokio::time::interval(Duration::from_millis(50));
     loop {
         tick_interval.tick().await;
         // let start = std::time::Instant::now();

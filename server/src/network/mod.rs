@@ -5,4 +5,3 @@ pub mod connection_state;
 pub mod internal_packets;
 pub mod protocol;
 pub mod binary;
-pub mod status;
