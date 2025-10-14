@@ -10,9 +10,10 @@ use server::entity::entity_metadata::{EntityMetadata, EntityVariant};
 use server::inventory::menu::OpenContainer;
 use server::network::internal_packets::NetworkThreadMessage;
 use server::network::network::start_network;
+use server::network::status::Status;
+use server::types::chat_component::{ChatComponent, MCColors};
 use server::utils::seeded_rng::{seeded_rng, SeededRng};
 use server::world::world::World;
-use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::UnboundedSender as Sender;
@@ -80,34 +81,13 @@ async fn main() -> anyhow::Result<()> {
     // ^^^ for rooms/doors this is really pointless, because there is no reason to customize them, especially once finalised
     // I can understand it for favicon tho
 
-    let (tx, mut rx) = start_network("127.0.0.1:4972", Arc::new(
-        r#"{
-            "version": {
-                "name": "1.8.9",
-                "protocol": 47
-            },
-            "players": {
-                "max": 1,
-                "online": 0
-            },
-            "description": {
-                "text": "RustClear",
-                "color": "gold",
-                "extra": [
-                    {
-                        "text": " version ",
-                        "color": "gray"
-                    },
-                    {
-                        "text": "{version}",
-                        "color": "green"
-                    }
-                ]
-            },
-            "favicon": "data:image/png;base64,<data>"
-        }"#.into()
-    ));
-
+    let text = ChatComponent::new("RustClear").color(MCColors::Gold)
+        .append(ChatComponent::new(" version ").color(MCColors::Gray))
+        .append(ChatComponent::new(env!("CARGO_PKG_VERSION")).color(MCColors::Green));
+    
+    let status = Status::new(1, 0, text, get_assets().icon_data);
+    let (tx, mut rx) = start_network("127.0.0.1:4972", status);
+    
     let mut tick_interval = tokio::time::interval(Duration::from_millis(50));
     let mut world = initialize_world(tx)?;
     spawn_mort(&mut world);

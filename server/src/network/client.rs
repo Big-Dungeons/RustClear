@@ -10,13 +10,13 @@ use crate::network::protocol::login::serverbound::LoginStart;
 use crate::network::protocol::play::serverbound::Play;
 use crate::network::protocol::status::clientbound::{StatusPong, StatusResponse};
 use crate::network::protocol::status::serverbound::StatusPing;
+use crate::network::status::StatusBytes;
 use crate::player::player::{ClientId, GameProfile};
 use crate::GameProfileProperty;
 use anyhow::bail;
 use bytes::{Buf, Bytes, BytesMut};
 use fstr::FString;
 use std::collections::HashMap;
-use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
@@ -40,8 +40,7 @@ pub async fn handle_client(
     mut rx: UnboundedReceiver<ClientHandlerMessage>,
     main_tx: UnboundedSender<MainThreadMessage>,
     network_tx: UnboundedSender<NetworkThreadMessage>,
-    // probably needs to be made mutable?, so it can update the player count, etc
-    status: Arc<String>
+    status: StatusBytes
 ) {
     let mut client = Client {
         id: client_id,
@@ -62,7 +61,7 @@ pub async fn handle_client(
                             &mut client,
                             &tx,
                             &main_tx,
-                            status.as_ref()
+                            &status
                         ).await {
                             eprintln!("client {client_id:?} errored: {err}");
                             break;
@@ -89,7 +88,9 @@ pub async fn handle_client(
         }
     }
 
-    let _ = network_tx.send(NetworkThreadMessage::ConnectionClosed { client_id });
+    if client.connection_state == ConnectionState::Play {
+        let _ = network_tx.send(NetworkThreadMessage::ConnectionClosed { client_id });
+    }
     println!("handle client for {client_id:?} closed.");
 }
 
@@ -98,7 +99,7 @@ async fn read_packets(
     client: &mut Client,
     client_tx: &UnboundedSender<ClientHandlerMessage>,
     main_tx: &UnboundedSender<MainThreadMessage>,
-    status: &String
+    status: &StatusBytes
 ) -> anyhow::Result<()> {
     while let Some(mut buffer) = try_read_packet_slice(buffer) {
         match client.connection_state {
@@ -158,14 +159,14 @@ fn handle_handshake(buffer: &mut impl Buf, client: &mut Client) -> anyhow::Resul
 fn handle_status(
     buffer: &mut impl Buf,
     client_tx: &UnboundedSender<ClientHandlerMessage>,
-    status: &String
+    status: &StatusBytes
 ) -> anyhow::Result<()> {
     let packet_id = *VarInt::read(buffer)?;
     let mut packet_buffer = PacketBuffer::new();
     match packet_id {
         0x00 => {
             packet_buffer.write_packet(&StatusResponse {
-                status,
+                status: status.get_str(),
             });
         }
         0x01 => {
@@ -215,6 +216,8 @@ fn handle_login(
                 ),
             };
 
+            client.connection_state = ConnectionState::Play;
+            
             packet_buffer.write_packet(&LoginSuccess {
                 uuid: uuid.hyphenated().to_string(),
                 name: game_profile.username.clone(),
@@ -225,7 +228,6 @@ fn handle_login(
                 client_id: client.id,
                 profile: game_profile,
             })?;
-            client.connection_state = ConnectionState::Play;
         }
         _ => bail!("Unknown packet id during login")
     }

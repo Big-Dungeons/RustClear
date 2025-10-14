@@ -8,7 +8,7 @@ use std::collections::HashSet;
 
 pub struct ChunkSection {
     solid_block_amount: u16,
-    data: [u16; 4096],
+    data: Box<[u16; 4096]>,
 }
 pub struct Chunk {
     pub chunk_sections: [Option<ChunkSection>; 16],
@@ -52,7 +52,7 @@ impl Chunk {
         if self.chunk_sections[section_index].is_none() {
             self.chunk_sections[section_index] = Some(ChunkSection {
                 solid_block_amount: 0,
-                data: [0; 4096],
+                data: Box::new([0; 4096]),
             })
         }
         if let Some(section) = &mut self.chunk_sections[section_index] {
@@ -92,7 +92,7 @@ impl Chunk {
                 if section.solid_block_amount == 0 {
                     continue
                 }
-                for block in section.data {
+                for block in section.data.iter() {
                     data[offset] = (block & 0xFF) as u8;
                     data[offset + 1] = ((block >> 8) & 0xFF) as u8;
                     offset += 2;

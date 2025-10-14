@@ -1,8 +1,13 @@
 use crate::network::protocol::play::serverbound::Play;
+use crate::network::status::StatusUpdate;
 use crate::player::player::{ClientId, GameProfile};
 use bytes::Bytes;
 
 pub enum NetworkThreadMessage {
+    UpdateStatus {
+        update: StatusUpdate
+    },
+    
     SendPackets {
         client_id: ClientId,
         buffer: Bytes,

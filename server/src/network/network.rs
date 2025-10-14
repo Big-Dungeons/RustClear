@@ -1,4 +1,5 @@
 use crate::network::client::handle_client;
+use crate::network::status::Status;
 use core::panic;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -15,7 +16,7 @@ type ClientMap = HashMap<ClientId, UnboundedSender<ClientHandlerMessage>>;
 
 pub fn start_network(
     ip: &'static str,
-    status: Arc<String> // should probably be mutable
+    status: Status,
 ) -> (Sender<NetworkThreadMessage>, Receiver<MainThreadMessage>) {
     let (network_tx, network_rx) = unbounded_channel::<NetworkThreadMessage>();
     let (main_tx, main_rx) = unbounded_channel::<MainThreadMessage>();
@@ -25,7 +26,7 @@ pub fn start_network(
 
 async fn run_network_thread(
     ip: &'static str,
-    status: Arc<String>,
+    mut status: Status,
     mut network_rx: Receiver<NetworkThreadMessage>,
     network_tx: Sender<NetworkThreadMessage>,
     main_tx: Sender<MainThreadMessage>,
@@ -57,7 +58,7 @@ async fn run_network_thread(
                     client_rx,
                     main_tx.clone(),
                     network_tx.clone(),
-                    status.clone()
+                    status.get()
                 ));
             }
 
@@ -66,6 +67,7 @@ async fn run_network_thread(
                 // we can just discard main thread -> network thread messages with a disconnected client_id
                 // as the main thread either already has or will be be informed shortly of this issue
                 match msg { 
+                    NetworkThreadMessage::UpdateStatus { update } => status.set(update),
                     NetworkThreadMessage::SendPackets { client_id, buffer } => {
                         if let Some(client_tx) = clients.get(&client_id) {
                             if let Err(e) = client_tx.send(ClientHandlerMessage::Send(buffer)) {
@@ -84,9 +86,7 @@ async fn run_network_thread(
                         }
                     }
             
-                    NetworkThreadMessage::ConnectionClosed { client_id } => {
-                        disconnect_client(client_id, &main_tx, &mut clients)
-                    }
+                    NetworkThreadMessage::ConnectionClosed { client_id } => disconnect_client(client_id, &main_tx, &mut clients),
                 }
             }
         }

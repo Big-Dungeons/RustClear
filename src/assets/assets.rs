@@ -15,7 +15,7 @@ pub struct Assets {
     pub dungeon_seeds: Vec<&'static str>,
     pub door_data: HashMap<DoorType, Vec<Vec<Blocks>>>,
     pub room_data: DeterministicHashMap<usize, RoomData>,
-    pub icon_data: String,
+    pub icon_data: &'static str,
 }
 
 impl Assets {

@@ -107,10 +107,10 @@ impl LoadAsset for DungeonStorageAssets {
 
 impl LoadAsset for FaviconAssets {
     const SUBPATH: &'static str = "favicon.png";
-    type Output = String;
+    type Output = &'static str;
 
     async fn load_asset(path: &Path) -> anyhow::Result<Self::Output> {
         let bytes = fs::read(path.join(Self::SUBPATH)).await?;
-        Ok(general_purpose::STANDARD.encode(&bytes))
+        Ok(Box::leak(general_purpose::STANDARD.encode(&bytes).into_boxed_str()))
     }
 }
