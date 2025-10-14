@@ -15,7 +15,7 @@ pub struct Status {
     players: u32,
     max_players: u32,
     
-    info: ChatComponent,
+    serialized_info: String,
     icon: &'static str,
     
     cached: Option<StatusBytes>,
@@ -23,14 +23,14 @@ pub struct Status {
 
 impl Status {
     pub fn new(players: u32, max_players: u32, info: ChatComponent, icon: &'static str) -> Self {
-        Self { players, max_players, info, icon, cached: None, }
+        Self { players, max_players, serialized_info: info.serialize(), icon, cached: None, }
     }
     
     pub fn set(&mut self, update: StatusUpdate) {
         match update {
             StatusUpdate::Players(count) => self.players = count,
             StatusUpdate::MaxPlayers(count) => self.max_players = count,
-            StatusUpdate::Info(component) => self.info = component,
+            StatusUpdate::Info(component) => self.serialized_info = component.serialize(),
             StatusUpdate::Icon(icon_data) => self.icon = icon_data,
         }
         self.cached = None;
@@ -49,7 +49,7 @@ impl Status {
                 }},
                 "description": {},
                 "favicon": "data:image/png;base64,{}"
-            }}"#, self.max_players, self.players, self.info.serialize(), self.icon)))
+            }}"#, self.max_players, self.players, self.serialized_info, self.icon)))
         }).clone()
     }
 }
