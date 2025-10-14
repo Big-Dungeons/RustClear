@@ -85,7 +85,7 @@ async fn main() -> anyhow::Result<()> {
         .append(ChatComponent::new(" version ").color(MCColors::Gray))
         .append(ChatComponent::new(env!("CARGO_PKG_VERSION")).color(MCColors::Green));
     
-    let status = Status::new(1, 0, text, get_assets().icon_data);
+    let status = Status::new(0, 1, text, get_assets().icon_data);
     let (tx, mut rx) = start_network("127.0.0.1:4972", status);
     
     let mut world = initialize_world(tx)?;

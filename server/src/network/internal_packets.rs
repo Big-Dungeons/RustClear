@@ -4,9 +4,7 @@ use crate::types::status::StatusUpdate;
 use bytes::Bytes;
 
 pub enum NetworkThreadMessage {
-    UpdateStatus {
-        update: StatusUpdate
-    },
+    UpdateStatus(StatusUpdate),
     
     SendPackets {
         client_id: ClientId,

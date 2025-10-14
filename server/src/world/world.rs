@@ -1,3 +1,4 @@
+use crate::block::metadata::u3;
 use crate::constants::Particle;
 use crate::entity::entity::{Entity, EntityId, EntityImpl};
 use crate::entity::entity_metadata::EntityMetadata;
@@ -7,6 +8,7 @@ use crate::network::internal_packets::{MainThreadMessage, NetworkThreadMessage};
 use crate::network::packets::packet::ProcessPacket;
 use crate::network::protocol::play::clientbound::{DestroyEntites, JoinGame, Particles, PlayerData, PlayerListItem, PositionLook};
 use crate::player::player::{ClientId, GameProfile, Player, PlayerExtension};
+use crate::types::status::StatusUpdate;
 use crate::world::chunk::chunk_grid::ChunkGrid;
 use crate::world::chunk::get_chunk_position;
 use enumset::EnumSet;
@@ -287,7 +289,8 @@ impl<E : WorldExtension> World<E> {
         match event {
             MainThreadMessage::NewPlayer { client_id, profile } => {
                 println!("new player");
-                E::on_player_join(self, profile, client_id)
+                E::on_player_join(self, profile, client_id);
+                let _ = self.network_tx.send(NetworkThreadMessage::UpdateStatus(StatusUpdate::Players(self.players.len() as u32)));
             }
             MainThreadMessage::PacketReceived { client_id, packet } => {
                 if let Some(index) = self.player_map.get(&client_id) {
@@ -297,6 +300,7 @@ impl<E : WorldExtension> World<E> {
             }
             MainThreadMessage::ClientDisconnected { client_id } => {
                 self.remove_player(client_id);
+                let _ = self.network_tx.send(NetworkThreadMessage::UpdateStatus(StatusUpdate::Players(self.players.len() as u32)));
             }
         }
     }

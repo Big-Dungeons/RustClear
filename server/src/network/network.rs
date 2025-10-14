@@ -66,7 +66,7 @@ async fn run_network_thread(
                 // we can just discard main thread -> network thread messages with a disconnected client_id
                 // as the main thread either already has or will be be informed shortly of this issue
                 match msg { 
-                    NetworkThreadMessage::UpdateStatus { update } => status.set(update),
+                    NetworkThreadMessage::UpdateStatus(update) => status.set(update),
                     NetworkThreadMessage::SendPackets { client_id, buffer } => {
                         if let Some(client_tx) = clients.get(&client_id) {
                             if let Err(e) = client_tx.send(ClientHandlerMessage::Send(buffer)) {
