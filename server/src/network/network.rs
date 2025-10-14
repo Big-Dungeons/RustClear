@@ -1,17 +1,18 @@
-use crate::network::client::handle_client;
+use crate::network::client::{ClientHandler};
+use crate::network::connection_state::ConnectionState;
 use crate::types::status::Status;
 use core::panic;
 use std::collections::HashMap;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 
-use crate::network::internal_packets::{ClientHandlerMessage, MainThreadMessage, NetworkThreadMessage};
+use crate::network::internal_packets::{MainThreadMessage, NetworkThreadMessage};
 use crate::player::player::ClientId;
 
 type Sender<T> = UnboundedSender<T>;
 type Receiver<T> = UnboundedReceiver<T>;
 
-type ClientMap = HashMap<ClientId, UnboundedSender<ClientHandlerMessage>>;
+type ClientMap = HashMap<ClientId, ClientHandler>;
 
 pub fn start_network(
     ip: &'static str,
@@ -45,20 +46,9 @@ async fn run_network_thread(
                 let Ok((socket, _)) = result else { continue };
                 let client_id: ClientId = client_id_counter;
                 client_id_counter += 1;
-
-                // do we need tx and rx for each client?
-                //
-                let (client_tx, client_rx) = unbounded_channel::<ClientHandlerMessage>();
-                clients.insert(client_id, client_tx.clone());
-                tokio::spawn(handle_client(
-                    client_id,
-                    socket,
-                    client_tx,
-                    client_rx,
-                    main_tx.clone(),
-                    network_tx.clone(),
-                    status.get()
-                ));
+                
+                let handler = ClientHandler::spawn(client_id, socket, network_tx.clone(), main_tx.clone(), status.get());
+                clients.insert(client_id, handler);
             }
 
             // this can never be none since this function owns a network_tx.
@@ -68,24 +58,30 @@ async fn run_network_thread(
                 match msg { 
                     NetworkThreadMessage::UpdateStatus(update) => status.set(update),
                     NetworkThreadMessage::SendPackets { client_id, buffer } => {
-                        if let Some(client_tx) = clients.get(&client_id) {
-                            if let Err(e) = client_tx.send(ClientHandlerMessage::Send(buffer)) {
-                                eprintln!("Client {} handler dropped its reciever: {}", client_id, e);
+                        if let Some(handler) = clients.get_mut(&client_id) {
+                            if let Err(e) = handler.send(&buffer).await {
+                                eprintln!("Client {} handler failed to send: {}", client_id, e);
                                 disconnect_client(client_id, &main_tx, &mut clients);
                             }
                         }
                     }
             
                     NetworkThreadMessage::DisconnectClient { client_id } => {
-                        if let Some(client_tx) = clients.get(&client_id) {
-                            if let Err(e) = client_tx.send(ClientHandlerMessage::CloseHandler) {
-                                eprintln!("Client {} handler dropped its reciever: {}", client_id, e);
-                                disconnect_client(client_id, &main_tx, &mut clients);
+                        if let Some(handler) = clients.get_mut(&client_id) {
+                            if let Err(e) = handler.disconnect().await {
+                                eprintln!("Client {} writer failed to shutdown: {}", client_id, e);
                             }
+                            disconnect_client(client_id, &main_tx, &mut clients);
                         }
                     }
             
-                    NetworkThreadMessage::ConnectionClosed { client_id } => disconnect_client(client_id, &main_tx, &mut clients),
+                    NetworkThreadMessage::ConnectionClosed { client_id, connection_state } => {
+                        if connection_state == ConnectionState::Play {
+                            // we probably shouldnt tell the main thread a client it never added got disconnected? 
+                            main_tx.send(MainThreadMessage::ClientDisconnected { client_id }).expect("Main thread should never drop its network reciever.");
+                        }
+                        clients.remove(&client_id);
+                    }
                 }
             }
         }
