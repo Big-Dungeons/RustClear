@@ -28,10 +28,12 @@ impl PacketBuffer {
     }
 
     /// gets a message for network thread to send the packets inside the buffer to the client.
+    #[inline]
     pub fn get_packet_message(&mut self, client_id: ClientId) -> NetworkThreadMessage {
         NetworkThreadMessage::SendPackets { client_id, buffer: self.split_into_bytes() }
     }
-
+    
+    #[inline]
     pub fn split_into_bytes(&mut self) -> Bytes {
         self.buffer.split().freeze()
     }
