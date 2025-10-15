@@ -4,7 +4,7 @@ use anyhow::bail;
 use bytes::{Buf, Bytes, BytesMut};
 use fstr::FString;
 use slotmap::new_key_type;
-use tokio::{io::{self, AsyncReadExt, AsyncWriteExt}, net::{TcpStream, tcp::{OwnedReadHalf, OwnedWriteHalf}}, sync::mpsc::UnboundedSender, task::JoinHandle};
+use tokio::{io::{AsyncReadExt, AsyncWriteExt}, net::TcpStream, sync::mpsc::{UnboundedReceiver, UnboundedSender, error::SendError, unbounded_channel}, task::JoinHandle};
 use uuid::Uuid;
 
 use crate::{ClientId, GameProfile, GameProfileProperty, network::{binary::var_int::{VarInt, peek_var_int}, connection_state::ConnectionState, internal_packets::{MainThreadMessage, NetworkThreadMessage}, packets::{packet_buffer::PacketBuffer, packet_deserialize::PacketDeserializable}, protocol::{handshake::serverbound::Handshake, login::{clientbound::LoginSuccess, serverbound::LoginStart}, play::serverbound::Play, status::{clientbound::{StatusPong, StatusResponse}, serverbound::StatusPing}}}, types::status::StatusBytes};
@@ -21,7 +21,7 @@ pub struct Client {
 }
 
 pub struct ClientHandler {
-    writer: OwnedWriteHalf,
+    writer: UnboundedSender<Bytes>,
     handle: JoinHandle<()>
 }
 
@@ -33,30 +33,24 @@ impl ClientHandler {
         main_tx: UnboundedSender<MainThreadMessage>,        
         status: StatusBytes
     ) -> Self {
-        let (read, writer) = socket.into_split();
-        let handle = tokio::spawn(run_client(client_id, read, network_tx, main_tx, status));
-        Self { writer, handle }
+        let (tx, rx) = unbounded_channel();
+        let handle = tokio::spawn(run_client(client_id, socket, rx, network_tx, main_tx, status));
+        Self { writer: tx, handle }
     }
     
-    pub async fn send(&mut self, data: &Bytes) -> Result<(), io::Error> {
-        self.writer.write_all(data).await
+    pub fn send(&self, data: Bytes) -> Result<(), SendError<Bytes>> {
+        self.writer.send(data)
     }
     
-    // this does not inform the network thread about the read tasks shutdown.
-    pub async fn disconnect(mut self) -> Result<(), io::Error> {
-        self.handle.abort();
-        self.writer.shutdown().await?;
-        Ok(())
-    }
-    
-    pub fn abort(&self) {
+    pub fn abort(self) {
         self.handle.abort();
     }
 }
 
 async fn run_client(
     client_id: ClientId, 
-    mut reader: OwnedReadHalf, 
+    mut socket: TcpStream, 
+    mut rx: UnboundedReceiver<Bytes>,
     network_tx: UnboundedSender<NetworkThreadMessage>, 
     main_tx: UnboundedSender<MainThreadMessage>,
     status: StatusBytes
@@ -69,27 +63,44 @@ async fn run_client(
     let mut bytes = BytesMut::new();
     
     loop {
-        let res: Result<usize, io::Error> = reader.read_buf(&mut bytes).await;
-        match res {
-            Ok(0) => break,
-            Ok(_) => {
-                if let Err(err) = read_packets(
-                    &mut bytes,
-                    &mut client,
-                    &network_tx,
-                    &main_tx,
-                    &status
-                ).await {
-                    eprintln!("client {client_id:?} errored: {err}");
-                    break;
+        tokio::select! {
+            res = socket.read_buf(&mut bytes) => {
+                match res {
+                    Ok(0) => break,
+                    Ok(_) => {
+                        if let Err(err) = read_packets(
+                            &mut bytes,
+                            &mut client,
+                            &network_tx,
+                            &main_tx,
+                            &status
+                        ).await {
+                            eprintln!("client {client_id:?} errored: {err}");
+                            break;
+                        }
+                    },
+                    Err(e) => {
+                        eprintln!("Client {client_id:?} read error: {e}");
+                        break;
+                    }
                 }
             }
-            Err(e) => {
-                eprintln!("Client {client_id:?} read error: {e}");
-                break;
+            
+            // we dont need a drop task if we just drop the tx...
+            opt = rx.recv() => {
+                match opt {
+                    Some(bytes) => {
+                        if let Err(e) = socket.write_all(&bytes).await {
+                            eprintln!("Socket write error: {}", e);
+                            break
+                        }
+                    }
+                    None => break,
+                }
             }
         }
     }
+    
     println!("client reader closed");
     let _ = network_tx.send(NetworkThreadMessage::ConnectionClosed { client_id, connection_state: client.connection_state });
 }

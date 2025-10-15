@@ -55,9 +55,9 @@ async fn run_network_thread(
                 match msg { 
                     NetworkThreadMessage::UpdateStatus(update) => status.set(update),
                     NetworkThreadMessage::SendPackets { client_id, buffer } => {
-                        if let Some(handler) = clients.get_mut(client_id) {
-                            if let Err(e) = handler.send(&buffer).await {
-                                eprintln!("Client {:?} handler failed to send: {}", client_id, e);
+                        if let Some(handler) = clients.get(client_id) {
+                            if let Err(e) = handler.send(buffer) {
+                                eprintln!("Client {:?} handler dropped its reciever {}", client_id, e);
                                 clients.remove(client_id);
                                 main_tx.send(MainThreadMessage::ClientDisconnected { client_id }).expect("Main thread should never drop its network reciever.");
                             }
@@ -65,10 +65,7 @@ async fn run_network_thread(
                     }
             
                     NetworkThreadMessage::DisconnectClient { client_id } => {
-                        if let Some(handler) = clients.remove(client_id) {
-                            if let Err(e) = handler.disconnect().await {
-                                eprintln!("Client {:?} writer failed to shutdown: {}", client_id, e);
-                            }
+                        if clients.remove(client_id).is_some() {
                             main_tx.send(MainThreadMessage::ClientDisconnected { client_id }).expect("Main thread should never drop its network reciever.");
                         }
                     }

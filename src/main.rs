@@ -62,6 +62,7 @@ pub fn spawn_mort(world: &mut World<Dungeon>) {
         Some(EntityMetadata::new(EntityVariant::NPC { npc_id: "mort" })),
         position, yaw, 0.0,
         InteractableNPC { default_yaw: yaw, default_pitch: 0.0, interact_callback: |player| {
+            player.world().network_tx.send(NetworkThreadMessage::DisconnectClient { client_id: player.client_id });
             // todo: messages / dialogue
             if let DungeonState::Started { .. } = player.world().state {
                 return;
