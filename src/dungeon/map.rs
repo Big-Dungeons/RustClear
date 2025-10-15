@@ -35,8 +35,10 @@ struct DirtyMapRegion {
     max_y: usize,
 }
 
+const PIXEL_COUNT: usize = 128 * 128;
+
 pub struct DungeonMap {
-    pixels: Vec<u8>,
+    pixels: Box<[u8; PIXEL_COUNT]>,
     offset_x: usize,
     offset_y: usize,
     dirty_region: Option<DirtyMapRegion>
@@ -49,7 +51,7 @@ impl DungeonMap {
 
     pub fn new(offset_x: usize, offset_y: usize) -> Self {
         Self {
-            pixels: vec![0; 128 * 128],
+            pixels: Box::new([0u8; PIXEL_COUNT]),
             offset_x,
             offset_y,
             dirty_region: None,
@@ -135,10 +137,10 @@ impl DungeonMap {
             let y = segment.z * 20;
 
             self.fill_px(x, y, 16, 16, color);
-            if room.segments.iter().find(|seg| seg.x == segment.x + 1 && seg.z == segment.z).is_some() {
+            if room.segments.iter().any(|seg| seg.x == segment.x + 1 && seg.z == segment.z) {
                 self.fill_px(x + 16, y, 4, 16, color);
             }
-            if room.segments.iter().find(|seg| seg.x == segment.x && seg.z == segment.z + 1).is_some() {
+            if room.segments.iter().any(|seg| seg.x == segment.x && seg.z == segment.z + 1) {
                 self.fill_px(x, y + 16, 16, 4, color);
             }
 
@@ -170,7 +172,7 @@ impl DungeonMap {
                 };
 
                 if neighbour_room.discovered {
-                    let color = get_door_color(&room, &*neighbour_room);
+                    let color = get_door_color(room, &neighbour_room);
                     self.fill_px(x, y, width, height, color);
                 } else {
                     let color = match door.get_type() {

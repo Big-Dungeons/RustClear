@@ -50,11 +50,11 @@ impl<const S: usize> SizedString<S> {
         Self { length: len, data }
     }
 
-    fn to_string(&self) -> String {
-        unsafe {
-            String::from_utf8_unchecked(self.data[..self.length].to_vec())
-        }
-    }
+    // fn to_string(&self) -> String {
+    //     unsafe {
+    //         String::from_utf8_unchecked(self.data[..self.length].to_vec())
+    //     }
+    // }
 }
 
 impl<const S: usize> Display for SizedString<S> {
@@ -63,21 +63,21 @@ impl<const S: usize> Display for SizedString<S> {
     }
 }
 
-impl<const S: usize> Into<SizedString<S>> for SizedStringMut<S> {
-    fn into(self) -> SizedString<S> {
-        self.inner
+impl<const S: usize> From<SizedStringMut<S>> for SizedString<S> {
+    fn from(value: SizedStringMut<S>) -> SizedString<S> {
+        value.inner
     }
 }
 
-impl<const S: usize> Into<SizedString<S>> for &str {
-    fn into(self) -> SizedString<S> {
-        SizedString::truncated(self)
+impl<const S: usize> From<&str> for SizedString<S> {
+    fn from(value: &str) -> Self {
+        SizedString::truncated(value)
     }
 }
 
-impl<const S: usize> Into<SizedString<S>> for String {
-    fn into(self) -> SizedString<S> {
-        SizedString::truncated(self.as_str())
+impl<const S: usize> From<String> for SizedString<S> {
+    fn from(value: String) -> Self {
+        SizedString::truncated(&value)
     }
 }
 

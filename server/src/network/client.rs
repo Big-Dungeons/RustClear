@@ -189,7 +189,7 @@ fn handle_login(
 
             let game_profile = GameProfile {
                 uuid,
-                username: FString::new(&*login.username),
+                username: FString::new(&login.username),
                 properties: HashMap::from(
                     [(
                         "textures".into(),

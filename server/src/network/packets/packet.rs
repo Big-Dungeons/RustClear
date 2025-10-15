@@ -38,13 +38,13 @@ macro_rules! register_serverbound_packets {
             $( $packet_type($packet_type), )*
         }
         
-        impl crate::network::packets::packet_deserialize::PacketDeserializable for $enum_name {
+        impl $crate::network::packets::packet_deserialize::PacketDeserializable for $enum_name {
             fn read(buffer: &mut impl bytes::Buf) -> anyhow::Result<Self> {
-                if let Some(packet_id) = crate::network::binary::var_int::read_var_int(buffer) {
+                if let Some(packet_id) = $crate::network::binary::var_int::read_var_int(buffer) {
                     match packet_id {
                         $(
                             $id => Ok($enum_name::$packet_type(
-                                <$packet_type as crate::network::packets::packet_deserialize::PacketDeserializable>::read(buffer)?
+                                <$packet_type as $crate::network::packets::packet_deserialize::PacketDeserializable>::read(buffer)?
                             )),
                         )*
                     _ => Ok($enum_name::Invalid(packet_id)),
@@ -55,8 +55,8 @@ macro_rules! register_serverbound_packets {
             }
         }
         
-        impl crate::network::packets::packet::ProcessPacket for $enum_name {
-            fn process<P : crate::player::player::PlayerExtension>(&self, player: &mut  crate::player::player::Player<P>) {
+        impl $crate::network::packets::packet::ProcessPacket for $enum_name {
+            fn process<P : $crate::player::player::PlayerExtension>(&self, player: &mut $crate::player::player::Player<P>) {
                 match self {
                     $(
                         $enum_name::$packet_type(inner) => {

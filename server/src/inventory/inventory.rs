@@ -54,11 +54,10 @@ impl<T : Item> Inventory<T> {
                         let item = &mut self.items[slot];
                         let dragged = &mut self.dragged_item;
 
-                        if let Some(item) = &item {
-                            if !item.can_move_in_inventory() {
-                                return true
-                            }
+                        if let Some(item) = &item && !item.can_move_in_inventory() {
+                            return true
                         }
+                        
                         if get_item_stack(item) != packet.clicked_item {
                             requires_sync = true;
                         }
@@ -71,18 +70,14 @@ impl<T : Item> Inventory<T> {
                 if is_valid_range(slot) {
                     // check if it is moveable first
                     let item = &mut self.items[slot];
-                    if let Some(item) = &item {
-                        if !item.can_move_in_inventory() {
-                            return true
-                        }
+                    if let Some(item) = &item && !item.can_move_in_inventory() {
+                        return true
                     }
                     
                     let item = item.take();
                     
-                    if let Some(item) = &item {
-                        if !item.can_move_in_inventory() { 
-                            return true
-                        }
+                    if let Some(item) = &item && !item.can_move_in_inventory() {
+                        return true
                     }
                     
                     if get_item_stack(&item) != packet.clicked_item {
@@ -107,10 +102,8 @@ impl<T : Item> Inventory<T> {
                     let to_slot = 36 + button;
                     let item = &mut self.items[slot];
 
-                    if let Some(item) = &item {
-                        if !item.can_move_in_inventory() {
-                            return true
-                        }
+                    if let Some(item) = &item && !item.can_move_in_inventory() {
+                        return true
                     }
 
                     // this is what hypixel did to allow ghost pickaxes

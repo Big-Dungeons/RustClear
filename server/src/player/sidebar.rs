@@ -119,7 +119,7 @@ impl Sidebar {
                     });
                     packet_buffer.write_packet(&UpdateScore {
                         name: hide_name(&name),
-                        objective: OBJECTIVE_NAME.into(),
+                        objective: OBJECTIVE_NAME,
                         value: VarInt(line_index as i32),
                         action: VarInt(0),
                     });

@@ -63,23 +63,21 @@ impl Room {
                 aabb: AABB::new(dvec3(x, y, z), dvec3(x + 31.0, max_y, z + 31.0)),
                 segment_index: Some(index),
             });
-            if segments.iter().find(|seg| seg.x == segment.x + 1 && seg.z == segment.z).is_some() {
+            if segments.iter().any(|seg| seg.x == segment.x + 1 && seg.z == segment.z) {
                 let x = x + 31.0;
-                let z = z;
                 room_bounds.push(RoomBounds {
                     aabb: AABB::new(dvec3(x, y, z), dvec3(x + 1.0, max_y, z + 31.0)),
                     segment_index: None,
                 });
             }
-            if segments.iter().find(|seg| seg.x == segment.x && seg.z == segment.z + 1).is_some() {
-                let x = x;
+            if segments.iter().any(|seg| seg.x == segment.x && seg.z == segment.z + 1) {
                 let z = z + 31.0;
                 room_bounds.push(RoomBounds {
                     aabb: AABB::new(dvec3(x, y, z), dvec3(x + 31.0, max_y, z + 1.0)),
                     segment_index: None,
                 });
             }
-            if segments.iter().find(|seg| seg.x == segment.x + 1 && seg.z == segment.z + 1).is_some() {
+            if segments.iter().any(|seg| seg.x == segment.x + 1 && seg.z == segment.z + 1) {
                 let x = x + 31.0;
                 let z = z + 31.0;
                 room_bounds.push(RoomBounds {
@@ -101,7 +99,7 @@ impl Room {
     }
 
     pub fn neighbours(&self) -> impl Iterator<Item = &RoomNeighbour> {
-        self.segments.iter().flat_map(|seg| seg.neighbours.iter().map(|n| n).flatten())
+        self.segments.iter().flat_map(|seg| seg.neighbours.iter().flatten())
     }
 
     pub fn get_corner_pos(&self) -> IVec3 {
@@ -138,7 +136,7 @@ impl Room {
             }
             // not sure if editing room data might ruin something,
             // so to be safe im just cloning it
-            let mut block = block.clone();
+            let mut block = *block;
             block.rotate(self.rotation);
 
             let index = index as i32;

@@ -16,7 +16,7 @@ impl EntityImpl<Dungeon> for InteractableNPC {
     fn despawn(&mut self, _: &mut EntityBase<Dungeon>, _: &mut PacketBuffer) {}
 
     fn tick(&self, entity: &mut EntityBase<Dungeon>, _: &mut PacketBuffer) {
-        if entity.ticks_existed % 5 == 0 {
+        if entity.ticks_existed.is_multiple_of(5) {
             return;
         }
 

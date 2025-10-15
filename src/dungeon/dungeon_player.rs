@@ -37,7 +37,7 @@ impl PlayerExtension for DungeonPlayer {
     type Item = DungeonItem;
 
     fn tick(player: &mut Player<Self>) {
-        if player.ticks_existed % 60 == 0 {
+        if player.ticks_existed.is_multiple_of(60) {
             player.write_packet(&AddEffect {
                 entity_id: player.entity_id,
                 effect_id: PotionEffect::Haste,
@@ -54,7 +54,7 @@ impl PlayerExtension for DungeonPlayer {
             });
         }
 
-        if player.ticks_existed % 2 == 0 {
+        if player.ticks_existed.is_multiple_of(2) {
             DungeonPlayer::update_sidebar(player);
         }
         
@@ -208,7 +208,7 @@ impl DungeonPlayer {
         let (sb_month, sb_day, day_suffix) = get_sb_date();
         let sidebar = &mut player.extension.sidebar;
 
-        sidebar.push(&*formatdoc! {r#"
+        sidebar.push(&formatdoc! {r#"
                 §e§lSKYBLOCK
                 §7{date} §8local {room_id}
 
@@ -228,11 +228,11 @@ impl DungeonPlayer {
 
                 for player in world.players.iter() {
                     let color = if player.extension.is_ready { 'a' } else { 'c' };
-                    sidebar.push(&*format!("§{color}[M] §7{}", player.profile.username));
+                    sidebar.push(&format!("§{color}[M] §7{}", player.profile.username));
                 }
                 sidebar.new_line();
                 if let DungeonState::Starting { starts_in_ticks } = world.state {
-                    sidebar.push(&*format!("Starting in: §a0§a:0{}", (starts_in_ticks / 20) + 1));
+                    sidebar.push(&format!("Starting in: §a0§a:0{}", (starts_in_ticks / 20) + 1));
                     sidebar.new_line();
                 }
             }
@@ -263,7 +263,7 @@ impl DungeonPlayer {
                     world.wither_key_count,
                 );
 
-                sidebar.push(&*formatdoc! {r#"
+                sidebar.push(&formatdoc! {r#"
                         Keys: §c■ {has_blood_key} §8■ §a{wither_key_count}x
                         Time elapsed: §a§a{time}
                         Cleared: §c{clear_percent}% §8§8({score})
@@ -281,7 +281,7 @@ impl DungeonPlayer {
                 } else {
                     for p in world.players.iter() {
                         if p.client_id != player.client_id {
-                            sidebar.push(&*format!("§e[M] §7{}", p.profile.username));
+                            sidebar.push(&format!("§e[M] §7{}", p.profile.username));
                         }
                     }
                     sidebar.new_line();

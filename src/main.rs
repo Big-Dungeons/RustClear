@@ -31,7 +31,7 @@ pub fn initialize_world(tx: Sender<NetworkThreadMessage>) -> anyhow::Result<Worl
     let room_data_storage = &get_assets().room_data;
     let door_type_blocks = &get_assets().door_data;
 
-    let dungeon = Dungeon::from_string(layout, &room_data_storage)?;
+    let dungeon = Dungeon::from_string(layout, room_data_storage)?;
     // if you do anything with entities or anything that has a pointer to world.
     // once world moves out of this functions scope
     // it will move in the stack causing those pointers to be invalid,
@@ -42,7 +42,7 @@ pub fn initialize_world(tx: Sender<NetworkThreadMessage>) -> anyhow::Result<Worl
         room.borrow().load_into_world(&mut world.chunk_grid);
     }
     for door in world.extension.doors.iter() {
-        door.borrow().load_into_world(&mut world.chunk_grid, &door_type_blocks)
+        door.borrow().load_into_world(&mut world.chunk_grid, door_type_blocks)
     }
 
     Ok(world)

@@ -39,11 +39,7 @@ impl EntityVariant {
     /// Returns if the variant is an object and needs to be spawned
     /// using Spawn Object packet instead of Spawn Mob
     pub const fn is_object(&self) -> bool {
-        match self {
-            EntityVariant::DroppedItem { .. } => true,
-            EntityVariant::FallingBlock => true,
-            _ => false,
-        }
+        matches!(self, EntityVariant::DroppedItem { .. } | EntityVariant::FallingBlock)
     }
 }
 
@@ -74,7 +70,7 @@ const STRING: u8 = 4;
 const ITEM_STACK: u8 = 5;
 
 fn write_data(buf: &mut BytesMut, data_type: u8, id: u8, data: impl PacketSerializable) {
-    buf.put_u8((data_type << 5 | id & 31) & 255);
+    buf.put_u8(data_type << 5 | id & 31);
     data.write(buf);
 }
 

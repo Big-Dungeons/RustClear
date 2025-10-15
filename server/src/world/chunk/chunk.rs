@@ -75,10 +75,8 @@ impl Chunk {
             let mut bitmask = 0u16;
 
             for index in 0..16 {
-                if let Some(section) = &self.chunk_sections[index] {
-                    if section.solid_block_amount != 0 {
-                        bitmask |= 1 << index;
-                    }
+                if let Some(section) = &self.chunk_sections[index] && section.solid_block_amount != 0 {
+                    bitmask |= 1 << index;
                 }
             }
 

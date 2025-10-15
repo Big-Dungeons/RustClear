@@ -114,11 +114,9 @@ impl WorldExtension for Dungeon {
                 for room_rc in world.extension.rooms.iter_mut() {
                     let mut room = room_rc.borrow_mut();
                     
-                    if !room.players.is_empty() {
-                        if !room.discovered {
-                            room.discovered = true;
-                            world.extension.map.draw_room(&*room);
-                        }
+                    if !room.players.is_empty() && !room.discovered {
+                        room.discovered = true;
+                        world.extension.map.draw_room(&room);
                     }
                 }
                 
@@ -380,7 +378,7 @@ impl Dungeon {
         
         for segments in room_id_map.into_values() {
             let shape = RoomShape::from_segments(&segments);
-            let data = get_random_data_with_type(RoomType::Normal, shape, &room_data_storage, &rooms);
+            let data = get_random_data_with_type(RoomType::Normal, shape, room_data_storage, &rooms);
             rooms.push(Rc::new(RefCell::new(Room::new(segments, data))))
         }
 

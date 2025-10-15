@@ -221,7 +221,6 @@ pub fn get_random_data_with_type(
                 && data.shape == room_shape
                 && !current_rooms.iter().any(|room| room.borrow().data == **data) // No duplicate rooms
         })
-        .map(|x| x)
         .choose(&mut seeded_rng())
         .unwrap_or(&RoomData::dummy())
         .clone()

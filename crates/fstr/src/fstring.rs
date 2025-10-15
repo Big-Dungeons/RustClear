@@ -1,6 +1,6 @@
 use std::{borrow::Borrow, fmt::Display, hash::Hash, ops::RangeBounds, str::Utf8Error};
 
-use uuid::{Uuid, fmt::Hyphenated};
+use uuid::Uuid;
 
 use crate::{import_shared, inner::Inner, shared::Shared, Fstr};
 

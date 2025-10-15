@@ -124,7 +124,7 @@ impl PacketSerializable for &[u8] {
         self.len()
     }
     fn write(&self, buf: &mut BytesMut) {
-        buf.put_slice(*self)
+        buf.put_slice(self)
     }
 }
 

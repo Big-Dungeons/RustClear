@@ -659,7 +659,7 @@ pub struct PlayerData<'a> {
 
 pub struct PlayerListItem<'a> {
     pub action: VarInt,
-    pub players: Vec<&'a PlayerData<'a>>
+    pub players: &'a [PlayerData<'a>]
 }
 
 impl PacketSerializable for PlayerListItem<'_> {

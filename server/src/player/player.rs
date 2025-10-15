@@ -332,22 +332,20 @@ impl<E : PlayerExtension> Player<E> {
     fn remove_npc_profiles(&mut self) {
         if self.ticks_existed == 20 {
             let world = self.world_mut();
-            let npc_data: Vec<PlayerData> = world.npc_profiles
-                .iter()
-                .map(|(_, v)| {
+            let npc_data: Vec<PlayerData> = world.npc_profiles.values()
+                .map(|profile| {
                     PlayerData {
                         ping: 0,
                         game_mode: 0,
-                        profile: &v,
+                        profile,
                         display_name: None,
                     }
                 })
                 .collect();
-            let npc_data_refs: Vec<&PlayerData> = npc_data.iter().collect();
 
             self.write_packet(&PlayerListItem {
                 action: VarInt(4),
-                players: npc_data_refs
+                players: &npc_data
             });
 
         }

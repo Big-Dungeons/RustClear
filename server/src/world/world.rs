@@ -1,4 +1,3 @@
-use crate::block::metadata::u3;
 use crate::constants::Particle;
 use crate::entity::entity::{Entity, EntityId, EntityImpl};
 use crate::entity::entity_metadata::EntityMetadata;
@@ -132,7 +131,7 @@ impl<E : WorldExtension> World<E> {
         
         player.write_packet(&PlayerListItem {
             action: VarInt(0),
-            players: vec![&PlayerData {
+            players: &[PlayerData {
                 ping: 0,
                 game_mode: 0,
                 profile: &player.profile.clone(),
@@ -140,21 +139,18 @@ impl<E : WorldExtension> World<E> {
             }],
         });
 
-        let npc_data: Vec<PlayerData> = self.npc_profiles
-            .iter()
-            .map(|(_, v)| PlayerData {
+        let npc_data: Vec<PlayerData> = self.npc_profiles.values()
+            .map(|profile| PlayerData {
                 ping: 0,
                 game_mode: 0,
-                profile: &v,
+                profile,
                 display_name: None,
             })
             .collect();
 
-        let npc_data_refs: Vec<&PlayerData> = npc_data.iter().collect();
-
         player.write_packet(&PlayerListItem {
             action: VarInt(0),
-            players: npc_data_refs
+            players: &npc_data
         });
 
         player.flush_packets();

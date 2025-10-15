@@ -1,5 +1,5 @@
 use crate::dungeon::dungeon_player::DungeonPlayer;
-use fstr::{FString, ToFString};
+use fstr::ToFString;
 use server::inventory::item_stack::ItemStack;
 use server::inventory::menu::Menu;
 use server::network::binary::nbt::TAG_COMPOUND_ID;
