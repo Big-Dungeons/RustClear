@@ -12,6 +12,7 @@ use crate::world::chunk::chunk_grid::ChunkGrid;
 use crate::world::chunk::get_chunk_position;
 use enumset::EnumSet;
 use glam::{DVec3, Vec3};
+use slotmap::SecondaryMap;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use tokio::sync::mpsc::UnboundedSender;
@@ -34,9 +35,9 @@ pub trait WorldExtension : Sized {
 
 pub struct World<E : WorldExtension> {
     pub network_tx: UnboundedSender<NetworkThreadMessage>,
-
+    
     pub players: Vec<Player<E::Player>>,
-    pub player_map: HashMap<ClientId, usize>,
+    pub player_map: SecondaryMap<ClientId, usize>,
     pub npc_profiles: HashMap<&'static str, GameProfile>,
     
     entity_id: i32,
@@ -58,7 +59,7 @@ impl<E : WorldExtension> World<E> {
         Self {
             network_tx,
             players: Vec::new(),
-            player_map: HashMap::new(),
+            player_map: SecondaryMap::new(),
             npc_profiles,
             entity_id: 0,
             entities: Vec::new(),
@@ -214,7 +215,7 @@ impl<E : WorldExtension> World<E> {
         // order isn't preserved doing this. 
         // however with old implementation, it did use std hashmap to iterate, 
         // and order wasn't preserved there so it should be fine. 
-        if let Some(index) = self.player_map.remove(&client_id) {
+        if let Some(index) = self.player_map.remove(client_id) {
             let last_index = self.players.len() - 1;
             let player = self.players.swap_remove(index);
 
@@ -289,7 +290,7 @@ impl<E : WorldExtension> World<E> {
                 let _ = self.network_tx.send(NetworkThreadMessage::UpdateStatus(StatusUpdate::Players(self.players.len() as u32)));
             }
             MainThreadMessage::PacketReceived { client_id, packet } => {
-                if let Some(index) = self.player_map.get(&client_id) {
+                if let Some(index) = self.player_map.get(client_id) {
                     let player = &mut self.players[*index];
                     packet.process(player)
                 }

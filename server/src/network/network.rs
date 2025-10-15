@@ -1,18 +1,16 @@
-use crate::network::client::{ClientHandler};
+use crate::network::client::{ClientHandler, ClientKey};
 use crate::network::connection_state::ConnectionState;
 use crate::types::status::Status;
 use core::panic;
-use std::collections::HashMap;
+use slotmap::SlotMap;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 
 use crate::network::internal_packets::{MainThreadMessage, NetworkThreadMessage};
-use crate::player::player::ClientId;
 
 type Sender<T> = UnboundedSender<T>;
 type Receiver<T> = UnboundedReceiver<T>;
 
-type ClientMap = HashMap<ClientId, ClientHandler>;
 
 pub fn start_network(
     ip: &'static str,
@@ -34,9 +32,9 @@ async fn run_network_thread(
     let listener = TcpListener::bind(ip).await.unwrap();
     println!("Network thread listening on {ip}");
 
-    let mut clients: ClientMap = HashMap::new();
-    let mut client_id_counter: ClientId = 1;
-
+    // slotmap is faster than a hashmap and works just as well for us here
+    let mut clients: SlotMap<ClientKey, ClientHandler> = SlotMap::with_key();
+    
     loop {
         tokio::select! {
             // a client failing to connect here is recoverable and doesnt really do anything, so we can just ignore it.
@@ -44,11 +42,10 @@ async fn run_network_thread(
             // before attempting to get a new connection.
             result = listener.accept() => {
                 let Ok((socket, _)) = result else { continue };
-                let client_id: ClientId = client_id_counter;
-                client_id_counter += 1;
                 
-                let handler = ClientHandler::spawn(client_id, socket, network_tx.clone(), main_tx.clone(), status.get());
-                clients.insert(client_id, handler);
+                clients.insert_with_key(|key| {
+                    ClientHandler::spawn(key, socket, network_tx.clone(), main_tx.clone(), status.get())
+                });
             }
 
             // this can never be none since this function owns a network_tx.
@@ -58,19 +55,19 @@ async fn run_network_thread(
                 match msg { 
                     NetworkThreadMessage::UpdateStatus(update) => status.set(update),
                     NetworkThreadMessage::SendPackets { client_id, buffer } => {
-                        if let Some(handler) = clients.get_mut(&client_id) {
+                        if let Some(handler) = clients.get_mut(client_id) {
                             if let Err(e) = handler.send(&buffer).await {
-                                eprintln!("Client {} handler failed to send: {}", client_id, e);
-                                clients.remove(&client_id);
+                                eprintln!("Client {:?} handler failed to send: {}", client_id, e);
+                                clients.remove(client_id);
                                 main_tx.send(MainThreadMessage::ClientDisconnected { client_id }).expect("Main thread should never drop its network reciever.");
                             }
                         }
                     }
             
                     NetworkThreadMessage::DisconnectClient { client_id } => {
-                        if let Some(handler) = clients.remove(&client_id) {
+                        if let Some(handler) = clients.remove(client_id) {
                             if let Err(e) = handler.disconnect().await {
-                                eprintln!("Client {} writer failed to shutdown: {}", client_id, e);
+                                eprintln!("Client {:?} writer failed to shutdown: {}", client_id, e);
                             }
                             main_tx.send(MainThreadMessage::ClientDisconnected { client_id }).expect("Main thread should never drop its network reciever.");
                         }
@@ -78,7 +75,7 @@ async fn run_network_thread(
             
                     NetworkThreadMessage::ConnectionClosed { client_id, connection_state } => {
                         // we probably shouldnt tell the main thread a client it never added got disconnected? 
-                        if clients.remove(&client_id).is_some() && connection_state == ConnectionState::Play {
+                        if clients.remove(client_id).is_some() && connection_state == ConnectionState::Play {
                             main_tx.send(MainThreadMessage::ClientDisconnected { client_id }).expect("Main thread should never drop its network reciever.");
                         }
                     }

@@ -3,10 +3,15 @@ use std::collections::HashMap;
 use anyhow::bail;
 use bytes::{Buf, Bytes, BytesMut};
 use fstr::FString;
+use slotmap::new_key_type;
 use tokio::{io::{self, AsyncReadExt, AsyncWriteExt}, net::{TcpStream, tcp::{OwnedReadHalf, OwnedWriteHalf}}, sync::mpsc::UnboundedSender, task::JoinHandle};
 use uuid::Uuid;
 
 use crate::{ClientId, GameProfile, GameProfileProperty, network::{binary::var_int::{VarInt, peek_var_int}, connection_state::ConnectionState, internal_packets::{MainThreadMessage, NetworkThreadMessage}, packets::{packet_buffer::PacketBuffer, packet_deserialize::PacketDeserializable}, protocol::{handshake::serverbound::Handshake, login::{clientbound::LoginSuccess, serverbound::LoginStart}, play::serverbound::Play, status::{clientbound::{StatusPong, StatusResponse}, serverbound::StatusPing}}}, types::status::StatusBytes};
+
+new_key_type! {
+    pub struct ClientKey;
+}
 
 #[derive(Debug, Clone)]
 pub struct Client {

@@ -16,3 +16,4 @@ fstr = { path = "../crates/fstr"}
 replays = { path = "../replays" }
 glam = "0.30.5"
 enumset = "1.1.10"
+slotmap = "1.0.7"

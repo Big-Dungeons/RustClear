@@ -5,6 +5,7 @@ use crate::inventory::item_stack::ItemStack;
 use crate::inventory::menu::OpenContainer;
 use crate::inventory::Inventory;
 use crate::network::binary::var_int::VarInt;
+use crate::network::client::ClientKey;
 use crate::network::packets::packet::IdentifiedPacket;
 use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::packets::packet_serialize::PacketSerializable;
@@ -24,7 +25,7 @@ use std::f32::consts::PI;
 use std::ptr::NonNull;
 use uuid::Uuid;
 
-pub type ClientId = usize;
+pub type ClientId = ClientKey;
 
 #[derive(Debug, Clone)]
 pub struct GameProfileProperty {
