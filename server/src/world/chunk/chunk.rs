@@ -4,7 +4,6 @@ use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::protocol::play::clientbound::ChunkData;
 use crate::player::player::ClientId;
 use glam::DVec3;
-use slotmap::SparseSecondaryMap;
 use std::collections::HashSet;
 
 pub struct ChunkSection {
@@ -14,10 +13,8 @@ pub struct ChunkSection {
 pub struct Chunk {
     pub chunk_sections: [Option<ChunkSection>; 16],
     pub packet_buffer: PacketBuffer,
-
+    
     pub players: HashSet<ClientId>,
-    // this was the same behavior as before though so maybe it doesnt matter.
-    pub players: SparseSecondaryMap<ClientId, ()>,
     pub entities: HashSet<EntityId>,
 
     // contains the chunk data packet,
@@ -30,10 +27,11 @@ pub struct Chunk {
 
 impl Chunk {
     
-    pub fn             players: HashSet::new(),
-      chunk_sections: [const { None }; 16],
+    pub fn new() -> Self {
+        Self {
+            chunk_sections: [const { None }; 16],
             packet_buffer: PacketBuffer::new(),
-            players: SparseSecondaryMap::new(),
+            players: HashSet::new(),
             entities: HashSet::new(),
 
             cached_chunk_data: PacketBuffer::new(),
@@ -123,19 +121,23 @@ impl Chunk {
                 bitmask,
                 data,
             });
-            self        debug_assert!(!self.players.contains(&client_id), "player already in chunk");
+            self.dirty = false;
+        }
+        into.copy_from(&self.cached_chunk_data);
+    }
+    pub fn insert_player(&mut self, client_id: ClientId) {
+        debug_assert!(!self.players.contains(&client_id), "player already in chunk");
         self.players.insert(client_id);
-: ClientId) {
-        debug_assert!(!self.players.contains_key(client_id), "player already in chunk");
-        self.players.insert(client_id, ());
     }
 
     pub fn insert_entity(&mut self, entity_id: EntityId) {
-        debug_assert!(!self.entities.contains(&        debug_assert!(self.players.contains(&client_id), "player was never in this chunk");
+        debug_assert!(!self.entities.contains(&entity_id), "entity already in chunk");
+        self.entities.insert(entity_id);
+    }
+
+    pub fn remove_player(&mut self, client_id: ClientId) {
+        debug_assert!(self.players.contains(&client_id), "player was never in this chunk");
         self.players.remove(&client_id);
-ClientId) {
-        debug_assert!(self.players.contains_key(client_id), "player was never in this chunk");
-        self.players.remove(client_id);
     }
 
     pub fn remove_entity(&mut self, entity_id: EntityId) {
