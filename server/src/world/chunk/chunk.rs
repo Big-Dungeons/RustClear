@@ -35,7 +35,7 @@ impl Chunk {
             entities: HashSet::new(),
 
             cached_chunk_data: PacketBuffer::new(),
-            dirty: false,
+            dirty: true,
         }
     }
     
@@ -71,7 +71,10 @@ impl Chunk {
     }
 
     pub fn write_chunk_data(&mut self, x: i32, z: i32, new: bool, into: &mut PacketBuffer) {
+        // this only writes chunks if the x and z are the same,
+        // so for an empty chunk this doesn't work
         if self.dirty {
+            
             let mut bitmask = 0u16;
 
             for index in 0..16 {
@@ -91,6 +94,7 @@ impl Chunk {
                     continue
                 }
                 for block in section.data.iter() {
+                    let block = *block;
                     data[offset] = (block & 0xFF) as u8;
                     data[offset + 1] = ((block >> 8) & 0xFF) as u8;
                     offset += 2;
@@ -125,6 +129,7 @@ impl Chunk {
         }
         into.copy_from(&self.cached_chunk_data);
     }
+
     pub fn insert_player(&mut self, client_id: ClientId) {
         debug_assert!(!self.players.contains(&client_id), "player already in chunk");
         self.players.insert(client_id);
@@ -147,6 +152,10 @@ impl Chunk {
     
     pub fn has_players(&self) -> bool {
         !self.players.is_empty()
+    }
+
+    pub fn has_entities(&self) -> bool {
+        !self.entities.is_empty()
     }
 }
 

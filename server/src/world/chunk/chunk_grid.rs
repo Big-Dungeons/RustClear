@@ -1,5 +1,5 @@
 use crate::block::blocks::Blocks;
-use crate::network::protocol::play::clientbound::BlockChange;
+use crate::network::protocol::play::clientbound::{BlockChange, ChunkData};
 use crate::world::chunk::chunk::Chunk;
 use glam::{ivec3, IVec3};
 use std::cmp::{max, min};
@@ -13,8 +13,6 @@ pub struct ChunkGrid {
 
     index_offset_x: usize,
     index_offset_z: usize,
-    
-    pub empty_chunk: Chunk,
 }
 
 #[derive(PartialEq)]
@@ -35,7 +33,6 @@ impl ChunkGrid {
             size,
             index_offset_x: offset_x,
             index_offset_z: offset_z,
-            empty_chunk: Chunk::new(),
         }
     }
 
@@ -175,6 +172,16 @@ impl ChunkGrid {
         iterate_blocks(start, end, |x, y, z| {
             self.set_block_at(block, x, y, z)
         })
+    }
+
+    pub fn get_unload_chunk_packet(chunk_x: i32, chunk_z: i32) -> ChunkData {
+        ChunkData {
+            chunk_x,
+            chunk_z,
+            is_new_chunk: true,
+            bitmask: 0,
+            data: vec![],
+        }
     }
 }
 

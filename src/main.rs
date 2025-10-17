@@ -10,8 +10,8 @@ use server::entity::entity_metadata::{EntityMetadata, EntityVariant};
 use server::inventory::menu::OpenContainer;
 use server::network::internal_packets::NetworkThreadMessage;
 use server::network::network::start_network;
-use server::types::status::Status;
 use server::types::chat_component::{ChatComponent, MCColors};
+use server::types::status::Status;
 use server::utils::seeded_rng::{seeded_rng, SeededRng};
 use server::world::world::World;
 use std::time::Duration;
@@ -62,7 +62,6 @@ pub fn spawn_mort(world: &mut World<Dungeon>) {
         Some(EntityMetadata::new(EntityVariant::NPC { npc_id: "mort" })),
         position, yaw, 0.0,
         InteractableNPC { default_yaw: yaw, default_pitch: 0.0, interact_callback: |player| {
-            player.world().network_tx.send(NetworkThreadMessage::DisconnectClient { client_id: player.client_id });
             // todo: messages / dialogue
             if let DungeonState::Started { .. } = player.world().state {
                 return;

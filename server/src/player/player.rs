@@ -15,7 +15,7 @@ use crate::network::protocol::play::serverbound::PlayerDiggingAction;
 use crate::player::packet_handling::BlockInteractResult;
 use crate::types::aabb::AABB;
 use crate::world::chunk::chunk::get_chunk_position;
-use crate::world::chunk::chunk_grid::ChunkDiff;
+use crate::world::chunk::chunk_grid::{ChunkDiff, ChunkGrid};
 use crate::world::world::VIEW_DISTANCE;
 use crate::world::world::{World, WorldExtension};
 use fstr::FString;
@@ -156,7 +156,12 @@ impl<E : PlayerExtension> Player<E> {
         // must be done here instead of instantly after chunks are sent,
         // otherwise entities occasionally appear invisible
         self.spawn_entities();
-        self.remove_npc_profiles();
+
+        // ive come into issue where if it despawn, the profile will be gone on the client
+        // so you can't do this to avoid it appearing in tab list
+        // you'd need to
+
+        // self.remove_npc_profiles();
 
         self.ticks_existed += 1;
         self.write_packet(&ConfirmTransaction {
@@ -214,7 +219,7 @@ impl<E : PlayerExtension> Player<E> {
                             }
                         }
                     }
-                    chunk_grid.empty_chunk.write_chunk_data(x, z, true, &mut self.packet_buffer);
+                    self.write_packet(&ChunkGrid::get_unload_chunk_packet(x, z));
                 }
             )
         }
