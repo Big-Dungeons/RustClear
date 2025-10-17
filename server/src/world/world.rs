@@ -154,6 +154,15 @@ impl<E : WorldExtension> World<E> {
             players: &npc_data
         });
 
+        self.chunk_grid.for_each_in_view(
+            chunk_x,
+            chunk_z,
+            VIEW_DISTANCE,
+            |chunk, _, _| {
+                chunk.write_spawn_entities(player.world_mut(), &mut player.packet_buffer);
+            },
+        );
+
         player.flush_packets();
         
         let index = self.players.len();
@@ -186,8 +195,8 @@ impl<E : WorldExtension> World<E> {
         
         if let Some(chunk) = self.chunk_grid.get_chunk_mut(chunk_x, chunk_z) {
             chunk.insert_entity(entity_id);
+            entity.write_spawn(&mut chunk.packet_buffer);
         }
-        entity.spawn();
         
         let index = self.entities.len();
         self.entities.push(entity);

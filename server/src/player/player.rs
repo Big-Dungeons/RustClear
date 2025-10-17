@@ -153,9 +153,6 @@ impl<E : PlayerExtension> Player<E> {
     }
 
     pub fn tick(&mut self) {
-        // must be done here instead of instantly after chunks are sent,
-        // otherwise entities occasionally appear invisible
-        self.spawn_entities();
 
         // ive come into issue where if it despawn, the profile will be gone on the client
         // so you can't do this to avoid it appearing in tab list
@@ -201,25 +198,11 @@ impl<E : PlayerExtension> Player<E> {
                     };
                     if diff == ChunkDiff::New {
                         chunk.write_chunk_data(x, z, true, &mut self.packet_buffer);
-                        for entity_id in chunk.entities.iter() {
-                            if let Some(index) = world.entity_map.get(entity_id) {
-                                let entity = &mut world.entities[*index];
-                                entity.base.write_spawn_packet(&mut self.packet_buffer);
-                                entity.entity_impl.spawn(&mut entity.base, &mut self.packet_buffer);
-                            }
-                        }
-                        return;
+                        chunk.write_spawn_entities(self.world_mut(), &mut self.packet_buffer);
                     } else {
-                        // could maybe just rely on client to despawn?
-                        for entity_id in chunk.entities.iter() {
-                            if let Some(index) = world.entity_map.get(entity_id) {
-                                let entity = &mut world.entities[*index];
-                                entity.base.write_despawn_packet(&mut self.packet_buffer);
-                                entity.entity_impl.despawn(&mut entity.base, &mut self.packet_buffer);
-                            }
-                        }
+                        chunk.write_despawn_entities(self.world_mut(), &mut self.packet_buffer);
+                        self.write_packet(&ChunkGrid::get_unload_chunk_packet(x, z));
                     }
-                    self.write_packet(&ChunkGrid::get_unload_chunk_packet(x, z));
                 }
             )
         }
@@ -306,31 +289,6 @@ impl<E : PlayerExtension> Player<E> {
         let (yaw_sin, yaw_cos) = (-self.yaw.to_radians() - PI).sin_cos();
         let (pitch_sin, pitch_cos) = (-self.pitch.to_radians()).sin_cos();
         Vec3::new(yaw_sin * -pitch_cos, pitch_sin, yaw_cos * -pitch_cos)
-    }
-    
-    // this function spawns entities in area,
-    // this runs on first tick to allow client to load chunks
-    #[cold]
-    fn spawn_entities(&mut self) {
-        if self.ticks_existed == 0 {
-            let (chunk_x, chunk_z) = get_chunk_position(self.position);
-
-            let world = self.world_mut();
-            world.chunk_grid.for_each_in_view(
-                chunk_x,
-                chunk_z,
-                VIEW_DISTANCE,
-                |chunk, _, _| {
-                    for entity_id in chunk.entities.iter() {
-                        if let Some(index) = world.entity_map.get(entity_id) {
-                            let entity = &mut world.entities[*index];
-                            entity.base.write_spawn_packet(&mut self.packet_buffer);
-                            entity.entity_impl.spawn(&mut entity.base, &mut self.packet_buffer);
-                        }
-                    }
-                },
-            );
-        }
     }
 
     // to not appear in tab list, it must be removed

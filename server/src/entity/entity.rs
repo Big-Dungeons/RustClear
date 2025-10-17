@@ -4,7 +4,6 @@ use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::protocol::play::clientbound::{DestroyEntites, EntityTeleport, EntityYawRotate, SpawnMob, SpawnObject, SpawnPlayer};
 use crate::network::protocol::play::serverbound::EntityInteractionType;
 use crate::player::player::{Player, PlayerExtension};
-use crate::world::chunk::chunk::get_chunk_position;
 use crate::world::world::{World, WorldExtension};
 use glam::DVec3;
 use std::ptr::NonNull;
@@ -212,19 +211,16 @@ impl<W : WorldExtension> Entity<W> {
         entity.last_yaw = entity.yaw;
         entity.last_pitch = entity.pitch;
     }
-    
-    pub fn spawn(&mut self) {
-        let entity = &mut self.base;
-        let (chunk_x, chunk_z) = get_chunk_position(entity.position);
 
-        let Some(chunk) = entity.world_mut().chunk_grid.get_chunk_mut(chunk_x, chunk_z) else {
-            // early return since entity isn't in a valid chunk,
-            // there is no buffer to write spawn packets.
-            return;
-        };
+    pub fn write_spawn(&mut self, packet_buffer: &mut PacketBuffer) {
+        let base = &mut self.base;
+        base.write_spawn_packet(packet_buffer);
+        self.entity_impl.spawn(base, packet_buffer)
+    }
 
-        let packet_buffer = &mut chunk.packet_buffer;
-        entity.write_spawn_packet(packet_buffer);
-        self.entity_impl.spawn(entity, packet_buffer);
+    pub fn write_despawn(&mut self, packet_buffer: &mut PacketBuffer) {
+        let base = &mut self.base;
+        base.write_despawn_packet(packet_buffer);
+        self.entity_impl.despawn(base, packet_buffer)
     }
 }
