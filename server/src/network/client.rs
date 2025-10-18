@@ -38,10 +38,12 @@ impl ClientHandler {
         Self { writer: tx, handle }
     }
     
+    #[inline(always)]
     pub fn send(&self, data: Bytes) -> Result<(), SendError<Bytes>> {
         self.writer.send(data)
     }
     
+    #[inline(always)]
     pub fn abort(self) {
         self.handle.abort();
     }
