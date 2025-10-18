@@ -200,7 +200,7 @@ impl PacketSerializable for FString {
     fn write_size(&self) -> usize {
         var_int_size(self.len() as i32) + self.len()
     }
-    
+
     fn write(&self, buf: &mut BytesMut) {
         self.as_str().write(buf);
     }
