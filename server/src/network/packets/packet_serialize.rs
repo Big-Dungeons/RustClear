@@ -5,7 +5,6 @@ use glam::Vec3;
 use uuid::Uuid;
 
 pub trait PacketSerializable {
-
     fn write_size(&self) -> usize;
 
     fn write(&self, buf: &mut BytesMut);

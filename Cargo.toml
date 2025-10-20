@@ -12,18 +12,18 @@ members = [
 
 [dependencies]
 tokio = { version = "1.45.1", features = ["rt", "rt-multi-thread", "macros", "net", "io-util", "sync", "time", "fs"] }
-anyhow = "1.0.98"
-serde_json = "1.0.140"
+anyhow = "1.0.100"
+serde_json = "1.0.145"
 uuid = { version = "1.17.0", features = ["v4"] }
-rand = "0.9.1"
+rand = "0.9.2"
 indoc = "2.0.6"
 server = { path = "server" }
 replays = { path = "replays" }
-chrono = "0.4.41"
+chrono = "0.4.42"
 base64 = "0.22.1"
 glam = "0.30.5"
-reqwest = "0.12.23"
-zip = "5.1.1"
+reqwest = "0.12.24"
+zip = "6.0.0"
 maplit = "1.0.2"
 enumset = "1.1.10"
 fstr = { path = "crates/fstr" }
