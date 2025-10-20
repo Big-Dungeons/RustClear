@@ -107,10 +107,10 @@ impl Sidebar {
 
                 if is_size_different {
                     packet_buffer.write_packet(&Teams {
-                        name: team.clone().into(),
-                        display_name: team.clone().into(),
-                        prefix: "".into(),
-                        suffix: "".into(),
+                        name: SizedString::truncated(&team),
+                        display_name: SizedString::truncated(&team),
+                        prefix: SizedString::EMPTY,
+                        suffix: SizedString::EMPTY,
                         name_tag_visibility: "always".into(),
                         color: 15,
                         players: vec![],
@@ -126,8 +126,8 @@ impl Sidebar {
                 }
 
                 packet_buffer.write_packet(&Teams {
-                    name: team.clone().into(),
-                    display_name: team.clone().into(),
+                    name: SizedString::truncated(&team),
+                    display_name: SizedString::truncated(&team),
                     prefix: first_half,
                     suffix: second_half,
                     name_tag_visibility: "always".into(),
@@ -139,10 +139,10 @@ impl Sidebar {
 
                 if is_size_different {
                     packet_buffer.write_packet(&Teams {
-                        name: team.clone().into(),
-                        display_name: team.into(),
-                        prefix: "".into(),
-                        suffix: "".into(),
+                        name: SizedString::truncated(&team),
+                        display_name: SizedString::truncated(&team),
+                        prefix: SizedString::EMPTY,
+                        suffix: SizedString::EMPTY,
                         name_tag_visibility: "always".into(),
                         color: -1,
                         players: vec![hide_name(&name)],
