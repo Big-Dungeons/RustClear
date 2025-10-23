@@ -3,7 +3,7 @@ use crate::entity::entity::EntityId;
 use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::protocol::play::clientbound::ChunkData;
 use crate::player::player::ClientId;
-use crate::{Player, PlayerExtension, WorldExtension};
+use crate::{Player, PlayerExtension};
 use glam::DVec3;
 use std::collections::HashSet;
 

@@ -4,7 +4,6 @@ use crate::types::direction::Direction;
 use blocks::BlockMetadata;
 
 /// This type of rotation is used in blocks like Logs, etc
-// TODO: This needs Correct rotation
 #[repr(u8)]
 #[derive(PartialEq, Debug, Copy, Clone, Eq, BlockMetadata)]
 pub enum Axis {
@@ -201,8 +200,6 @@ impl Rotatable for StairDirection {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ButtonDirection(Direction);
 
-
-// todo: fix rotation, its still broken even with fixed direction values
 impl Rotatable for ButtonDirection {
     fn rotate(&self, direction: Direction) -> Self {
         ButtonDirection(self.0.rotate(direction))

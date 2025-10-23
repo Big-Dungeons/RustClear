@@ -1,7 +1,6 @@
 use bytes::Buf;
 
 pub mod bitset;
-pub mod seeded_rng;
 pub mod hasher;
 
 // not sure where to put this

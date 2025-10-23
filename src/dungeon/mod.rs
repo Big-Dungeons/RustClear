@@ -6,3 +6,4 @@ mod items;
 mod map;
 pub mod menus;
 pub mod entities;
+pub mod seeded_rng;

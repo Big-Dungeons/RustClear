@@ -1,11 +1,11 @@
 use crate::dungeon::door::door_entity::{DoorEntityAppearance, DoorEntityExtension};
 use crate::dungeon::dungeon::Dungeon;
+use crate::dungeon::seeded_rng::seeded_rng;
 use glam::{ivec3, DVec3, IVec3};
 use rand::prelude::IndexedRandom;
 use server::block::block_parameter::Axis;
 use server::block::blocks::Blocks;
 use server::block::rotatable::Rotatable;
-use server::utils::seeded_rng::seeded_rng;
 use server::world::chunk::chunk_grid::ChunkGrid;
 use server::World;
 use std::collections::HashMap;

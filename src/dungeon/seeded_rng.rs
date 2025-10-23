@@ -1,14 +1,10 @@
-use crate::utils::hasher::wyrand::WyRandRNG;
 use rand::RngCore;
+use server::utils::hasher::wyrand::WyRandRNG;
 use std::cell::UnsafeCell;
 use std::rc::Rc;
 
-// todo: move outside of server crate and into dungeon impl: no reason for this to be here
-
 // this can be moved to a value inside the dungeon type (since all rng should be per dungeon) if ever needed but itd need to be passed through to every function that needs it.
-// it would also avoid the Rc overhead (and unsafecell but i think thats basically 0 overhead).
 // technically doesnt need to be thread local since its only used in the main thread, but it does need it to call non const functions in the static...
-
 // this is basically a 1:1 copy of rand::ThreadRng but with a seed, thus its logic of unsafeCell usage applies here as well.
 
 /// A thread-local RNG that can be seeded.
