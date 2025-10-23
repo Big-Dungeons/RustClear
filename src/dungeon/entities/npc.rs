@@ -1,6 +1,7 @@
 use crate::dungeon::dungeon::Dungeon;
 use crate::dungeon::dungeon_player::DungeonPlayer;
 use server::entity::entity::{EntityBase, EntityExtension};
+use server::network::packets::packet_buffer::PacketBuffer;
 use server::network::protocol::play::serverbound::EntityInteractionType;
 use server::Player;
 
@@ -12,7 +13,7 @@ pub struct InteractableNPC {
 
 impl EntityExtension<Dungeon> for InteractableNPC {
 
-    fn tick(&mut self, entity: &mut EntityBase<Dungeon>) {
+    fn tick(&mut self, entity: &mut EntityBase<Dungeon>, _: &mut PacketBuffer) {
         if entity.ticks_existed.is_multiple_of(5) {
             return;
         }

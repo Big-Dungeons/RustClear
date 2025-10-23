@@ -51,7 +51,6 @@ pub fn initialize_world(tx: Sender<NetworkThreadMessage>) -> anyhow::Result<Worl
 }
 
 pub fn spawn_mort(world: &mut World<Dungeon>) {
-    // spawn mort
     let entrance = world.extension.entrance_room();
     let entrance = entrance.borrow();
     let mut position = entrance.get_world_block_position(ivec3(15, 69, 4)).as_dvec3();
@@ -79,7 +78,6 @@ pub fn spawn_mort(world: &mut World<Dungeon>) {
                 player.open_container(OpenContainer::Menu(Box::new(MortMenu {})))
             },
         }
-
     );
 }
 

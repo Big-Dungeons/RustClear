@@ -2,8 +2,8 @@ use crate::constants::EntityVariant;
 use crate::entity::entity::EntityBase;
 use crate::entity::entity_metadata::{EntityMetadata, PlayerMetadata};
 use crate::network::binary::var_int::VarInt;
+use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::protocol::play::clientbound::{DestroyEntites, EntityRotate, EntityTeleport, EntityYawRotate, PlayerData, PlayerListItem, SpawnMob, SpawnPlayer};
-use crate::world::chunk::get_chunk_position;
 use crate::{GameProfile, GameProfileProperty, Player, WorldExtension};
 use fstr::FString;
 use std::collections::HashMap;
@@ -18,9 +18,9 @@ pub trait EntityAppearance<W: WorldExtension> {
 
     fn leave_player_view(&self, entity: &mut EntityBase<W>, player: &mut Player<W::Player>);
 
-    fn update_position(&self, entity: &mut EntityBase<W>);
+    fn update_position(&self, entity: &mut EntityBase<W>, chunk_buffer: &mut PacketBuffer);
 
-    fn update_rotation(&self, entity: &mut EntityBase<W>);
+    fn update_rotation(&self, entity: &mut EntityBase<W>, chunk_buffer: &mut PacketBuffer);
 }
 
 pub struct MobAppearance {
@@ -62,35 +62,29 @@ impl<W: WorldExtension> EntityAppearance<W> for MobAppearance {
         })
     }
 
-    fn update_position(&self, entity: &mut EntityBase<W>) {
-        let (chunk_x, chunk_z) = get_chunk_position(entity.position);
-        if let Some(chunk) = entity.world_mut().chunk_grid.get_chunk_mut(chunk_x, chunk_z) {
-            chunk.packet_buffer.write_packet(&EntityTeleport {
-                entity_id: entity.id,
-                pos_x: entity.position.x,
-                pos_y: entity.position.y,
-                pos_z: entity.position.z,
-                yaw: entity.yaw,
-                pitch: entity.pitch,
-                on_ground: false,
-            })
-        }
+    fn update_position(&self, entity: &mut EntityBase<W>, packet_buffer: &mut PacketBuffer) {
+        packet_buffer.write_packet(&EntityTeleport {
+            entity_id: entity.id,
+            pos_x: entity.position.x,
+            pos_y: entity.position.y,
+            pos_z: entity.position.z,
+            yaw: entity.yaw,
+            pitch: entity.pitch,
+            on_ground: false,
+        })
     }
 
-    fn update_rotation(&self, entity: &mut EntityBase<W>) {
-        let (chunk_x, chunk_z) = get_chunk_position(entity.position);
-        if let Some(chunk) = entity.world_mut().chunk_grid.get_chunk_mut(chunk_x, chunk_z) {
-            chunk.packet_buffer.write_packet(&EntityRotate {
-                entity_id: entity.id,
-                yaw: entity.yaw,
-                pitch: entity.pitch,
-                on_ground: false,
-            });
-            chunk.packet_buffer.write_packet(&EntityYawRotate {
-                entity_id: entity.id,
-                yaw: entity.yaw,
-            });
-        }
+    fn update_rotation(&self, entity: &mut EntityBase<W>, packet_buffer: &mut PacketBuffer) {
+        packet_buffer.write_packet(&EntityRotate {
+            entity_id: entity.id,
+            yaw: entity.yaw,
+            pitch: entity.pitch,
+            on_ground: false,
+        });
+        packet_buffer.write_packet(&EntityYawRotate {
+            entity_id: entity.id,
+            yaw: entity.yaw,
+        });
     }
 }
 
@@ -112,6 +106,7 @@ impl PlayerAppearance {
 
 impl<W: WorldExtension> EntityAppearance<W> for PlayerAppearance {
     fn initialize(&self, _: &mut EntityBase<W>) {}
+
     fn destroy(&self, entity: &mut EntityBase<W>, packet: &mut DestroyEntites) {
         packet.entities.push(VarInt(entity.id))
     }
@@ -161,34 +156,28 @@ impl<W: WorldExtension> EntityAppearance<W> for PlayerAppearance {
         })
     }
 
-    fn update_position(&self, entity: &mut EntityBase<W>) {
-        let (chunk_x, chunk_z) = get_chunk_position(entity.position);
-        if let Some(chunk) = entity.world_mut().chunk_grid.get_chunk_mut(chunk_x, chunk_z) {
-            chunk.packet_buffer.write_packet(&EntityTeleport {
-                entity_id: entity.id,
-                pos_x: entity.position.x,
-                pos_y: entity.position.y,
-                pos_z: entity.position.z,
-                yaw: entity.yaw,
-                pitch: entity.pitch,
-                on_ground: false,
-            })
-        }
+    fn update_position(&self, entity: &mut EntityBase<W>, packet_buffer: &mut PacketBuffer) {
+        packet_buffer.write_packet(&EntityTeleport {
+            entity_id: entity.id,
+            pos_x: entity.position.x,
+            pos_y: entity.position.y,
+            pos_z: entity.position.z,
+            yaw: entity.yaw,
+            pitch: entity.pitch,
+            on_ground: false,
+        })
     }
 
-    fn update_rotation(&self, entity: &mut EntityBase<W>) {
-        let (chunk_x, chunk_z) = get_chunk_position(entity.position);
-        if let Some(chunk) = entity.world_mut().chunk_grid.get_chunk_mut(chunk_x, chunk_z) {
-            chunk.packet_buffer.write_packet(&EntityRotate {
-                entity_id: entity.id,
-                yaw: entity.yaw,
-                pitch: entity.pitch,
-                on_ground: false,
-            });
-            chunk.packet_buffer.write_packet(&EntityYawRotate {
-                entity_id: entity.id,
-                yaw: entity.yaw,
-            });
-        }
+    fn update_rotation(&self, entity: &mut EntityBase<W>, packet_buffer: &mut PacketBuffer) {
+        packet_buffer.write_packet(&EntityRotate {
+            entity_id: entity.id,
+            yaw: entity.yaw,
+            pitch: entity.pitch,
+            on_ground: false,
+        });
+        packet_buffer.write_packet(&EntityYawRotate {
+            entity_id: entity.id,
+            yaw: entity.yaw,
+        });
     }
 }

@@ -7,8 +7,8 @@ use server::entity::entity::{EntityBase, EntityExtension};
 use server::entity::entity_appearance::EntityAppearance;
 use server::entity::entity_metadata::EntityMetadata;
 use server::network::binary::var_int::VarInt;
+use server::network::packets::packet_buffer::PacketBuffer;
 use server::network::protocol::play::clientbound::{DestroyEntites, EntityAttach, EntityRelativeMove, SpawnMob, SpawnObject};
-use server::world::chunk::get_chunk_position;
 use server::Player;
 
 pub(super) struct DoorEntityAppearance {
@@ -92,17 +92,12 @@ impl EntityAppearance<Dungeon> for DoorEntityAppearance {
         })
     }
 
-    fn update_position(&self, entity: &mut EntityBase<Dungeon>) {
-        let (chunk_x, chunk_z) = get_chunk_position(entity.position);
-        let Some(chunk) = entity.world_mut().chunk_grid.get_chunk_mut(chunk_x, chunk_z) else {
-            return;
-        };
-
+    fn update_position(&self, entity: &mut EntityBase<Dungeon>, packet_buffer: &mut PacketBuffer) {
         // only y can be updated
         let difference = entity.position.y - entity.last_position.y;
 
         for entity_id in (entity.id..entity.id + 72).step_by(2) {
-            chunk.packet_buffer.write_packet(&EntityRelativeMove {
+            packet_buffer.write_packet(&EntityRelativeMove {
                 entity_id,
                 pos_x: 0.0,
                 pos_y: difference,
@@ -112,14 +107,14 @@ impl EntityAppearance<Dungeon> for DoorEntityAppearance {
         }
     }
 
-    fn update_rotation(&self, _: &mut EntityBase<Dungeon>) {}
+    fn update_rotation(&self, _: &mut EntityBase<Dungeon>, _: &mut PacketBuffer) {}
 }
 
 pub(super) struct DoorEntityExtension;
 
 impl EntityExtension<Dungeon> for DoorEntityExtension {
 
-    fn tick(&mut self, entity: &mut EntityBase<Dungeon>) {
+    fn tick(&mut self, entity: &mut EntityBase<Dungeon>, _: &mut PacketBuffer) {
         entity.position.y -= 0.25;
 
         if entity.ticks_existed == 20 {

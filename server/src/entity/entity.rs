@@ -1,6 +1,8 @@
 use crate::entity::entity_appearance::EntityAppearance;
+use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::protocol::play::clientbound::DestroyEntites;
 use crate::network::protocol::play::serverbound::EntityInteractionType;
+use crate::world::chunk::get_chunk_position;
 use crate::{Player, World, WorldExtension};
 use glam::DVec3;
 use std::ptr::NonNull;
@@ -9,7 +11,7 @@ pub type EntityId = i32;
 
 #[allow(unused_variables)]
 pub trait EntityExtension<W : WorldExtension> {
-    fn tick(&mut self, entity: &mut EntityBase<W>);
+    fn tick(&mut self, entity: &mut EntityBase<W>, chunk_buffer: &mut PacketBuffer);
 
     fn interact(
         &mut self,
@@ -86,14 +88,21 @@ impl<W : WorldExtension> Entity<W> {
     pub fn tick(&mut self) {
         let base = &mut self.base;
         base.ticks_existed += 1;
-        self.extension.tick(base);
+
+        let (chunk_x, chunk_z) = get_chunk_position(base.position);
+        let Some(chunk) = base.world_mut().chunk_grid.get_chunk_mut(chunk_x, chunk_z) else {
+            // maybe should allow ticking if not in chunk
+            return;
+        };
+
+        self.extension.tick(base, &mut chunk.packet_buffer);
         
         if base.position != base.last_position { 
-            self.appearance.update_position(base);
+            self.appearance.update_position(base, &mut chunk.packet_buffer);
             base.last_position = base.position;
         }
         if base.yaw != base.last_yaw || base.pitch != base.last_pitch {
-            self.appearance.update_rotation(base);
+            self.appearance.update_rotation(base, &mut chunk.packet_buffer);
             base.last_yaw = base.yaw;
             base.last_pitch = base.pitch;
         }
