@@ -108,7 +108,7 @@ impl<W : WorldExtension> Entity<W> {
     }
 
     pub fn leave_view(&mut self, player: &mut Player<W::Player>) {
-        self.appearance.enter_player_view(&mut self.base, player);
+        self.appearance.leave_player_view(&mut self.base, player);
     }
 
     pub fn destroy(&mut self, packet: &mut DestroyEntites) {

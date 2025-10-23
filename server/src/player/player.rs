@@ -20,7 +20,7 @@ use crate::world::world::VIEW_DISTANCE;
 use crate::world::world::{World, WorldExtension};
 use fstr::FString;
 use glam::{dvec3, DVec3, IVec3, Vec3};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::ptr::NonNull;
 use uuid::Uuid;
@@ -166,29 +166,25 @@ impl<E : PlayerExtension> Player<E> {
             accepted: false,
         });
 
-        let mut to_remove = HashSet::new();
-
-        for (uuid, ticks) in self.npc_profiles_for_removal.iter_mut() {
-            // println!("ticks {ticks}");
-            *ticks -= 1;
-            if *ticks == 0 {
+        self.npc_profiles_for_removal.retain(|k, v| {
+            *v -= 1;
+            if *v == 0 {
                 self.packet_buffer.write_packet(&PlayerListItem {
                     action: VarInt(4),
                     players: &[PlayerData {
                         ping: 0,
                         game_mode: 0,
                         profile: &GameProfile {
-                            uuid: *uuid,
+                            uuid: *k,
                             username: FString::EMPTY,
                             properties: HashMap::new(),
                         },
                         display_name: None,
                     }]
                 });
-                to_remove.insert(*uuid);
-            }
-        }
-        self.npc_profiles_for_removal.retain(|uuid, _| !to_remove.contains(uuid));
+            };
+            *v != 0
+        });
 
         // tick extension
         E::tick(self);
@@ -312,9 +308,7 @@ impl<E : PlayerExtension> Player<E> {
         Vec3::new(yaw_sin * -pitch_cos, pitch_sin, yaw_cos * -pitch_cos)
     }
 
-    pub (crate) fn test(&mut self, uuid: Uuid) {
-        // 20 ticks should be a good amount
-        println!("inserted");
+    pub(crate) fn add_delayed_profile_remove(&mut self, uuid: Uuid) {
         self.npc_profiles_for_removal.insert(uuid, 40);
     }
 }

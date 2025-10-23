@@ -150,7 +150,7 @@ impl<W: WorldExtension> EntityAppearance<W> for PlayerAppearance {
             entity_id: entity.id,
             yaw: entity.yaw,
         });
-        player.test(
+        player.add_delayed_profile_remove(
             self.uuid
         )
     }
