@@ -145,10 +145,8 @@ impl ProcessPacket for serverbound::CloseWindow {
 
 impl ProcessPacket for ClickWindow {
     fn process<P : PlayerExtension>(&self, player: &mut Player<P>) {
-        // need to take ownership because of borrow checker
-        let mut container = std::mem::replace(&mut player.open_container, OpenContainer::None);
+        let container = unsafe { player.open_container.get().as_mut().unwrap() };
         container.click_window(player, self);
-        player.open_container = container;
     }
 }
 

@@ -194,7 +194,7 @@ impl Dungeon {
 
     pub fn start_dungeon(world: &mut World<Self>) {
         for player in world.players.iter_mut() {
-            if let OpenContainer::Menu(_) = player.open_container {
+            if let OpenContainer::Menu(_) = player.get_container() {
                 player.open_container(OpenContainer::None)
             }
             player.inventory.set_slot(44, Some(DungeonItem::MagicalMap));

@@ -21,6 +21,7 @@ use crate::world::world::VIEW_DISTANCE;
 use crate::world::world::{World, WorldExtension};
 use fstr::FString;
 use glam::{dvec3, DVec3, IVec3, Vec3};
+use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::ptr::NonNull;
@@ -82,8 +83,7 @@ pub struct Player<E : PlayerExtension> {
     pub is_sneaking: bool,
 
     pub window_id: i8,
-    // todo: make certain areas not need to claim ownership
-    pub open_container: OpenContainer<E>,
+    pub(super) open_container: UnsafeCell<OpenContainer<E>>,
     pub inventory: Inventory<E::Item>,
     pub held_slot: u8,
 
@@ -124,10 +124,9 @@ impl<E : PlayerExtension> Player<E> {
             last_position: position,
             last_yaw: yaw,
             last_pitch: pitch,
-            
             is_sneaking: false,
 
-            open_container: OpenContainer::None,
+            open_container: UnsafeCell::new(OpenContainer::None),
             window_id: 0,
             inventory: Inventory::new(),
             held_slot: 0,
@@ -288,16 +287,20 @@ impl<E : PlayerExtension> Player<E> {
     }
     
     pub fn open_container(&mut self, mut container: OpenContainer<E>) {
-        if let OpenContainer::Menu(_) = self.open_container {
+        if matches!(*self.open_container.get_mut(), OpenContainer::Menu(_)) {
             self.write_packet(&clientbound::CloseWindow {
                 window_id: self.window_id,
             })
-        }
+        };
         self.window_id += 1;
         container.open(self);
-        self.open_container = container;
+        self.open_container = UnsafeCell::new(container);
     }
-    
+
+    pub fn get_container(&mut self) -> &mut OpenContainer<E> {
+        self.open_container.get_mut()
+    }
+
     pub fn sync_inventory(&mut self) {
         let mut items = Vec::new();
         for item in self.inventory.items.iter() {
@@ -307,10 +310,8 @@ impl<E : PlayerExtension> Player<E> {
             window_id: 0,
             items,
         });
-        // take ownership
-        let mut container = std::mem::replace(&mut self.open_container, OpenContainer::None);
+        let container = unsafe { self.open_container.get().as_mut().unwrap() };
         container.sync_container(self);
-        self.open_container = container;
     }
     
     pub fn rotation_vec(&self) -> Vec3 {
