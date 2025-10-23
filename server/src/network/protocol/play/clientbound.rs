@@ -1,7 +1,7 @@
 use crate::constants::particle::Particle;
 use crate::constants::potions::PotionEffect;
-use crate::constants::Sound;
-use crate::entity::entity_metadata::EntityMetadata;
+use crate::constants::{EntityVariant, ObjectVariant, Sound};
+use crate::entity::entity_metadata::{EntityMetadata, PlayerMetadata};
 use crate::inventory::item_stack::ItemStack;
 use crate::network::binary::var_int::{var_int_size, write_var_int, VarInt};
 use crate::network::packets::packet::IdentifiedPacket;
@@ -47,7 +47,8 @@ register_packets! {
     EntityYawRotate = 0x19;
     EntityStatus = 0x1a;
     EntityAttach = 0x1b;
-    PacketEntityMetadata = 0x1c;
+    // implements identified packet manually due to generics
+    // PacketEntityMetadata = 0x1c;
     AddEffect = 0x1d;
     RemoveEffect = 0x1e;
     // SetExperience 0x1f;
@@ -165,7 +166,7 @@ packet_serializable! {
         pub yaw: f32 => &((self.yaw * 256.0 / 360.0) as i8),
         pub pitch: f32 => &((self.pitch * 256.0 / 360.0) as i8),
         pub current_item: i16,
-        pub metadata: EntityMetadata,
+        pub metadata: PlayerMetadata,
     }
 }
 
@@ -180,13 +181,14 @@ const MOTION_CLAMP: f64 = 3.9;
 
 packet_serializable!{
     pub struct SpawnObject {
-        pub entity_id: VarInt,
-        pub entity_variant: i8,
+        pub entity_id: i32 => &VarInt(self.entity_id),
+        pub variant: ObjectVariant,
         pub x: f64 => &((self.x * 32.0).floor() as i32),
         pub y: f64 => &((self.y * 32.0).floor() as i32),
         pub z: f64 => &((self.z * 32.0).floor() as i32),
         pub pitch: f32 => &((self.pitch * 256.0 / 360.0) as i8),
         pub yaw: f32 => &((self.yaw * 256.0 / 360.0) as i8),
+        // IDK how to serialize this, in correlation to the metadata provided
         pub data: i32,
         pub velocity_x: f64 => &((self.velocity_x.clamp(-MOTION_CLAMP, MOTION_CLAMP) * 8000.0) as i16),
         pub velocity_y: f64 => &((self.velocity_y.clamp(-MOTION_CLAMP, MOTION_CLAMP) * 8000.0) as i16),
@@ -196,8 +198,8 @@ packet_serializable!{
 
 packet_serializable! {
     pub struct SpawnMob {
-        pub entity_id: VarInt,
-        pub entity_variant: i8,
+        pub entity_id: i32 => &VarInt(self.entity_id),
+        pub entity_variant: EntityVariant,
         pub x: f64 => &((self.x * 32.0).floor() as i32),
         pub y: f64 => &((self.y * 32.0).floor() as i32),
         pub z: f64 => &((self.z * 32.0).floor() as i32),
@@ -299,10 +301,15 @@ packet_serializable! {
 }
 
 packet_serializable! {
-    pub struct PacketEntityMetadata {
+    pub struct PacketEntityMetadata<'a, M> where &'a M : PacketSerializable {
         pub entity_id: VarInt,
-        pub metadata: EntityMetadata,
+        pub metadata: &'a M,
     }
+}
+
+// should probably make the register_packets macro work with generics, but im too lazy
+impl<M : PacketSerializable> IdentifiedPacket for PacketEntityMetadata<'_, M> {
+    const PACKET_ID: i32 = 0x1c;
 }
 
 packet_serializable! {

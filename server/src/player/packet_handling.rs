@@ -33,7 +33,7 @@ impl ProcessPacket for UseEntity {
     fn process<P : PlayerExtension>(&self, player: &mut Player<P>) {
         if let Some(index) = player.world_mut().entity_map.get(&self.entity_id.0) {
             let entity = &mut player.world_mut().entities[*index];
-            entity.entity_impl.interact(&mut entity.base, player, &self.action)
+            entity.interact(player, self.action)
         }
     }
 }
@@ -232,11 +232,8 @@ impl ProcessPacket for ClientSettings {
 
 impl ProcessPacket for ClientStatus {
     fn process<P : PlayerExtension>(&self, player: &mut Player<P>) {
-        match self {
-            ClientStatus::OpenInventory => {
-                player.open_container(OpenContainer::Inventory)
-            }
-            _ => {}
+        if let ClientStatus::OpenInventory = self {
+            player.open_container(OpenContainer::Inventory)
         }
     }
 }

@@ -20,7 +20,7 @@ use crate::world::world::VIEW_DISTANCE;
 use crate::world::world::{World, WorldExtension};
 use fstr::FString;
 use glam::{dvec3, DVec3, IVec3, Vec3};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::f32::consts::PI;
 use std::ptr::NonNull;
 use uuid::Uuid;
@@ -87,6 +87,9 @@ pub struct Player<E : PlayerExtension> {
     pub sent_block_placement: bool,
     pub ticks_existed: u32,
 
+    // removes npc from tab list after some ticks
+    npc_profiles_for_removal: HashMap<Uuid, usize>,
+
     pub extension: E
 }
 
@@ -129,6 +132,8 @@ impl<E : PlayerExtension> Player<E> {
             sent_block_placement: false,
             ticks_existed: 0,
 
+            npc_profiles_for_removal: HashMap::new(),
+
             extension,
         }
     }
@@ -154,18 +159,36 @@ impl<E : PlayerExtension> Player<E> {
 
     pub fn tick(&mut self) {
 
-        // ive come into issue where if it despawn, the profile will be gone on the client
-        // so you can't do this to avoid it appearing in tab list
-        // you'd need to
-
-        // self.remove_npc_profiles();
-
         self.ticks_existed += 1;
         self.write_packet(&ConfirmTransaction {
             window_id: 0,
             action_number: -1,
             accepted: false,
         });
+
+        let mut to_remove = HashSet::new();
+
+        for (uuid, ticks) in self.npc_profiles_for_removal.iter_mut() {
+            // println!("ticks {ticks}");
+            *ticks -= 1;
+            if *ticks == 0 {
+                self.packet_buffer.write_packet(&PlayerListItem {
+                    action: VarInt(4),
+                    players: &[PlayerData {
+                        ping: 0,
+                        game_mode: 0,
+                        profile: &GameProfile {
+                            uuid: *uuid,
+                            username: FString::EMPTY,
+                            properties: HashMap::new(),
+                        },
+                        display_name: None,
+                    }]
+                });
+                to_remove.insert(*uuid);
+            }
+        }
+        self.npc_profiles_for_removal.retain(|uuid, _| !to_remove.contains(uuid));
 
         // tick extension
         E::tick(self);
@@ -186,8 +209,6 @@ impl<E : PlayerExtension> Player<E> {
                 new_chunk.insert_player(self.client_id)
             }
             
-            // iterate over new/old chunks
-            
             self.world().chunk_grid.for_each_diff(
                 (chunk_x, chunk_z),
                 (last_chunk_x, last_chunk_z),
@@ -198,9 +219,9 @@ impl<E : PlayerExtension> Player<E> {
                     };
                     if diff == ChunkDiff::New {
                         chunk.write_chunk_data(x, z, true, &mut self.packet_buffer);
-                        chunk.write_spawn_entities(self.world_mut(), &mut self.packet_buffer);
+                        chunk.write_spawn_entities(self);
                     } else {
-                        chunk.write_despawn_entities(self.world_mut(), &mut self.packet_buffer);
+                        chunk.write_despawn_entities(self);
                         self.write_packet(&ChunkGrid::get_unload_chunk_packet(x, z));
                     }
                 }
@@ -291,28 +312,10 @@ impl<E : PlayerExtension> Player<E> {
         Vec3::new(yaw_sin * -pitch_cos, pitch_sin, yaw_cos * -pitch_cos)
     }
 
-    // to not appear in tab list, it must be removed
-    #[cold]
-    fn remove_npc_profiles(&mut self) {
-        if self.ticks_existed == 20 {
-            let world = self.world_mut();
-            let npc_data: Vec<PlayerData> = world.npc_profiles.values()
-                .map(|profile| {
-                    PlayerData {
-                        ping: 0,
-                        game_mode: 0,
-                        profile,
-                        display_name: None,
-                    }
-                })
-                .collect();
-
-            self.write_packet(&PlayerListItem {
-                action: VarInt(4),
-                players: &npc_data
-            });
-
-        }
+    pub (crate) fn test(&mut self, uuid: Uuid) {
+        // 20 ticks should be a good amount
+        println!("inserted");
+        self.npc_profiles_for_removal.insert(uuid, 40);
     }
 }
 

@@ -1,3 +1,5 @@
+#![allow(clippy::collapsible_if, clippy::too_many_arguments, clippy::new_without_default)]
+
 pub mod block;
 pub mod constants;
 pub mod entity;

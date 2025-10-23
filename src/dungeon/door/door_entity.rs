@@ -1,49 +1,56 @@
 use crate::dungeon::dungeon::Dungeon;
+use crate::dungeon::dungeon_player::DungeonPlayer;
 use glam::ivec3;
 use server::block::blocks::Blocks;
-use server::entity::entity::{EntityBase, EntityImpl};
-use server::entity::entity_metadata::{EntityMetadata, EntityVariant};
+use server::constants::{EntityVariant, ObjectVariant};
+use server::entity::entity::{EntityBase, EntityExtension};
+use server::entity::entity_appearance::EntityAppearance;
+use server::entity::entity_metadata::EntityMetadata;
 use server::network::binary::var_int::VarInt;
-use server::network::packets::packet_buffer::PacketBuffer;
 use server::network::protocol::play::clientbound::{DestroyEntites, EntityAttach, EntityRelativeMove, SpawnMob, SpawnObject};
+use server::world::chunk::get_chunk_position;
+use server::Player;
 
-pub struct DoorEntityImpl {
+pub(super) struct DoorEntityAppearance {
     pub block: Blocks,
-    pub x: i32,
-    pub z: i32,
 }
 
-// currently is specifically made for entrance, wither and blood doors only
-impl EntityImpl<Dungeon> for DoorEntityImpl {
-    fn spawn(&mut self, entity: &mut EntityBase<Dungeon>, buffer: &mut PacketBuffer) {
+impl EntityAppearance<Dungeon> for DoorEntityAppearance {
+
+    fn initialize(&self, entity: &mut EntityBase<Dungeon>) {
+        // reserve 72 entity ids
         let world = entity.world_mut();
+        for _ in 0..72 {
+            world.new_entity_id();
+        }
+    }
 
-        for x in self.x..self.x + 3 {
-            for y in 69..=72 {
-                for z in self.z..self.z + 3 {
+    fn destroy(&self, entity: &mut EntityBase<Dungeon>, packet: &mut DestroyEntites) {
+        packet.entities.extend((entity.id..entity.id + 72).map(VarInt))
+    }
+    fn enter_player_view(&self, entity: &mut EntityBase<Dungeon>, player: &mut Player<DungeonPlayer>) {
+        // println!("player {}, entity pos {:?}", player.profile.username, entity.position);
+        let mut iter = 0;
+        for x in 0..3 {
+            for y in 0..4 {
+                for z in 0..3 {
+                    let x = entity.position.x + (x as f64) + 0.5;
+                    let y = entity.position.y + (y as f64);
+                    let z = entity.position.z + (z as f64) + 0.5;
 
-                    let bat_id = world.new_entity_id();
-                    let block_id = world.new_entity_id();
-
-                    let metadata = EntityMetadata {
-                        variant: EntityVariant::Bat {
-                            hanging: false
-                        },
-                        is_invisible: true,
-                    };
-                    buffer.write_packet(&SpawnMob {
-                        entity_id: VarInt(bat_id),
-                        entity_variant: metadata.variant.get_id(),
-                        x: x as f64 + 0.5,
-                        y: y as f64 - 0.65,
-                        z: z as f64 + 0.5,
+                    player.write_packet(&SpawnMob {
+                        entity_id: entity.id + iter,
+                        entity_variant: EntityVariant::Bat,
+                        x,
+                        y: y - 0.65,
+                        z,
                         yaw: 0.0,
                         pitch: 0.0,
                         head_yaw: 0.0,
                         velocity_x: 0.0,
                         velocity_y: 0.0,
                         velocity_z: 0.0,
-                        metadata,
+                        metadata: EntityMetadata::Bat(Default::default()),
                     });
 
                     let object_data = {
@@ -53,12 +60,12 @@ impl EntityImpl<Dungeon> for DoorEntityImpl {
                         block_id | (metadata << 12)
                     };
 
-                    buffer.write_packet(&SpawnObject {
-                        entity_id: VarInt(block_id),
-                        entity_variant: 70,
-                        x: x as f64 + 0.5,
-                        y: y as f64,
-                        z: z as f64 + 0.5,
+                    player.write_packet(&SpawnObject {
+                        entity_id: entity.id + iter + 1,
+                        variant: ObjectVariant::FallingBlock,
+                        x,
+                        y,
+                        z,
                         pitch: 0.0,
                         yaw: 0.0,
                         data: object_data,
@@ -67,40 +74,65 @@ impl EntityImpl<Dungeon> for DoorEntityImpl {
                         velocity_z: 0.0,
                     });
 
-                    buffer.write_packet(&EntityAttach {
-                        entity_id: block_id,
-                        vehicle_id: bat_id,
+                    player.write_packet(&EntityAttach {
+                        entity_id: entity.id + iter + 1,
+                        vehicle_id: entity.id + iter,
                         leash: false,
-                    })
+                    });
+
+                    iter += 2;
                 }
             }
         }
     }
 
-    fn despawn(&mut self, entity: &mut EntityBase<Dungeon>, buffer: &mut PacketBuffer) {
-        buffer.write_packet(&DestroyEntites {
-            entities: (entity.id + 1..=entity.id + 72).map(|index| VarInt(index)).collect(),
+    fn leave_player_view(&self, entity: &mut EntityBase<Dungeon>, player: &mut Player<DungeonPlayer>) {
+        player.write_packet(&DestroyEntites {
+            entities: (entity.id..entity.id + 72).map(VarInt).collect(),
         })
     }
 
-    fn tick(&self, entity: &mut EntityBase<Dungeon>, buffer: &mut PacketBuffer) {
-        for entity_id in (entity.id + 1..=entity.id + 72).step_by(2) {
-             buffer.write_packet(&EntityRelativeMove {
-                 entity_id,
-                 pos_x: 0.0,
-                 pos_y: -0.25,
-                 pos_z: 0.0,
-                 on_ground: false,
-             })
+    fn update_position(&self, entity: &mut EntityBase<Dungeon>) {
+        let (chunk_x, chunk_z) = get_chunk_position(entity.position);
+        let Some(chunk) = entity.world_mut().chunk_grid.get_chunk_mut(chunk_x, chunk_z) else {
+            return;
+        };
+
+        // only y can be updated
+        let difference = entity.position.y - entity.last_position.y;
+
+        for entity_id in (entity.id..entity.id + 72).step_by(2) {
+            chunk.packet_buffer.write_packet(&EntityRelativeMove {
+                entity_id,
+                pos_x: 0.0,
+                pos_y: difference,
+                pos_z: 0.0,
+                on_ground: false,
+            });
         }
+    }
+
+    fn update_rotation(&self, _: &mut EntityBase<Dungeon>) {}
+}
+
+pub(super) struct DoorEntityExtension;
+
+impl EntityExtension<Dungeon> for DoorEntityExtension {
+
+    fn tick(&mut self, entity: &mut EntityBase<Dungeon>) {
+        entity.position.y -= 0.25;
+
         if entity.ticks_existed == 20 {
             let world = entity.world_mut();
-            world.remove_entity(entity.id);
+            let x = entity.position.x as i32;
+            let z = entity.position.z as i32;
+
             world.chunk_grid.fill_blocks(
                 Blocks::Air,
-                ivec3(self.x, 69, self.z),
-                ivec3(self.x + 2, 72, self.z + 2),
+                ivec3(x, 69, z),
+                ivec3(x + 2, 72, z + 2),
             );
+            world.remove_entity(entity.id);
         }
     }
 }

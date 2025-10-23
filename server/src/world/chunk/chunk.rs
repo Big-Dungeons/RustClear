@@ -3,7 +3,7 @@ use crate::entity::entity::EntityId;
 use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::protocol::play::clientbound::ChunkData;
 use crate::player::player::ClientId;
-use crate::{World, WorldExtension};
+use crate::{Player, PlayerExtension, WorldExtension};
 use glam::DVec3;
 use std::collections::HashSet;
 
@@ -159,28 +159,28 @@ impl Chunk {
         !self.entities.is_empty()
     }
 
-    pub fn write_spawn_entities<W : WorldExtension>(
+    pub fn write_spawn_entities<P : PlayerExtension>(
         &self,
-        world: &mut World<W>,
-        buffer: &mut PacketBuffer,
+        player: &mut Player<P>
     ) {
+        let world = player.world_mut();
         for entity_id in self.entities.iter() {
             if let Some(index) = world.entity_map.get(entity_id) {
                 let entity = &mut world.entities[*index];
-                entity.write_spawn(buffer)
+                entity.enter_view(player)
             }
         }
     }
 
-    pub fn write_despawn_entities<W : WorldExtension>(
+    pub fn write_despawn_entities<P : PlayerExtension>(
         &self,
-        world: &mut World<W>,
-        buffer: &mut PacketBuffer,
+        player: &mut Player<P>
     ) {
+        let world = player.world_mut();
         for entity_id in self.entities.iter() {
             if let Some(index) = world.entity_map.get(entity_id) {
                 let entity = &mut world.entities[*index];
-                entity.write_despawn(buffer)
+                entity.leave_view(player)
             }
         }
     }

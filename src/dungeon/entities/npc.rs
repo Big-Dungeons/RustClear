@@ -1,7 +1,6 @@
 use crate::dungeon::dungeon::Dungeon;
 use crate::dungeon::dungeon_player::DungeonPlayer;
-use server::entity::entity::{EntityBase, EntityImpl};
-use server::network::packets::packet_buffer::PacketBuffer;
+use server::entity::entity::{EntityBase, EntityExtension};
 use server::network::protocol::play::serverbound::EntityInteractionType;
 use server::Player;
 
@@ -11,11 +10,9 @@ pub struct InteractableNPC {
     pub interact_callback: fn(player: &mut Player<DungeonPlayer>),
 }
 
-impl EntityImpl<Dungeon> for InteractableNPC {
-    fn spawn(&mut self, _: &mut EntityBase<Dungeon>, _: &mut PacketBuffer) {}
-    fn despawn(&mut self, _: &mut EntityBase<Dungeon>, _: &mut PacketBuffer) {}
+impl EntityExtension<Dungeon> for InteractableNPC {
 
-    fn tick(&self, entity: &mut EntityBase<Dungeon>, _: &mut PacketBuffer) {
+    fn tick(&mut self, entity: &mut EntityBase<Dungeon>) {
         if entity.ticks_existed.is_multiple_of(5) {
             return;
         }
@@ -41,11 +38,11 @@ impl EntityImpl<Dungeon> for InteractableNPC {
     }
 
     fn interact(
-        &self,
+        &mut self,
         _: &mut EntityBase<Dungeon>,
         player: &mut Player<DungeonPlayer>,
-        _: &EntityInteractionType,
+        _: EntityInteractionType
     ) {
-        (self.interact_callback)(player);
+        (self.interact_callback)(player)
     }
 }

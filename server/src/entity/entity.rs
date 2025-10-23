@@ -1,47 +1,38 @@
-use crate::entity::entity_metadata::{EntityMetadata, EntityVariant};
-use crate::network::binary::var_int::VarInt;
-use crate::network::packets::packet_buffer::PacketBuffer;
-use crate::network::protocol::play::clientbound::{DestroyEntites, EntityTeleport, EntityYawRotate, SpawnMob, SpawnObject, SpawnPlayer};
+use crate::entity::entity_appearance::EntityAppearance;
+use crate::network::protocol::play::clientbound::DestroyEntites;
 use crate::network::protocol::play::serverbound::EntityInteractionType;
-use crate::player::player::{Player, PlayerExtension};
-use crate::world::world::{World, WorldExtension};
+use crate::{Player, World, WorldExtension};
 use glam::DVec3;
 use std::ptr::NonNull;
 
 pub type EntityId = i32;
 
-#[allow(unused)]
-pub trait EntityImpl<W : WorldExtension, P : PlayerExtension = <W as WorldExtension>::Player> {
-    
-    fn spawn(&mut self, entity: &mut EntityBase<W>, _: &mut PacketBuffer);
-    
-    fn despawn(&mut self, entity: &mut EntityBase<W>, _: &mut PacketBuffer);
-    
-    fn tick(&self, entity: &mut EntityBase<W>, _: &mut PacketBuffer);
-    
+#[allow(unused_variables)]
+pub trait EntityExtension<W : WorldExtension> {
+    fn tick(&mut self, entity: &mut EntityBase<W>);
+
     fn interact(
-        &self,
+        &mut self,
         entity: &mut EntityBase<W>,
-        player: &mut Player<P>,
-        action: &EntityInteractionType
+        player: &mut Player<W::Player>,
+        action: EntityInteractionType
     ) {}
 }
 
 pub struct EntityBase<W : WorldExtension> {
     world: NonNull<World<W>>,
     pub id: EntityId,
-    
+
     pub position: DVec3,
     pub velocity: DVec3,
     pub yaw: f32,
     pub pitch: f32,
-    
+
     pub last_position: DVec3,
     pub last_yaw: f32,
     pub last_pitch: f32,
 
     pub ticks_existed: u32,
-    pub metadata: Option<EntityMetadata>,
 }
 
 impl<W : WorldExtension> EntityBase<W> {
@@ -53,88 +44,26 @@ impl<W : WorldExtension> EntityBase<W> {
     pub fn world_mut<'a>(&mut self) -> &'a mut World<W> {
         unsafe { self.world.as_mut() }
     }
-
-    pub fn write_spawn_packet(&self, buffer: &mut PacketBuffer) {
-        let Some(metadata) = &self.metadata else {
-            return;
-        };
-        let variant = &metadata.variant;
-        if let EntityVariant::NPC { npc_id } = variant {
-            // should never be none
-            let profile = self.world().npc_profiles.get(npc_id).unwrap();
-
-            buffer.write_packet(&SpawnPlayer {
-                entity_id: self.id,
-                uuid: profile.uuid,
-                x: self.position.x,
-                y: self.position.y,
-                z: self.position.z,
-                yaw: self.yaw,
-                pitch: self.pitch,
-                current_item: 0,
-                metadata: metadata.clone(),
-            });
-            buffer.write_packet(&EntityYawRotate {
-                entity_id: self.id,
-                yaw: self.yaw,
-            })
-        } else if variant.is_object() {
-            buffer.write_packet(&SpawnObject {
-                entity_id: VarInt(self.id),
-                entity_variant: variant.get_id(),
-                x: self.position.x,
-                y: self.position.y,
-                z: self.position.z,
-                yaw: self.yaw,
-                pitch: self.pitch,
-                data: 0,
-                velocity_x: self.velocity.x,
-                velocity_y: self.velocity.y,
-                velocity_z: self.velocity.z,
-            })
-        } else {
-            buffer.write_packet(&SpawnMob {
-                entity_id: VarInt(self.id),
-                entity_variant: variant.get_id(),
-                x: self.position.x,
-                y: self.position.y,
-                z: self.position.z,
-                yaw: self.yaw,
-                pitch: self.pitch,
-                head_yaw: self.yaw,
-                velocity_x: self.velocity.x,
-                velocity_y: self.velocity.y,
-                velocity_z: self.velocity.z,
-                metadata: metadata.clone(),
-            });
-        }
-    }
-
-    // idk how to feel about handling despawning
-    pub fn write_despawn_packet(&self, buffer: &mut PacketBuffer) {
-        buffer.write_packet(&DestroyEntites {
-            entities: vec![VarInt(self.id)],
-        })
-    }
-} 
+}
 
 pub struct Entity<W : WorldExtension> {
     pub base: EntityBase<W>,
-    pub entity_impl: Box<dyn  EntityImpl<W>>,
+    appearance: Box<dyn EntityAppearance<W>>,
+    extension: Box<dyn EntityExtension<W>>,
 }
 
 impl<W : WorldExtension> Entity<W> {
-    
-    pub fn new<E : EntityImpl<W> + 'static>(
+
+    pub fn new<A : EntityAppearance<W> + 'static, E : EntityExtension<W> + 'static>(
         world: &mut World<W>,
-        entity_metadata: Option<EntityMetadata>,
         entity_id: EntityId,
         position: DVec3,
         yaw: f32,
         pitch: f32,
-        entity_impl: E
+        appearance: A,
+        extension: E,
     ) -> Self {
-        let entity_base = EntityBase {
+        let mut base = EntityBase {
             world: NonNull::from_mut(world),
             id: entity_id,
             position,
@@ -145,82 +74,44 @@ impl<W : WorldExtension> Entity<W> {
             last_yaw: yaw,
             last_pitch: pitch,
             ticks_existed: 0,
-            metadata: entity_metadata,
         };
+        appearance.initialize(&mut base);
         Self {
-            base: entity_base,
-            entity_impl: Box::new(entity_impl),
+            base,
+            appearance: Box::new(appearance),
+            extension: Box::new(extension),
+        }
+    }
+
+    pub fn tick(&mut self) {
+        let base = &mut self.base;
+        base.ticks_existed += 1;
+        self.extension.tick(base);
+        
+        if base.position != base.last_position { 
+            self.appearance.update_position(base);
+            base.last_position = base.position;
+        }
+        if base.yaw != base.last_yaw || base.pitch != base.last_pitch {
+            self.appearance.update_rotation(base);
+            base.last_yaw = base.yaw;
+            base.last_pitch = base.pitch;
         }
     }
     
-    pub fn tick(&mut self, packet_buffer: &mut PacketBuffer) {
-        let entity = &mut self.base;
-        // im not sure if it is a good idea to have it add this before or after impl tick
-        entity.ticks_existed += 1;
-        self.entity_impl.tick(entity, packet_buffer);
-        
-        if entity.position != entity.last_position || entity.yaw != entity.last_yaw || entity.pitch != entity.last_pitch {
-            if entity.metadata.is_some() {
-                packet_buffer.write_packet(&EntityTeleport {
-                    entity_id: entity.id,
-                    pos_x: entity.position.x,
-                    pos_y: entity.position.y,
-                    pos_z: entity.position.z,
-                    yaw: entity.yaw,
-                    pitch: entity.pitch,
-                    on_ground: true,
-                });
-                packet_buffer.write_packet(&EntityYawRotate {
-                    entity_id: entity.id,
-                    yaw: entity.yaw,
-                })
-            }
-
-            // let chunk_position = get_chunk_position(entity.position);
-            // let last_chunk_position = get_chunk_position(entity.last_position);
-            //
-            // if chunk_position != last_chunk_position {
-            //     let world = entity.world_mut();
-            //     let chunk_grid = &mut world.chunk_grid;
-            //
-            //     entity.world().chunk_grid.for_each_diff(
-            //         chunk_position,
-            //         last_chunk_position,
-            //         VIEW_DISTANCE,
-            //         |x, z, diff| {
-            //             // shouldn't be none?
-            //             let Some(chunk) = chunk_grid.get_chunk_mut(x, z) else {
-            //                 return;
-            //             };
-            //             if diff == ChunkDiff::New {
-            //                 entity.write_spawn_packet(&mut chunk.packet_buffer);
-            //                 self.entity_impl.spawn(entity, &mut chunk.packet_buffer);
-            //             }
-            //         }
-            //     )
-            // }
-        } /*else if entity.yaw != entity.last_yaw || entity.pitch != entity.last_pitch {
-            packet_buffer.write_packet(&EntityRotate {
-                entity_id: entity.id,
-                yaw: wrap_yaw(entity.yaw),
-                pitch: entity.pitch,
-                on_ground: false,
-            })
-        }*/
-        entity.last_position = entity.position;
-        entity.last_yaw = entity.yaw;
-        entity.last_pitch = entity.pitch;
+    pub fn interact(&mut self, player: &mut Player<W::Player>, action: EntityInteractionType) {
+        self.extension.interact(&mut self.base, player, action);
+    }
+    
+    pub fn enter_view(&mut self, player: &mut Player<W::Player>) {
+        self.appearance.enter_player_view(&mut self.base, player);
     }
 
-    pub fn write_spawn(&mut self, packet_buffer: &mut PacketBuffer) {
-        let base = &mut self.base;
-        base.write_spawn_packet(packet_buffer);
-        self.entity_impl.spawn(base, packet_buffer)
+    pub fn leave_view(&mut self, player: &mut Player<W::Player>) {
+        self.appearance.enter_player_view(&mut self.base, player);
     }
 
-    pub fn write_despawn(&mut self, packet_buffer: &mut PacketBuffer) {
-        let base = &mut self.base;
-        base.write_despawn_packet(packet_buffer);
-        self.entity_impl.despawn(base, packet_buffer)
+    pub fn destroy(&mut self, packet: &mut DestroyEntites) {
+        self.appearance.destroy(&mut self.base, packet);
     }
 }

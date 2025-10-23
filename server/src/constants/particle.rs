@@ -3,7 +3,6 @@ use bytes::BytesMut;
 
 
 #[repr(i32)]
-#[allow(dead_code)]
 #[derive(Copy, Clone)]
 pub enum Particle {
     Explosion = 0,

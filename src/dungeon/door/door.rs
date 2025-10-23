@@ -1,4 +1,4 @@
-use crate::dungeon::door::door_entity::DoorEntityImpl;
+use crate::dungeon::door::door_entity::{DoorEntityAppearance, DoorEntityExtension};
 use crate::dungeon::dungeon::Dungeon;
 use glam::{ivec3, DVec3, IVec3};
 use rand::prelude::IndexedRandom;
@@ -107,7 +107,7 @@ impl Door {
 
             let bp = ivec3(x - 2, y, z - 2).rotate(self_direction);
 
-            let mut block_to_place = block.clone();
+            let mut block_to_place = *block;
             block_to_place.rotate(self_direction);
             chunk_grid.set_block_at(block_to_place, self.x + bp.x, 69 + bp.y, self.z + bp.z);
         }
@@ -154,15 +154,11 @@ impl Door {
         );
         // door entity gets rid of blocks when it disappears
         world.spawn_entity(
-            None,
-            DVec3::new(self.x as f64, 62.0, self.z as f64),
+            DVec3::new(self.x as f64 - 1.0, 69.0, self.z as f64 - 1.0),
             0.0,
             0.0,
-            DoorEntityImpl {
-                block: self.get_block(),
-                x: self.x - 1,
-                z: self.z - 1,
-            }
+            DoorEntityAppearance { block: self.get_block() },
+            DoorEntityExtension {}
         );
     }
 

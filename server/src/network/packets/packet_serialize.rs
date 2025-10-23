@@ -1,7 +1,7 @@
 use crate::network::binary::var_int::{var_int_size, write_var_int, VarInt};
 use bytes::{BufMut, BytesMut};
 use fstr::FString;
-use glam::Vec3;
+use glam::{IVec3, Vec3};
 use uuid::Uuid;
 
 pub trait PacketSerializable {
@@ -187,6 +187,16 @@ impl PacketSerializable for Uuid {
 impl PacketSerializable for Vec3 {
     fn write_size(&self) -> usize {
         size_of::<f32>() * 3
+    }
+    fn write(&self, buf: &mut BytesMut) {
+        self.x.write(buf);
+        self.y.write(buf);
+        self.z.write(buf);
+    }
+}
+impl PacketSerializable for IVec3 {
+    fn write_size(&self) -> usize {
+        size_of::<i32>() * 3
     }
     fn write(&self, buf: &mut BytesMut) {
         self.x.write(buf);

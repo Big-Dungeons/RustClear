@@ -2,7 +2,6 @@ use crate::network::packets::packet_serialize::PacketSerializable;
 use bytes::BytesMut;
 
 #[repr(i8)]
-#[allow(dead_code)]
 #[derive(Copy, Clone)]
 pub enum PotionEffect {
     Speed = 1,

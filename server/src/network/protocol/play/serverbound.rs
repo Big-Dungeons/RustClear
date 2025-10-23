@@ -54,7 +54,7 @@ packet_deserializable! {
 }
 
 packet_deserializable! {
-    #[derive(Debug, PartialEq)]
+    #[derive(Debug, PartialEq, Copy, Clone)]
     pub enum EntityInteractionType {
         Interact,
         Attack,

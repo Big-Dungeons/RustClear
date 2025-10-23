@@ -11,6 +11,7 @@ use std::collections::HashMap;
 pub struct MortMenu;
 
 impl Menu<DungeonPlayer> for MortMenu {
+
     fn container_name(&self, _: &mut Player<DungeonPlayer>) -> &str {
         "Ready Up"
     }

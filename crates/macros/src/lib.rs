@@ -1,23 +1,13 @@
 mod packet_serializable;
 mod packet_deserializable;
-mod derive_deref;
+mod entity_metadata;
 
-use crate::derive_deref::{derive_deref_macro, derive_deref_mut_macro};
+use crate::entity_metadata::entity_metadata_serializable_macro;
 use crate::packet_deserializable::packet_deserializable_macro;
 use crate::packet_serializable::packet_serializable_macro;
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput, Fields, Ident, ItemEnum};
-
-#[proc_macro_derive(Deref)]
-pub fn derive_deref(input: TokenStream) -> TokenStream {
-    derive_deref_macro(input)
-}
-
-#[proc_macro_derive(DerefMut)]
-pub fn derive_deref_mut(input: TokenStream) -> TokenStream {
-    derive_deref_mut_macro(input)
-}
 
 #[proc_macro]
 pub fn packet_serializable(input: TokenStream) -> TokenStream {
@@ -27,6 +17,11 @@ pub fn packet_serializable(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn packet_deserializable(input: TokenStream) -> TokenStream {
     packet_deserializable_macro(input)
+}
+
+#[proc_macro]
+pub fn entity_metadata_serializable(input: TokenStream) -> TokenStream {
+    entity_metadata_serializable_macro(input)
 }
 
 
