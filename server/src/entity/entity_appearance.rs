@@ -96,7 +96,7 @@ pub struct PlayerAppearance {
 }
 
 impl PlayerAppearance {
-    
+
     pub fn new(
         metadata: PlayerMetadata,
         texture: &'static str,
@@ -146,7 +146,13 @@ impl<W: WorldExtension> EntityAppearance<W> for PlayerAppearance {
             current_item: 0,
             metadata: self.metadata,
         });
-        player.packet_buffer.write_packet(&EntityYawRotate {
+        player.write_packet(&EntityRotate {
+            entity_id: entity.id,
+            yaw: entity.yaw,
+            pitch: entity.pitch,
+            on_ground: false,
+        });
+        player.write_packet(&EntityYawRotate {
             entity_id: entity.id,
             yaw: entity.yaw,
         });
