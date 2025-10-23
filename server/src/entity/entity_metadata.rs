@@ -17,7 +17,7 @@ pub enum SkinLayers {
 entity_metadata_serializable! {
     #[derive(Copy, Clone)]
     pub struct PlayerMetadata {
-        10 => pub layers: EnumSet<SkinLayers>,
+        10 => pub layers: EnumSet<SkinLayers> = EnumSet::all(),
     }
 }
 

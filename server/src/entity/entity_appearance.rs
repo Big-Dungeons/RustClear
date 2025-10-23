@@ -5,7 +5,6 @@ use crate::network::binary::var_int::VarInt;
 use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::protocol::play::clientbound::{DestroyEntites, EntityRotate, EntityTeleport, EntityYawRotate, PlayerData, PlayerListItem, SpawnMob, SpawnPlayer};
 use crate::{GameProfile, GameProfileProperty, Player, WorldExtension};
-use enumset::EnumSet;
 use fstr::FString;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -90,14 +89,21 @@ impl<W: WorldExtension> EntityAppearance<W> for MobAppearance {
 }
 
 pub struct PlayerAppearance {
+    metadata: PlayerMetadata,
     uuid: Uuid,
     texture: &'static str,
     signature: &'static str,
 }
 
 impl PlayerAppearance {
-    pub fn new(texture: &'static str, signature: &'static str) -> Self {
+    
+    pub fn new(
+        metadata: PlayerMetadata,
+        texture: &'static str,
+        signature: &'static str
+    ) -> Self {
         Self {
+            metadata,
             uuid: Uuid::new_v4(),
             texture,
             signature,
@@ -138,17 +144,13 @@ impl<W: WorldExtension> EntityAppearance<W> for PlayerAppearance {
             yaw: entity.yaw,
             pitch: entity.pitch,
             current_item: 0,
-            metadata: PlayerMetadata {
-                layers: EnumSet::new().into()
-            },
+            metadata: self.metadata,
         });
         player.packet_buffer.write_packet(&EntityYawRotate {
             entity_id: entity.id,
             yaw: entity.yaw,
         });
-        player.add_delayed_profile_remove(
-            self.uuid
-        )
+        player.add_delayed_profile_remove(self.uuid);
     }
 
     fn leave_player_view(&self, entity: &mut EntityBase<W>, player: &mut Player<W::Player>) {
