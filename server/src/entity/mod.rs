@@ -3,3 +3,4 @@
 pub mod entity;
 pub mod entity_appearance;
 pub mod entity_metadata;
+mod entity_metadata_serializable;

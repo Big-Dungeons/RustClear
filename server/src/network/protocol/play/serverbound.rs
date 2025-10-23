@@ -260,6 +260,7 @@ impl PacketDeserializable for TabComplete {
 }
 
 packet_deserializable! {
+    #[derive(Debug)]
     pub struct ClientSettings {
         pub lang: SizedString<7>,
         pub view_distance: i8,

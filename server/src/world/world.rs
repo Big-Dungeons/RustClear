@@ -42,6 +42,7 @@ pub struct World<W: WorldExtension> {
 }
 
 impl<W: WorldExtension> World<W> {
+
     pub fn new(network_tx: UnboundedSender<NetworkThreadMessage>, extension: W) -> Self {
         Self {
             network_tx,

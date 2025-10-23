@@ -6,6 +6,7 @@ use crate::network::protocol::play::serverbound::{ArmSwing, ChatMessage, ClickWi
 use crate::player::player::{Player, PlayerExtension};
 use crate::types::chat_component::ChatComponent;
 use crate::types::direction::Direction;
+use enumset::EnumSet;
 use glam::IVec3;
 
 impl ProcessPacket for serverbound::KeepAlive {
@@ -224,9 +225,11 @@ impl ProcessPacket for TabComplete {
 }
 
 impl ProcessPacket for ClientSettings {
-    fn process<P: PlayerExtension>(&self, _: &mut Player<P>) {
-        // todo: outer layer
-
+    fn process<P: PlayerExtension>(&self, player: &mut Player<P>) {
+        if player.metadata.layers.as_u8() != self.skin_parts {
+            player.metadata.layers = EnumSet::from_u8(self.skin_parts);
+            player.dirty_metadata = true;
+        }
     }
 }
 

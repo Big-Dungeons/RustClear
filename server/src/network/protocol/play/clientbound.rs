@@ -48,7 +48,8 @@ register_packets! {
     EntityStatus = 0x1a;
     EntityAttach = 0x1b;
     // implements identified packet manually due to generics
-    // PacketEntityMetadata = 0x1c;
+    PacketEntityMetadata = 0x1c;
+    PacketPlayerMetadata = 0x1c;
     AddEffect = 0x1d;
     RemoveEffect = 0x1e;
     // SetExperience 0x1f;
@@ -301,15 +302,17 @@ packet_serializable! {
 }
 
 packet_serializable! {
-    pub struct PacketEntityMetadata<'a, M> where &'a M : PacketSerializable {
+    pub struct PacketEntityMetadata {
         pub entity_id: VarInt,
-        pub metadata: &'a M,
+        pub metadata: EntityMetadata,
     }
 }
 
-// should probably make the register_packets macro work with generics, but im too lazy
-impl<M : PacketSerializable> IdentifiedPacket for PacketEntityMetadata<'_, M> {
-    const PACKET_ID: i32 = 0x1c;
+packet_serializable! {
+    pub struct PacketPlayerMetadata {
+        pub entity_id: VarInt,
+        pub metadata: PlayerMetadata,
+    }
 }
 
 packet_serializable! {

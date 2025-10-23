@@ -1,5 +1,6 @@
 use crate::constants::Sound;
 use crate::entity::entity::EntityId;
+use crate::entity::entity_metadata::PlayerMetadata;
 use crate::inventory::item::{get_item_stack, Item};
 use crate::inventory::item_stack::ItemStack;
 use crate::inventory::menu::OpenContainer;
@@ -10,7 +11,7 @@ use crate::network::packets::packet::IdentifiedPacket;
 use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::packets::packet_serialize::PacketSerializable;
 use crate::network::protocol::play::clientbound;
-use crate::network::protocol::play::clientbound::{ConfirmTransaction, PlayerData, PlayerListItem, SoundEffect, WindowItems};
+use crate::network::protocol::play::clientbound::{ConfirmTransaction, PacketPlayerMetadata, PlayerData, PlayerListItem, SoundEffect, WindowItems};
 use crate::network::protocol::play::serverbound::PlayerDiggingAction;
 use crate::player::packet_handling::BlockInteractResult;
 use crate::types::aabb::AABB;
@@ -66,6 +67,9 @@ pub struct Player<E : PlayerExtension> {
     pub client_id: ClientId,
     pub entity_id: EntityId,
 
+    pub metadata: PlayerMetadata,
+    pub dirty_metadata: bool,
+
     pub position: DVec3,
     pub yaw: f32,
     pub pitch: f32,
@@ -107,13 +111,12 @@ impl<E : PlayerExtension> Player<E> {
     ) -> Self {
         Self {
             world: NonNull::from_mut(world),
-
             packet_buffer: PacketBuffer::new(),
-
             profile: game_profile,
             client_id,
             entity_id,
-
+            metadata: PlayerMetadata { layers: Default::default() },
+            dirty_metadata: false,
             position,
             yaw,
             pitch,
@@ -188,6 +191,14 @@ impl<E : PlayerExtension> Player<E> {
 
         // tick extension
         E::tick(self);
+
+        if self.dirty_metadata {
+            self.write_packet(&PacketPlayerMetadata {
+                entity_id: VarInt(self.entity_id),
+                metadata: self.metadata,
+            });
+            self.dirty_metadata = false;
+        }
 
         // send new and remove chunks (and entities)
         let (chunk_x, chunk_z) = get_chunk_position(self.position);

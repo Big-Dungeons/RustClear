@@ -5,6 +5,7 @@ use crate::network::binary::var_int::VarInt;
 use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::protocol::play::clientbound::{DestroyEntites, EntityRotate, EntityTeleport, EntityYawRotate, PlayerData, PlayerListItem, SpawnMob, SpawnPlayer};
 use crate::{GameProfile, GameProfileProperty, Player, WorldExtension};
+use enumset::EnumSet;
 use fstr::FString;
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -138,7 +139,7 @@ impl<W: WorldExtension> EntityAppearance<W> for PlayerAppearance {
             pitch: entity.pitch,
             current_item: 0,
             metadata: PlayerMetadata {
-                layers: u8::MAX
+                layers: EnumSet::new().into()
             },
         });
         player.packet_buffer.write_packet(&EntityYawRotate {
