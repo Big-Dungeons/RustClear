@@ -30,6 +30,12 @@ pub struct DungeonPlayer {
     // however if you pair with cooldowns it should be fine
     pub active_abilities: Cell<Vec<ActiveAbility>>,
     pub cooldowns: HashMap<DungeonItem, Cooldown>,
+
+    #[cfg(feature = "dungeon_breaker")]
+    pub pickaxe_charges: usize,
+    #[cfg(feature = "dungeon_breaker")]
+    pub broken_blocks: Vec<(IVec3, Blocks, usize)>,
+
 }
 
 impl PlayerExtension for DungeonPlayer {
@@ -70,29 +76,101 @@ impl PlayerExtension for DungeonPlayer {
             cooldown.ticks_remaining -= 1;
             cooldown.ticks_remaining != 0
         });
+
+        #[cfg(feature = "dungeon_breaker")]
+        {
+            if player.ticks_existed.is_multiple_of(20) {
+                if player.extension.pickaxe_charges != 20 {
+                    let min = min(20 - player.extension.pickaxe_charges, 2);
+                    player.extension.pickaxe_charges += min;
+                }
+            }
+
+            let chunk_grid = &mut player.world_mut().chunk_grid;
+            player.extension.broken_blocks.retain_mut(|(position, block, ticks)| {
+                *ticks -= 1;
+                if *ticks == 0 {
+                    // for last 3 seconds, every second plays a particle and sound
+                    chunk_grid.set_block_at(*block, position.x, position.y, position.z);
+                }
+               *ticks != 0
+            });
+        }
     }
 
     fn dig(player: &mut Player<Self>, position: IVec3, action: &PlayerDiggingAction) {
-        let mut restore_block = false;
-        match action {
-            PlayerDiggingAction::StartDestroyBlock => {
-                if let Some(item) = *player.inventory.get_hotbar_slot(player.held_slot as usize) {
-                    if matches!(item, DungeonItem::Pickaxe) { 
-                        restore_block = true;
+
+        #[cfg(not(feature = "dungeon_breaker"))]
+        {
+            let mut restore_block = false;
+            match action {
+                PlayerDiggingAction::StartDestroyBlock => {
+                    if let Some(item) = *player.inventory.get_hotbar_slot(player.held_slot as usize) {
+                        if matches!(item, DungeonItem::Pickaxe) {
+                            restore_block = true;
+                        }
+                    }
+
+                    // only doors can be interacted with left click I think
+                    let world = player.world_mut();
+                    DungeonPlayer::try_open_door(player, world, &position);
+                }
+                PlayerDiggingAction::FinishDestroyBlock => {
+                    restore_block = true;
+                }
+                _ => {}
+            }
+            if restore_block {
+                let block = player.world().chunk_grid.get_block_at(position.x, position.y, position.z);
+                player.write_packet(&BlockChange {
+                    block_pos: position,
+                    block_state: block.get_block_state_id(),
+                })
+            }
+        }
+
+        #[cfg(feature = "dungeon_breaker")]
+        {
+            let world = &mut player.world_mut();
+
+            let can_break = world.has_started() && player.extension.pickaxe_charges != 0;
+            if matches!(action, PlayerDiggingAction::StartDestroyBlock) && can_break {
+
+                let opened_door = DungeonPlayer::try_open_door(player, world, &position);
+                let held_slot = player.inventory.get_hotbar_slot(player.held_slot as usize);
+
+                if !opened_door && matches!(held_slot, Some(DungeonItem::Pickaxe)) {
+                    let chunk_grid = &mut world.chunk_grid;
+
+                    let block_aabb = AABB::new(
+                        position.as_dvec3() + dvec3(-0.75, -0.75, -0.75),
+                        position.as_dvec3() + dvec3(1.5, 1.5, 1.5),
+                    );
+
+                    if let Some((room_rc, _)) = &player.extension.current_room {
+                        let room = room_rc.borrow();
+
+                        // check if room doesn't allow, check if overlaps with secrets
+
+                        let mut volume_inside = 0.0;
+
+                        for bounds in room.room_bounds.iter() {
+                            volume_inside += block_aabb.intersection_volume(&bounds.aabb);
+                        }
+                        // if volume doesn't match, that means the block is likely on the border
+                        if block_aabb.volume() == volume_inside {
+                            let previous = chunk_grid.get_block_at(position.x, position.y, position.z);
+                            player.extension.broken_blocks.push((position, previous, 200));
+
+                            chunk_grid.set_block_at(Blocks::Air, position.x, position.y, position.z);
+                            player.extension.pickaxe_charges -= 1;
+                            return;
+                        }
                     }
                 }
-                
-                // only doors can be interacted with left click I think
-                let world = player.world_mut();
-                DungeonPlayer::try_open_door(player, world, &position);
             }
-            PlayerDiggingAction::FinishDestroyBlock => {
-                restore_block = true;
-            }
-            _ => {}
-        }
-        if restore_block { 
-            let block = player.world().chunk_grid.get_block_at(position.x, position.y, position.z);
+
+            let block = world.chunk_grid.get_block_at(position.x, position.y, position.z);
             player.write_packet(&BlockChange {
                 block_pos: position,
                 block_state: block.get_block_state_id(),
@@ -164,7 +242,7 @@ impl DungeonPlayer {
         None
     }
 
-    pub fn try_open_door(player: &mut Player<Self>, world: &mut World<Dungeon>, position: &IVec3) {
+    pub fn try_open_door(player: &mut Player<Self>, world: &mut World<Dungeon>, position: &IVec3) -> bool {
         if world.has_started() {
             if let Some(room_rc) = player.extension.get_current_room() {
                 for neighbour in room_rc.borrow().neighbours() {
@@ -185,10 +263,12 @@ impl DungeonPlayer {
                         door.open(world);
                     }
                     neighbour.room.borrow_mut().discovered = true;
-                    world.map.draw_room(&neighbour.room.borrow())
+                    world.map.draw_room(&neighbour.room.borrow());
+                    return true;
                 }
             }
         }
+        false
     }
     
     fn update_sidebar(player: &mut Player<DungeonPlayer>) {
@@ -267,11 +347,21 @@ impl DungeonPlayer {
                         Keys: §c■ {has_blood_key} §8■ §a{wither_key_count}x
                         Time elapsed: §a§a{time}
                         Cleared: §c{clear_percent}% §8§8({score})
-                        
+
                     "#,
                     clear_percent = "0",
                     score = "0",
                 });
+
+                // if cfg!(feature = "dungeon_breaker") {
+                #[cfg(feature = "dungeon_breaker")]
+                sidebar.push(&format!{r#"
+                    charges {charges}
+
+                "#,
+                    charges = player.extension.pickaxe_charges,
+                });
+                // }
 
                 if world.players.len() == 1 {
                     sidebar.push(indoc! {r#"

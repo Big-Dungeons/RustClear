@@ -128,21 +128,47 @@ impl Item for DungeonItem {
                     NBT::byte("HideFlags", 127),
                 ])),
             },
-            DungeonItem::Pickaxe => ItemStack {
-                item: 278,
-                stack_size: 1,
-                metadata: 0,
-                tag_compound: Some(NBT::with_nodes(vec![
-                    NBT::list("ench", TAG_COMPOUND_ID, vec![
-                        NBTNode::Compound({
-                            let mut map = HashMap::new();
-                            map.insert("lvl".into(), NBTNode::Short(10));
-                            map.insert("id".into(), NBTNode::Short(32));
-                            map
-                        })
-                    ]),
-                    NBT::compound("display", vec![
-                        NBT::list_from_string("Lore", indoc! {r#"
+            DungeonItem::Pickaxe => if cfg!(feature = "dungeon_breaker") {
+                ItemStack {
+                    item: 278,
+                    stack_size: 1,
+                    metadata: 0,
+                    tag_compound: Some(NBT::with_nodes(vec![
+                        NBT::list("ench", TAG_COMPOUND_ID, vec![
+                            NBTNode::Compound({
+                                let mut map = HashMap::new();
+                                map.insert("lvl".into(), NBTNode::Short(10));
+                                map.insert("id".into(), NBTNode::Short(32));
+                                map
+                            })
+                        ]),
+                        NBT::compound("display", vec![
+                            NBT::list_from_string("Lore", indoc! {r#"
+
+                            §9§l§kE§r§9§l RARE PICKAXE §kE
+                        "#}),
+                            NBT::string("Name", "§cDungeon Breaker"),
+                        ]),
+                        NBT::byte("Unbreakable", 1),
+                        NBT::byte("HideFlags", 127),
+                    ])),
+                }
+            } else {
+                ItemStack {
+                    item: 278,
+                    stack_size: 1,
+                    metadata: 0,
+                    tag_compound: Some(NBT::with_nodes(vec![
+                        NBT::list("ench", TAG_COMPOUND_ID, vec![
+                            NBTNode::Compound({
+                                let mut map = HashMap::new();
+                                map.insert("lvl".into(), NBTNode::Short(10));
+                                map.insert("id".into(), NBTNode::Short(32));
+                                map
+                            })
+                        ]),
+                        NBT::compound("display", vec![
+                            NBT::list_from_string("Lore", indoc! {r#"
                             §8Breaking Power 4
 
                             §9Efficiency X
@@ -151,12 +177,13 @@ impl Item for DungeonItem {
 
                             §9§l§kE§r§9§l RARE PICKAXE §kE
                         "#}),
-                        NBT::string("Name", "§9Diamond Pickaxe"),
-                    ]),
-                    NBT::byte("Unbreakable", 1),
-                    NBT::byte("HideFlags", 127),
-                ])),
-            },
+                            NBT::string("Name", "§9Diamond Pickaxe"),
+                        ]),
+                        NBT::byte("Unbreakable", 1),
+                        NBT::byte("HideFlags", 127),
+                    ])),
+                }
+            }
         }
     }
 

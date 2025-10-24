@@ -24,7 +24,6 @@ base64 = "0.22.1"
 glam = "0.30.5"
 reqwest = "0.12.24"
 zip = "6.0.0"
-maplit = "1.0.2"
 enumset = "1.1.10"
 fstr = { path = "crates/fstr" }
 
@@ -34,3 +33,6 @@ opt-level = 3
 [profile.release]
 codegen-units = 1
 lto = "thin"
+
+[features]
+dungeon_breaker = []
