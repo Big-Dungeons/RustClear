@@ -3,8 +3,11 @@ use crate::dungeon::items::ability::{Ability, ActiveAbility, Cooldown};
 use crate::dungeon::items::dungeon_items::DungeonItem;
 use crate::dungeon::room::room::Room;
 use chrono::Local;
-use glam::IVec3;
+#[cfg(feature = "dungeon_breaker")]
+use glam::{dvec3, IVec3};
 use indoc::{formatdoc, indoc};
+#[cfg(feature = "dungeon_breaker")]
+use server::block::blocks::Blocks;
 use server::constants::PotionEffect;
 use server::inventory::item::get_item_stack;
 use server::inventory::item_stack::ItemStack;
@@ -12,10 +15,14 @@ use server::network::protocol::play::clientbound::{AddEffect, BlockChange, Chat}
 use server::network::protocol::play::serverbound::PlayerDiggingAction;
 use server::player::packet_handling::BlockInteractResult;
 use server::player::sidebar::Sidebar;
+#[cfg(feature = "dungeon_breaker")]
+use server::types::aabb::AABB;
 use server::types::chat_component::ChatComponent;
 use server::types::direction::Direction;
 use server::{Player, PlayerExtension, World};
 use std::cell::{Cell, RefCell};
+#[cfg(feature = "dungeon_breaker")]
+use std::cmp::min;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
