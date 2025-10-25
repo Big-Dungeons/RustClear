@@ -128,7 +128,7 @@ impl Item for DungeonItem {
                     NBT::byte("HideFlags", 127),
                 ])),
             },
-            DungeonItem::Pickaxe => if cfg!(feature = "dungeon_breaker") {
+            DungeonItem::Pickaxe => if cfg!(feature = "dungeon-breaker") {
                 ItemStack {
                     item: 278,
                     stack_size: 1,

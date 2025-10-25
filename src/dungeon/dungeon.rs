@@ -149,9 +149,9 @@ impl WorldExtension for Dungeon {
                 cooldowns: HashMap::new(),
                 active_abilities: Cell::new(Vec::new()),
 
-                #[cfg(feature = "dungeon_breaker")]
+                #[cfg(feature = "dungeon-breaker")]
                 pickaxe_charges: 20,
-                #[cfg(feature = "dungeon_breaker")]
+                #[cfg(feature = "dungeon-breaker")]
                 broken_blocks: vec![],
             }
         );

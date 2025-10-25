@@ -24,6 +24,7 @@ use glam::{dvec3, DVec3, IVec3, Vec3};
 use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::f32::consts::PI;
+use std::ops::{Deref, DerefMut};
 use std::ptr::NonNull;
 use uuid::Uuid;
 
@@ -286,6 +287,10 @@ impl<E : PlayerExtension> Player<E> {
         )
     }
     
+    pub fn get_held_item(&self) -> &Option<E::Item> {
+        self.inventory.get_hotbar_slot(self.held_slot as usize)
+    }
+    
     pub fn open_container(&mut self, mut container: OpenContainer<E>) {
         if matches!(*self.open_container.get_mut(), OpenContainer::Menu(_)) {
             self.write_packet(&clientbound::CloseWindow {
@@ -322,6 +327,20 @@ impl<E : PlayerExtension> Player<E> {
 
     pub(crate) fn add_delayed_profile_remove(&mut self, uuid: Uuid) {
         self.npc_profiles_for_removal.insert(uuid, 40);
+    }
+}
+
+impl<P : PlayerExtension> Deref for Player<P> {
+    type Target = P;
+
+    fn deref(&self) -> &Self::Target {
+        &self.extension
+    }
+}
+
+impl<P : PlayerExtension> DerefMut for Player<P> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.extension
     }
 }
 

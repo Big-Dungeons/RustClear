@@ -1,13 +1,12 @@
 use crate::dungeon::dungeon::{Dungeon, DungeonState};
 use crate::dungeon::items::ability::{Ability, ActiveAbility, Cooldown};
+#[cfg(feature = "dungeon-breaker")]
+use crate::dungeon::items::dungeon_breaker::dungeon_breaker_dig;
 use crate::dungeon::items::dungeon_items::DungeonItem;
 use crate::dungeon::room::room::Room;
 use chrono::Local;
-#[cfg(feature = "dungeon_breaker")]
-use glam::{dvec3, IVec3};
+use glam::IVec3;
 use indoc::{formatdoc, indoc};
-#[cfg(feature = "dungeon_breaker")]
-use server::block::blocks::Blocks;
 use server::constants::PotionEffect;
 use server::inventory::item::get_item_stack;
 use server::inventory::item_stack::ItemStack;
@@ -15,14 +14,10 @@ use server::network::protocol::play::clientbound::{AddEffect, BlockChange, Chat}
 use server::network::protocol::play::serverbound::PlayerDiggingAction;
 use server::player::packet_handling::BlockInteractResult;
 use server::player::sidebar::Sidebar;
-#[cfg(feature = "dungeon_breaker")]
-use server::types::aabb::AABB;
 use server::types::chat_component::ChatComponent;
 use server::types::direction::Direction;
 use server::{Player, PlayerExtension, World};
 use std::cell::{Cell, RefCell};
-#[cfg(feature = "dungeon_breaker")]
-use std::cmp::min;
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -38,10 +33,10 @@ pub struct DungeonPlayer {
     pub active_abilities: Cell<Vec<ActiveAbility>>,
     pub cooldowns: HashMap<DungeonItem, Cooldown>,
 
-    #[cfg(feature = "dungeon_breaker")]
+    #[cfg(feature = "dungeon-breaker")]
     pub pickaxe_charges: usize,
-    #[cfg(feature = "dungeon_breaker")]
-    pub broken_blocks: Vec<(IVec3, Blocks, usize)>,
+    #[cfg(feature = "dungeon-breaker")]
+    pub broken_blocks: Vec<(IVec3, server::block::blocks::Blocks, usize)>,
 
 }
 
@@ -71,24 +66,24 @@ impl PlayerExtension for DungeonPlayer {
             DungeonPlayer::update_sidebar(player);
         }
         
-        let mut abilities = player.extension.active_abilities.take();
+        let mut abilities = player.active_abilities.take();
         abilities.retain_mut(|active| {
             active.ticks_active += 1;
             active.ability.tick(active.ticks_active, player);
             active.ticks_active != active.ability.duration()
         });
-        player.extension.active_abilities.set(abilities);
+        player.active_abilities.set(abilities);
 
-        player.extension.cooldowns.retain(|_, cooldown| {
+        player.cooldowns.retain(|_, cooldown| {
             cooldown.ticks_remaining -= 1;
             cooldown.ticks_remaining != 0
         });
 
-        #[cfg(feature = "dungeon_breaker")]
+        #[cfg(feature = "dungeon-breaker")]
         {
             if player.ticks_existed.is_multiple_of(20) {
                 if player.extension.pickaxe_charges != 20 {
-                    let min = min(20 - player.extension.pickaxe_charges, 2);
+                    let min = std::cmp::min(20 - player.extension.pickaxe_charges, 2);
                     player.extension.pickaxe_charges += min;
                 }
             }
@@ -107,7 +102,7 @@ impl PlayerExtension for DungeonPlayer {
 
     fn dig(player: &mut Player<Self>, position: IVec3, action: &PlayerDiggingAction) {
 
-        #[cfg(not(feature = "dungeon_breaker"))]
+        #[cfg(not(feature = "dungeon-breaker"))]
         {
             let mut restore_block = false;
             match action {
@@ -136,52 +131,26 @@ impl PlayerExtension for DungeonPlayer {
             }
         }
 
-        #[cfg(feature = "dungeon_breaker")]
+        #[cfg(feature = "dungeon-breaker")]
         {
-            let world = &mut player.world_mut();
+            let world = player.world_mut();
 
-            let can_break = world.has_started() && player.extension.pickaxe_charges != 0;
-            if matches!(action, PlayerDiggingAction::StartDestroyBlock) && can_break {
-
-                let opened_door = DungeonPlayer::try_open_door(player, world, &position);
-                let held_slot = player.inventory.get_hotbar_slot(player.held_slot as usize);
-
-                if !opened_door && matches!(held_slot, Some(DungeonItem::Pickaxe)) {
-                    let chunk_grid = &mut world.chunk_grid;
-
-                    let block_aabb = AABB::new(
-                        position.as_dvec3() + dvec3(-0.75, -0.75, -0.75),
-                        position.as_dvec3() + dvec3(1.5, 1.5, 1.5),
-                    );
-
-                    if let Some((room_rc, _)) = &player.extension.current_room {
-                        let room = room_rc.borrow();
-
-                        // check if room doesn't allow, check if overlaps with secrets
-
-                        let mut volume_inside = 0.0;
-
-                        for bounds in room.room_bounds.iter() {
-                            volume_inside += block_aabb.intersection_volume(&bounds.aabb);
-                        }
-                        // if volume doesn't match, that means the block is likely on the border
-                        if block_aabb.volume() == volume_inside {
-                            let previous = chunk_grid.get_block_at(position.x, position.y, position.z);
-                            player.extension.broken_blocks.push((position, previous, 200));
-
-                            chunk_grid.set_block_at(Blocks::Air, position.x, position.y, position.z);
-                            player.extension.pickaxe_charges -= 1;
-                            return;
-                        }
-                    }
-                }
+            // try open doors with left click before continuing with dungeon breaker
+            if DungeonPlayer::try_open_door(player, world, &position) {
+                return;
             }
 
-            let block = world.chunk_grid.get_block_at(position.x, position.y, position.z);
-            player.write_packet(&BlockChange {
-                block_pos: position,
-                block_state: block.get_block_state_id(),
-            })
+            if !dungeon_breaker_dig(player, world, position, action) {
+                let block = world.chunk_grid.get_block_at(
+                    position.x,
+                    position.y,
+                    position.z
+                );
+                player.write_packet(&BlockChange {
+                    block_pos: position,
+                    block_state: block.get_block_state_id(),
+                })
+            }
         }
     }
 
@@ -238,7 +207,7 @@ impl DungeonPlayer {
     }
 
     pub fn ready(player: &mut Player<Self>) {
-        player.extension.is_ready = !player.extension.is_ready;
+        player.is_ready = !player.is_ready;
         Dungeon::update_ready_status(player.world_mut(), player);
     }
 
@@ -360,15 +329,14 @@ impl DungeonPlayer {
                     score = "0",
                 });
 
-                // if cfg!(feature = "dungeon_breaker") {
-                #[cfg(feature = "dungeon_breaker")]
-                sidebar.push(&format!{r#"
+                // temp
+                #[cfg(feature = "dungeon-breaker")]
+                sidebar.push(&formatdoc!{r#"
                     charges {charges}
 
                 "#,
                     charges = player.extension.pickaxe_charges,
                 });
-                // }
 
                 if world.players.len() == 1 {
                     sidebar.push(indoc! {r#"
