@@ -37,7 +37,6 @@ pub fn dungeon_breaker_dig(
             position.as_dvec3() + dvec3(1.5, 1.5, 1.5),
         );
 
-
         // check if room doesn't allow, check if overlaps with secrets
 
         let mut volume_inside = 0.0;
@@ -48,6 +47,9 @@ pub fn dungeon_breaker_dig(
 
         if block_aabb.volume() == volume_inside {
             let previous = chunk_grid.get_block_at(position.x, position.y, position.z);
+            if previous == Blocks::Bedrock {
+                return false;
+            }
             player.extension.broken_blocks.push((position, previous, 200));
 
             chunk_grid.set_block_at(Blocks::Air, position.x, position.y, position.z);
