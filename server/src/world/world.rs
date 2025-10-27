@@ -23,6 +23,7 @@ pub trait WorldExtension: Sized {
 
     fn tick(world: &mut World<Self>);
     fn on_player_join(world: &mut World<Self>, profile: GameProfile, client_id: ClientId);
+    fn on_player_leave(world: &mut World<Self>, player: &mut Player<Self::Player>);
 }
 
 pub struct World<W: WorldExtension> {
@@ -182,7 +183,9 @@ impl<W: WorldExtension> World<W> {
         // and order wasn't preserved there so it should be fine.
         if let Some(index) = self.player_map.remove(client_id) {
             let last_index = self.players.len() - 1;
-            let player = self.players.swap_remove(index);
+
+            let mut player = self.players.swap_remove(index);
+            W::on_player_leave(self, &mut player);
 
             if last_index != index {
                 let moved_id = self.players[index].client_id;

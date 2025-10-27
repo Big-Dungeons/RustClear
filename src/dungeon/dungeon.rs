@@ -189,6 +189,15 @@ impl WorldExtension for Dungeon {
         player.sync_inventory();
         player.flush_packets()
     }
+
+    fn on_player_leave(world: &mut World<Self>, player: &mut Player<Self::Player>) {
+        #[cfg(feature = "dungeon-breaker")]
+        {
+            for (position, block, _) in player.broken_blocks.iter() {
+                world.chunk_grid.set_block_at(*block, position.x, position.y, position.z)
+            }
+        }
+    }
 }
 
 impl Dungeon {
