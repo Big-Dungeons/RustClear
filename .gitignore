@@ -4,3 +4,4 @@ src/room_data
 /assets/
 /saved_replays
 /server/saved_replays
+.DS_Store
