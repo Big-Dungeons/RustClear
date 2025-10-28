@@ -1,6 +1,8 @@
 mod packet_serializable;
 mod packet_deserializable;
+mod entity_metadata;
 
+use crate::entity_metadata::entity_metadata_serializable_macro;
 use crate::packet_deserializable::packet_deserializable_macro;
 use crate::packet_serializable::packet_serializable_macro;
 use proc_macro::TokenStream;
@@ -15,6 +17,11 @@ pub fn packet_serializable(input: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn packet_deserializable(input: TokenStream) -> TokenStream {
     packet_deserializable_macro(input)
+}
+
+#[proc_macro]
+pub fn entity_metadata_serializable(input: TokenStream) -> TokenStream {
+    entity_metadata_serializable_macro(input)
 }
 
 
@@ -46,8 +53,8 @@ pub fn block_macro(input: TokenStream) -> TokenStream {
     let rotate_arms = build_rotate(enum_name, &input_enum);
 
     let expanded = quote! {
-        use crate::server::block::metadata::BlockMetadata;
-        use crate::server::block::rotatable::Rotatable;
+        use crate::block::metadata::BlockMetadata;
+        use crate::block::rotatable::Rotatable;
 
         #input_enum
 

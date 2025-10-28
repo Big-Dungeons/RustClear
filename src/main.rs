@@ -1,458 +1,121 @@
-mod dungeon;
-mod net;
-mod server;
-mod utils;
+#![allow(clippy::collapsible_if, clippy::too_many_arguments, clippy::new_without_default)]
 
-use crate::dungeon::door::DoorType;
-use crate::dungeon::dungeon::Dungeon;
-use crate::dungeon::dungeon_state::DungeonState;
-use crate::dungeon::room::room_data::RoomData;
-use crate::net::internal_packets::{MainThreadMessage, NetworkThreadMessage};
-use crate::net::packets::packet_buffer::PacketBuffer;
-use crate::net::protocol::play::clientbound;
-use crate::net::protocol::play::clientbound::AddEffect;
-use crate::net::protocol::play::serverbound::EntityInteractionType;
-use crate::net::run_network::run_network_thread;
-use crate::net::var_int::VarInt;
-use crate::server::block::block_position::BlockPos;
-use crate::server::block::blocks::Blocks;
-use crate::server::block::rotatable::Rotatable;
-use crate::server::chunk::chunk::Chunk;
-use crate::server::chunk::chunk_grid::ChunkDiff;
-use crate::server::entity::entity::{Entity, EntityImpl};
-use crate::server::entity::entity_metadata::{EntityMetadata, EntityVariant};
-use crate::server::player::container_ui::UI;
-use crate::server::player::player::Player;
-use crate::server::player::scoreboard::ScoreboardLines;
-use crate::server::server::Server;
-use crate::server::utils::chat_component::chat_component_text::ChatComponentTextBuilder;
-use crate::server::utils::color::MCColors;
-use crate::server::utils::dvec3::DVec3;
-use crate::server::world::VIEW_DISTANCE;
-use crate::utils::hasher::deterministic_hasher::DeterministicHashMap;
-use crate::utils::seeded_rng::SeededRng;
-use anyhow::{bail, Result};
-use chrono::Local;
-use include_dir::include_dir;
-use indoc::formatdoc;
-use rand::seq::IndexedRandom;
-use std::collections::HashMap;
-use std::env;
-use std::ops::Add;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use crate::assets::{get_assets, load_assets};
+use crate::dungeon::dungeon::{Dungeon, DungeonState};
+use crate::dungeon::entities::npc::InteractableNPC;
+use crate::dungeon::menus::MortMenu;
+use crate::dungeon::seeded_rng::{seeded_rng, SeededRng};
+use anyhow::bail;
+use glam::ivec3;
+use rand::prelude::IndexedRandom;
+use server::block::rotatable::Rotatable;
+use server::entity::entity_appearance::PlayerAppearance;
+use server::inventory::menu::OpenContainer;
+use server::network::internal_packets::NetworkThreadMessage;
+use server::network::network::start_network;
+use server::types::chat_component::{ChatComponent, MCColors};
+use server::types::status::Status;
+use server::world::world::World;
+use std::time::Duration;
 use tokio::sync::mpsc::error::TryRecvError;
-use tokio::sync::mpsc::unbounded_channel;
+use tokio::sync::mpsc::UnboundedSender as Sender;
 
-#[tokio::main]
-async fn main() -> Result<()> {
-    let (network_tx, network_rx) = unbounded_channel::<NetworkThreadMessage>();
-    let (main_tx, mut main_rx) = unbounded_channel::<MainThreadMessage>();
+mod assets;
+mod dungeon;
 
-    let args: Vec<String> = env::args().collect();
-
-    let rooms_dir = include_dir!("src/room_data/");
-
-    // roomdata first digit (the key) is just a list of numbers 0..etc. this could just be a vec with roomid lookups.
-    let room_data_storage: DeterministicHashMap<usize, RoomData> = rooms_dir
-        .entries()
-        .iter()
-        .map(|file| {
-            let file = file.as_file().unwrap();
-
-            let contents = file.contents_utf8().unwrap();
-            let name = file.path().file_name().unwrap().to_str().unwrap();
-            let room_data = RoomData::from_raw_json(contents);
-
-            let name_parts: Vec<&str> = name.split(",").collect();
-            let room_id = name_parts.first().unwrap().parse::<usize>().unwrap();
-
-            (room_id, room_data)
-        })
-        .collect();
-
-    // Might be a good idea to make a new format for storing doors so that indexes etc don't need to be hard coded.
-    // But this works for now...
-    let door_data: Vec<Vec<Blocks>> = include_str!("door_data/doors.txt")
-        .split("\n")
-        .map(|line| {
-            let mut blocks: Vec<Blocks> = Vec::new();
-
-            for i in (0..line.len() - 1).step_by(4) {
-                let substr = line.get(i..i + 4).unwrap();
-                let state = u16::from_str_radix(substr, 16).unwrap();
-
-                blocks.push(Blocks::from(state));
-            }
-
-            blocks
-        })
-        .collect();
-
-    let door_type_blocks: HashMap<DoorType, Vec<Vec<Blocks>>> = HashMap::from_iter(
-        vec![
-            (DoorType::BLOOD, vec![door_data[0].clone()]),
-            (DoorType::ENTRANCE, vec![door_data[1].clone()]),
-            (
-                DoorType::NORMAL,
-                vec![
-                    door_data[1].clone(),
-                    door_data[2].clone(),
-                    door_data[3].clone(),
-                    door_data[4].clone(),
-                    door_data[5].clone(),
-                    door_data[6].clone(),
-                    door_data[7].clone(),
-                ],
-            ),
-        ]
-        .into_iter(),
-    );
-
-    let dungeon_strings = include_str!("dungeon_storage/dungeons.txt")
-        .split("\n")
-        .collect::<Vec<&str>>();
-
-    // Check if a custom dungeon str has been given via cli args
-
-    // let dungeon_str = "080809010400100211121300101415161304171418161300191403161304191905160600919999113099910991099909090099999919990929999999099999999009";
-
-    let dungeon_str = match args.len() {
-        0..=1 => {
-            let mut rng = rand::rng();
-            dungeon_strings.choose(&mut rng).unwrap()
-        }
-        _ => args.get(1).unwrap().as_str(),
-    };
-    println!("Dungeon String: {}", dungeon_str);
-
-    let rng_seed: u64 = rand::random(); // using a second seed for rng enables the same layout to have randomized rooms. Maybe should be included in the dungeon seed string?
-    // let rng_seed: u64 = 12946977352813673410;
-
-    println!("Rng Seed: {}", rng_seed);
+pub fn initialize_world(tx: Sender<NetworkThreadMessage>) -> anyhow::Result<World<Dungeon>> {
+    let rng_seed: u64 = rand::random();
     SeededRng::set_seed(rng_seed);
 
-    let dungeon = Dungeon::from_str(dungeon_str, &room_data_storage)?;
-    let mut server = Server::initialize_with_dungeon(network_tx, dungeon);
-    server.world.server = &mut server;
-    server.dungeon.server = &mut server;
+    let dungeon_layouts = &get_assets().dungeon_seeds;
+    let layout = dungeon_layouts.choose(&mut seeded_rng()).unwrap();
 
-    let mut tick_interval = tokio::time::interval(Duration::from_millis(50));
-    tokio::spawn(run_network_thread(
-        network_rx,
-        server.network_tx.clone(),
-        main_tx,
-    ));
+    let room_data_storage = &get_assets().room_data;
+    let door_type_blocks = &get_assets().door_data;
 
-    let dungeon = &server.dungeon;
+    let dungeon = Dungeon::from_string(layout, room_data_storage)?;
+    // if you do anything with entities or anything that has a pointer to world.
+    // once world moves out of this functions scope
+    // it will move in the stack causing those pointers to be invalid,
+    // this can be fixed by using Box<T> if it is required
+    let mut world = World::new(tx, dungeon);
 
-    for room in &dungeon.rooms {
-        room.load_into_world(&mut server.world);
+    for room in world.extension.rooms.iter() {
+        room.borrow().load_into_world(&mut world.chunk_grid);
     }
-    for door in &dungeon.doors {
-        door.load_into_world(&mut server.world, &door_type_blocks);
+    for door in world.extension.doors.iter() {
+        door.borrow().load_into_world(&mut world.chunk_grid, door_type_blocks)
     }
 
-    {
-        let entrance = dungeon.entrance_room();
+    Ok(world)
+}
 
-        server.world.set_spawn_point(
-            entrance.get_world_block_pos(&BlockPos {
-                x: 15,
-                y: 72,
-                z: 18,
-            })
-                .as_dvec3()
-                .add_x(0.5)
-                .add_z(0.5),
-            180.0.rotate(entrance.rotation),
-            0.0,
-        );
+pub fn spawn_mort(world: &mut World<Dungeon>) {
+    let entrance = world.extension.entrance_room();
+    let entrance = entrance.borrow();
+    let mut position = entrance.get_world_block_position(ivec3(15, 69, 4)).as_dvec3();
 
-        // test
-        pub struct MortImpl;
+    position.x += 0.5;
+    position.z += 0.5;
 
-        impl EntityImpl for MortImpl {
-            fn tick(&mut self, _: &mut Entity, _: &mut PacketBuffer) {
-                // rotate
-            }
-            fn interact(&mut self, _: &mut Entity, player: &mut Player, action: &EntityInteractionType) {
-                if action == &EntityInteractionType::InteractAt {
+    let yaw = 0.0.rotate(entrance.rotation);
+
+    world.spawn_entity(
+        position,
+        yaw,
+        0.0,
+        PlayerAppearance::new(
+            Default::default(),
+            "ewogICJ0aW1lc3RhbXAiIDogMTYxODc4MTA4Mzk0NywKICAicHJvZmlsZUlkIiA6ICJhNzdkNmQ2YmFjOWE0NzY3YTFhNzU1NjYxOTllYmY5MiIsCiAgInByb2ZpbGVOYW1lIiA6ICIwOEJFRDUiLAogICJzaWduYXR1cmVSZXF1aXJlZCIgOiB0cnVlLAogICJ0ZXh0dXJlcyIgOiB7CiAgICAiU0tJTiIgOiB7CiAgICAgICJ1cmwiIDogImh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOWI1Njg5NWI5NjU5ODk2YWQ2NDdmNTg1OTkyMzhhZjUzMmQ0NmRiOWMxYjAzODliOGJiZWI3MDk5OWRhYjMzZCIsCiAgICAgICJtZXRhZGF0YSIgOiB7CiAgICAgICAgIm1vZGVsIiA6ICJzbGltIgogICAgICB9CiAgICB9CiAgfQp9",
+            "aNIhT2Tj20v1lONBOK3fIwBqJwWnjErq20h663Gb+PVmR9Iweh1h2ZEJ2pwDDnM4Af1XFDA5hS1Z9yOc8EdVTKyyi1yj9EIvMwQz/Q4N2sBsjWGZtCe8/Zy+X82iv0APB4cumE2gkgDbPjxCFNbpVKmV3U1WzwY/GKOMHofhWS1ULedQ1TszuMmDuHPLEzWaXigZ+xt5zChXvE8QoLTfBvgb8wtqVpyxAKf/o8xQduKiNE7t+de1CwOhLqbVTGh7DU0vLC5stDuqN+nC9dS7c2CG0ori6gFoGMvP4oIss6zm1nb0laMrZidJTgmuXk2Pv4NGDBXdYcAzhfWcSWGsBVMWrJfccgFheG+YcGYaYj6V2nBp0YTqqhN4wDt3ltyTNEMOr/JKyBTLzq/F7IL6rrdyMw+MbAgCa1FhfXxtzdQE2KsL55pbr2DZ8J4DYf+/OC1pWCJ4vvA/A1qGHyi3Zwtj9lCl1Jq5Qm2P9BgWxpk0ikJefRPMg4qWOEcYnjqwXuEp+IgTJi1xr+j/+g28aS1TsF8ijaJjSbEN4urrf3RYL+PZBcggzX9VaPB0NPdioOXznIotY+S6ZW7FnSh6UnrGAKadQBVLey5zmVWMfXlBUq9JMh0csuNd4dDQCLNK8oGORhMgksOMHhVaBie4otUgJ7ThR/WPjOAKiG2TNU0=",
+        ),
+        InteractableNPC {
+            default_yaw: yaw,
+            default_pitch: 0.0,
+            interact_callback: |player| {
+                if let DungeonState::Started { .. } = player.world().state {
                     return;
                 }
-                player.open_ui(UI::MortReadyUpMenu);
-            }
+                player.open_container(OpenContainer::Menu(Box::new(MortMenu {})))
+            },
         }
+    );
+}
 
-        let id = server.world.spawn_entity(
-            entrance.get_world_block_pos(&BlockPos { x: 15, y: 69, z: 4 })
-                .as_dvec3()
-                .add(DVec3::new(0.5, 0.0, 0.5)),
-            EntityMetadata::new(EntityVariant::Zombie { is_child: false, is_villager: false }),
-            MortImpl,
-        )?;
-        let (entity, _)= &mut server.world.entities.get_mut(&id).unwrap();
-        entity.yaw = 0.0.rotate(entrance.rotation);
-    }
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    // todo: either a config file with repo/path or command line args.
+    load_assets(
+        "assets",
+        "https://github.com/Big-Dungeons/ClearData/archive/refs/heads/main.zip",
+    ).await?;
+    // ^^^ for rooms/doors this is really pointless, because there is no reason to customize them, especially once finalised
+    // I can understand it for favicon tho
 
-    // let zombie_spawn_pos = DVec3 {
-    //     x: 25.0,
-    //     y: 69.0,
-    //     z: 25.0,
-    // };
+    let text = ChatComponent::new("RustClear").color(MCColors::Gold)
+        .append(ChatComponent::new(" version ").color(MCColors::Gray))
+        .append(ChatComponent::new(env!("CARGO_PKG_VERSION")).color(MCColors::Green));
 
-    // let zombie = Entity::create_at(EntityType::Zombie, zombie_spawn_pos, server.world.new_entity_id());
-    // let path = Pathfinder::find_path(&zombie, &BlockPos { x: 10, y: 69, z: 10 }, &server.world)?;
+    let status = Status::new(0, 1, text, get_assets().icon_data);
+    let (tx, mut rx) = start_network("127.0.0.1:4972", status);
 
-    // server.world.entities.insert(zombie.entity_id, zombie);
+    let mut world = initialize_world(tx)?;
+    spawn_mort(&mut world);
 
-    let cata_line = ChatComponentTextBuilder::new("")
-        .append(
-            ChatComponentTextBuilder::new("Dungeon: ")
-                .color(MCColors::Aqua)
-                .bold()
-                .build(),
-        )
-        .append(
-            ChatComponentTextBuilder::new("Catacombs")
-                .color(MCColors::Gray)
-                .build(),
-        )
-        .build();
-
-    server.world.player_info.set_line(0, cata_line);
-
+    let mut tick_interval = tokio::time::interval(Duration::from_millis(50));
     loop {
         tick_interval.tick().await;
         // let start = std::time::Instant::now();
 
         loop {
-            match main_rx.try_recv() {
-                Ok(message) => server.process_event(message).unwrap_or_else(|err| eprintln!("Error processing event: {err}")),
+            match rx.try_recv() {
+                Ok(message) => world.process_event(message),
                 Err(TryRecvError::Empty) => break,
                 Err(TryRecvError::Disconnected) => bail!("Network thread dropped its reciever."),
             }
         }
-        
-        server.dungeon.tick();
-        server.world.tick()?;
 
-        // for entity_id in server.world.entities.keys().cloned().collect::<Vec<_>>() {
-        //     if let Some(mut entity) = server.world.entities.remove(&entity_id) {
-        //         entity.ticks_existed += 1;
-        //         // this may at some point be abused to prevent getting an entities own self if it iterates over world entities so be careful if you change this
-        //         let returned = entity.update(&mut server.world, &server.network_tx);
-        //         server.world.entities.insert(entity_id, returned);
-        //     }
-        // }
-
-        let mut i: usize = 0;
-        while i < server.tasks.len() {
-            if server.tasks[i].run_in == 0 {
-                let task = server.tasks.remove(i);
-                (task.callback)(&mut server);
-                // index isnt incremented since this entry was removed, shifting the next entry into its place.
-            } else {
-                server.tasks[i].run_in -= 1;
-                i += 1;
-            }
-        }
-
-        let tab_list_packet = server.world.player_info.get_packet();
-
-        // this needs to be changed to work with loaded chunks, tracking last sent data per player (maybe), etc.
-        // also needs to actually be in a vanilla adjacent way.
-        for player in server.world.players.values_mut() {
-            player.ticks_existed += 1;
-            player.write_packet(&clientbound::ConfirmTransaction {
-                window_id: 0,
-                action_number: -1,
-                accepted: false,
-            });
-
-            let chunk_x = (player.position.x.floor() as i32) >> 4;
-            let chunk_z = (player.position.z.floor() as i32) >> 4;
-            let last_chunk_x = (player.last_position.x.floor() as i32) >> 4;
-            let last_chunk_z = (player.last_position.z.floor() as i32) >> 4;
-
-            let delta = (chunk_x - last_chunk_x, chunk_z - last_chunk_z);
-
-            if delta.0 != 0 || delta.1 != 0 {
-                server.world.chunk_grid.for_each_diff(
-                    (chunk_x, chunk_z),
-                    (last_chunk_x, last_chunk_z),
-                    VIEW_DISTANCE as i32,
-                    |x, z, diff| match diff {
-                        ChunkDiff::New => {
-                            if let Some(chunk) = player.world_mut().chunk_grid.get_chunk_mut(x, z) {
-                                player.write_packet(&chunk.get_chunk_data(x, z, true));
-                                for entity_id in chunk.entities.iter_mut() {
-                                    let (entity, entity_impl) =
-                                        &mut server.world.entities.get_mut(&entity_id).unwrap();
-                                    let buffer = &mut chunk.packet_buffer;
-                                    entity.write_spawn_packet(buffer);
-                                    entity_impl.spawn(entity, buffer);
-                                }
-                            } else {
-                                let chunk_data = Chunk::new().get_chunk_data(x, z, true);
-                                player.write_packet(&chunk_data)
-                            };
-                        }
-                        ChunkDiff::Old => {
-                            let chunk_data = Chunk::new().get_chunk_data(x, z, true);
-                            player.write_packet(&chunk_data)
-                        }
-                    },
-                );
-            }
-
-            {
-                let view_distance = VIEW_DISTANCE as i32;
-                let min_x = chunk_x - view_distance;
-                let min_z = chunk_z - view_distance;
-                let max_x = chunk_x + view_distance;
-                let max_z = chunk_z + view_distance;
-
-                for x in min_x..=max_x {
-                    for z in min_z..=max_z {
-                        if let Some(chunk) = player.world_mut().chunk_grid.get_chunk(x, z) {
-                            player.packet_buffer.copy_from(&chunk.packet_buffer);
-                        }
-                    }
-                }
-            }
-
-            let mut sidebar_lines = ScoreboardLines(Vec::new());
-
-            // maybe match time with hypixel,
-            let now = Local::now();
-            let date = now.format("%m/%d/%y").to_string();
-            let time = now.format("%-I:%M%P").to_string();
-
-            let current_skyblock_month = {
-                const SKYBLOCK_EPOCH_START_MILLIS: u64 = 1_559_829_300_000;
-                const SKYBLOCK_YEAR_MILLIS: u64 = 124 * 60 * 60 * 1000;
-                const SKYBLOCK_MONTH_MILLIS: u64 = SKYBLOCK_YEAR_MILLIS / 12;
-                const SKYBLOCK_DAY_MILLIS: u64 = SKYBLOCK_MONTH_MILLIS / 31;
-
-                const SKYBLOCK_MONTHS: [&str; 12] = [
-                    "Early Spring", "Spring", "Late Spring",
-                    "Early Summer", "Summer", "Late Summer",
-                    "Early Autumn", "Autumn", "Late Autumn",
-                    "Early Winter", "Winter", "Late Winter",
-                ];
-
-                let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_millis() as u64;
-                let elapsed = now.saturating_sub(SKYBLOCK_EPOCH_START_MILLIS);
-                let day = (elapsed % SKYBLOCK_YEAR_MILLIS) / SKYBLOCK_DAY_MILLIS;
-                let month = (day / 31) as usize;
-                let day_of_month = (day % 31) + 1;
-
-                let suffix = match day_of_month % 100 {
-                    11..=13 => "th",
-                    _ => match day_of_month % 10 {
-                        1 => "st",
-                        2 => "nd",
-                        3 => "rd",
-                        _ => "th",
-                    },
-                };
-                format!("{} {}{}", SKYBLOCK_MONTHS[month], day_of_month, suffix)
-            };
-
-            let room_id = if let Some((index, _)) = server.dungeon.get_player_room(player) {
-                &server.dungeon.rooms[index].room_data.id
-            } else {
-                ""
-            };
-
-            sidebar_lines.push(formatdoc! {r#"
-                §e§lSKYBLOCK
-                §7{date} §8local {room_id}
-
-                {current_skyblock_month}
-                §7{time}
-                 §7⏣ §cThe Catacombs §7(F7)
-
-            "#});
-
-            match server.dungeon.state {
-                DungeonState::NotReady => {
-                    for p in player.server_mut().world.players.values() {
-                        sidebar_lines.push(format!("§c[M] §7{}", p.profile.username))
-                    }
-                    sidebar_lines.new_line();
-                }
-                DungeonState::Starting { tick_countdown } => {
-                    for p in player.server_mut().world.players.values() {
-                        sidebar_lines.push(format!("§a[M] §7{}", p.profile.username))
-                    }
-                    sidebar_lines.new_line();
-                    sidebar_lines.push(format!("Starting in: §a0§a:0{}", (tick_countdown / 20) + 1));
-                    sidebar_lines.new_line();
-                }
-                DungeonState::Started { current_ticks } => {
-                    // this is scuffed but it works
-                    let seconds = current_ticks / 20;
-                    let time = if seconds >= 60 {
-                        let minutes = seconds / 60;
-                        let seconds = seconds % 60;
-                        format!(
-                            "{}{}m{}{}s",
-                            if minutes < 10 { "0" } else { "" },
-                            minutes,
-                            if seconds < 10 { "0" } else { "" },
-                            seconds
-                        )
-                    } else {
-                        let seconds = seconds % 60;
-                        format!("{}{}s", if seconds < 10 { "0" } else { "" }, seconds)
-                    };
-                    // TODO: display correct keys, and cleared percentage
-                    // clear percentage is based on amount of tiles that are cleared.
-                    sidebar_lines.push(formatdoc! {r#"
-                        Keys: §c■ §c✖ §8§8■ §a0x
-                        Time elapsed: §a§a{time}
-                        Cleared: §c{clear_percent}% §8§8({score})
-
-                        §3§lSolo
-
-                    "#,
-                    clear_percent = "0",
-                    score = "0",
-                    });
-                }
-                DungeonState::Finished => {}
-            }
-
-            if let Some(tab_list) = &tab_list_packet {
-                player.write_packet(tab_list);
-            }
-
-            sidebar_lines.push_str("§emc.hypixel.net");
-            player.sidebar.write_update(sidebar_lines, &mut player.packet_buffer);
-
-            if player.ticks_existed % 60 == 0 {
-                player.write_packet(&AddEffect {
-                    entity_id: VarInt(player.entity_id),
-                    effect_id: 3,
-                    amplifier: 2,
-                    duration: VarInt(200),
-                    hide_particles: true,
-                });
-                player.write_packet(&AddEffect {
-                    entity_id: VarInt(player.entity_id),
-                    effect_id: 16,
-                    amplifier: 0,
-                    duration: VarInt(400),
-                    hide_particles: true,
-                });
-            }
-            player.last_position = player.position;
-            player.flush_packets();
-        }
-        for chunk in &mut server.world.chunk_grid.chunks {
-            chunk.packet_buffer = PacketBuffer::new();
-        }
-        // println!("time elapsed {:?}", start.elapsed());
+        world.tick();
+        // println!("elapsed {:?}", start.elapsed())
     }
 }

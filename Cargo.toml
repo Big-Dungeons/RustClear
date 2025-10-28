@@ -3,20 +3,29 @@ name = "RustClear"
 version = "0.1.0"
 edition = "2024"
 
+[workspace]
+members = [
+    "server",
+    "replays",
+    "crates/*"
+]
+
 [dependencies]
-bytes = "1.10.1"
-tokio = { version = "1.45.1", features = ["rt", "rt-multi-thread", "macros", "net", "io-util", "sync", "time"] }
-anyhow = "1.0.98"
-serde_json = "1.0.140"
-serde = { version = "1.0.219", features = ["derive"] }
+tokio = { version = "1.45.1", features = ["rt", "rt-multi-thread", "macros", "net", "io-util", "sync", "time", "fs"] }
+anyhow = "1.0.100"
+serde_json = "1.0.145"
 uuid = { version = "1.17.0", features = ["v4"] }
-rand = "0.9.1"
+rand = "0.9.2"
 indoc = "2.0.6"
-include_dir = "0.7.4"
-blocks = { path = "crates/macros" }
-chrono = "0.4.41"
-rand_chacha = "0.9.0"
+server = { path = "server" }
+replays = { path = "replays" }
+chrono = "0.4.42"
 base64 = "0.22.1"
+glam = "0.30.5"
+reqwest = "0.12.24"
+zip = "6.0.0"
+enumset = "1.1.10"
+fstr = { path = "crates/fstr" }
 
 [profile.dev.package."*"]
 opt-level = 3
@@ -24,3 +33,6 @@ opt-level = 3
 [profile.release]
 codegen-units = 1
 lto = "thin"
+
+[features]
+dungeon-breaker = []

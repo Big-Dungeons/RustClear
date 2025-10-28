@@ -2,7 +2,7 @@ use proc_macro::TokenStream;
 use proc_macro2::Ident;
 use quote::quote;
 use syn::parse::{Parse, ParseStream};
-use syn::{parse_macro_input, token, Expr, Generics, Token, Type, Visibility};
+use syn::{parse_macro_input, Attribute, Expr, Generics, Token, Type, Visibility};
 
 struct Field {
     vis: Visibility,
@@ -42,23 +42,29 @@ impl Parse for Field {
 }
 
 struct PacketStruct {
+    attrs: Vec<Attribute>,
     vis: Visibility,
-    struct_token: Token![struct],
+    // _struct_token: Token![struct],
     name: Ident,
     generics: Generics,
-    brace_token: token::Brace,
+    // brace_token: token::Brace,
     fields: Vec<Field>,
 }
 
 impl Parse for PacketStruct {
     fn parse(input: ParseStream) -> syn::Result<Self> {
+        let attrs: Vec<Attribute> = input.call(Attribute::parse_outer)?;
         let vis: Visibility = input.parse()?;
-        let struct_token: Token![struct] = input.parse()?;
+        let _struct_token: Token![struct] = input.parse()?;
         let name: Ident = input.parse()?;
-        let generics: Generics = input.parse()?;
+        let mut generics: Generics = input.parse()?;
+
+        if input.peek(Token![where]) {
+            generics.where_clause = Some(input.parse()?);
+        }
 
         let content;
-        let brace_token = syn::braced!(content in input);
+        let _brace_token = syn::braced!(content in input);
 
         let mut fields = Vec::new();
         while !content.is_empty() {
@@ -66,11 +72,12 @@ impl Parse for PacketStruct {
         }
 
         Ok(Self {
+            attrs,
             vis,
-            struct_token,
+            // _struct_token,
             name,
             generics,
-            brace_token,
+            // brace_token,
             fields,
         })
     }
@@ -79,6 +86,7 @@ impl Parse for PacketStruct {
 pub fn packet_serializable_macro(input: TokenStream) -> TokenStream {
     let parsed = parse_macro_input!(input as PacketStruct);
     let PacketStruct {
+        attrs,
         vis,
         name,
         generics,
@@ -121,11 +129,12 @@ pub fn packet_serializable_macro(input: TokenStream) -> TokenStream {
     });
 
     quote! {
+        #(#attrs)*
         #vis struct #name #generics {
             #(#struct_fields)*
         }
 
-        impl #impl_generics crate::net::packets::packet_serialize::PacketSerializable for #name #ty_generics #where_clause {
+        impl #impl_generics crate::network::packets::packet_serialize::PacketSerializable for #name #ty_generics #where_clause {
             fn write_size(&self) -> usize {
                 #(#write_size_fields)+*
             }

@@ -24,19 +24,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Get ClearData Room Data
-        uses: actions/checkout@v4
-        with:
-          repository: Big-Dungeons/ClearData
-          ref: main
-          path: ClearData
-
-      - name: Copy room_data into project
-        shell: bash
-        run: |
-          mkdir -p src/room_data
-          cp -r ClearData/room_data/* src/room_data/
-
       - name: Extract version from Cargo.toml
         id: get_version
         shell: bash

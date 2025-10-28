@@ -1,0 +1,19 @@
+[package]
+name = "server"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bytes = "1.10.1"
+tokio = { version = "1.48.0", features = ["rt", "rt-multi-thread", "macros", "net", "io-util", "sync", "time", "fs"] }
+anyhow = "1.0.100"
+serde_json = "1.0.140"
+serde = { version = "1.0.228", features = ["derive"] }
+uuid = { version = "1.18.1", features = ["v4"] }
+rand = "0.9.2"
+blocks = { path = "../crates/macros" }
+fstr = { path = "../crates/fstr"}
+replays = { path = "../replays" }
+glam = "0.30.8"
+enumset = "1.1.10"
+slotmap = "1.0.7"
