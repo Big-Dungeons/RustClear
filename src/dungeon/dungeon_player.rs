@@ -222,22 +222,22 @@ impl DungeonPlayer {
         if world.has_started() {
             if let Some(room_rc) = player.extension.get_current_room() {
                 for neighbour in room_rc.borrow().neighbours() {
-                    {
-                        let mut door = neighbour.door.borrow_mut();
+                    let mut door = neighbour.door.borrow_mut();
 
-                        if !door.contains(position) || door.is_open {
-                            continue;
-                        }
-                        if !door.can_open(world) {
-                            // todo: proper chat message and sound
-                            player.write_packet(&Chat {
-                                component: ChatComponent::new("no key"),
-                                chat_type: 0,
-                            });
-                            continue;
-                        }
-                        door.open(world);
+                    if !door.contains(position) || door.is_open {
+                        continue;
                     }
+                    if !door.can_open(world) {
+                        // todo: proper chat message and sound
+                        player.write_packet(&Chat {
+                            component: ChatComponent::new("no key"),
+                            chat_type: 0,
+                        });
+                        continue;
+                    }
+                    door.open(world);
+                    drop(door);
+
                     neighbour.room.borrow_mut().discovered = true;
                     world.map.draw_room(&neighbour.room.borrow());
                     return true;

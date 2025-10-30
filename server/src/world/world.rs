@@ -1,4 +1,4 @@
-use crate::constants::Particle;
+use crate::constants::{Gamemode, Particle};
 use crate::entity::entity::{Entity, EntityExtension, EntityId};
 use crate::entity::entity_appearance::EntityAppearance;
 use crate::network::binary::var_int::VarInt;
@@ -70,16 +70,26 @@ impl<W: WorldExtension> World<W> {
         pitch: f32,
         profile: GameProfile,
         client_id: ClientId,
+        gamemode: Gamemode,
         extension: W::Player,
     ) -> &mut Player<W::Player> {
         let entity_id = self.new_entity_id();
+
         let mut player = Player::new(
-            self, profile, client_id, entity_id, position, yaw, pitch, extension,
+            self,
+            profile,
+            client_id,
+            entity_id,
+            position,
+            yaw,
+            pitch,
+            gamemode,
+            extension
         );
 
         player.write_packet(&JoinGame {
             entity_id: player.entity_id,
-            gamemode: 0,
+            gamemode,
             dimension: 0,
             difficulty: 0,
             max_players: 0,

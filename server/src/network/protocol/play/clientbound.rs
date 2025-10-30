@@ -1,6 +1,6 @@
 use crate::constants::particle::Particle;
 use crate::constants::potions::PotionEffect;
-use crate::constants::{EntityVariant, ObjectVariant, Sound};
+use crate::constants::{EntityVariant, Gamemode, ObjectVariant, Sound};
 use crate::entity::entity_metadata::{EntityMetadata, PlayerMetadata};
 use crate::inventory::item_stack::ItemStack;
 use crate::network::binary::var_int::{var_int_size, write_var_int, VarInt};
@@ -100,7 +100,7 @@ register_packets! {
 packet_serializable! {
     pub struct JoinGame<'a> {
         pub entity_id: i32, // not VarInt,
-        pub gamemode: u8,
+        pub gamemode: Gamemode,
         pub dimension: u8,
         pub difficulty: u8,
         pub max_players: u8,

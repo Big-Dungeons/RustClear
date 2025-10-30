@@ -2,7 +2,7 @@ use crate::inventory::menu::OpenContainer;
 use crate::network::packets::packet::ProcessPacket;
 use crate::network::protocol::play::clientbound::Chat;
 use crate::network::protocol::play::serverbound;
-use crate::network::protocol::play::serverbound::{ArmSwing, ChatMessage, ClickWindow, ClientSettings, ClientStatus, HeldItemChange, PlayerAction, PlayerActionType, PlayerBlockPlacement, PlayerDigging, PlayerLook, PlayerPosition, PlayerPositionLook, PlayerUpdate, TabComplete, UseEntity};
+use crate::network::protocol::play::serverbound::{ArmSwing, ChatMessage, ClickWindow, ClientSettings, ClientStatus, CreativeInventoryAction, HeldItemChange, PlayerAction, PlayerActionType, PlayerBlockPlacement, PlayerDigging, PlayerLook, PlayerPosition, PlayerPositionLook, PlayerUpdate, TabComplete, UseEntity};
 use crate::player::player::{Player, PlayerExtension};
 use crate::types::chat_component::ChatComponent;
 use crate::types::direction::Direction;
@@ -153,6 +153,12 @@ impl ProcessPacket for ClickWindow {
 impl ProcessPacket for serverbound::ConfirmTransaction {
     fn process<P: PlayerExtension>(&self, _: &mut Player<P>) {
         // anti cheat
+    }
+}
+
+impl ProcessPacket for CreativeInventoryAction {
+    fn process<P: PlayerExtension>(&self, player: &mut Player<P>) {
+        // println!("{self:?}")
     }
 }
 

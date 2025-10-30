@@ -29,7 +29,7 @@ register_serverbound_packets! {
     CloseWindow = 0x0d;
     ClickWindow = 0x0e;
     ConfirmTransaction = 0x0f;
-    // CreativeInventoryAction = 0x10;
+    CreativeInventoryAction = 0x10;
     // EnchantItem = 0x11;
     // SetSign = 0x12;
     // ClientAbilities = 0x13;
@@ -236,6 +236,14 @@ packet_deserializable! {
         pub window_id: i8,
         pub action_number: i16,
         pub accepted: bool,
+    }
+}
+
+packet_deserializable! {
+    #[derive(Debug)]
+    pub struct CreativeInventoryAction {
+        pub slot_id: i16,
+        pub item_stack: Option<ItemStack>,
     }
 }
 

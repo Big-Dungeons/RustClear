@@ -9,6 +9,7 @@ use anyhow::bail;
 use glam::{ivec3, DVec3, IVec2};
 use server::block::block_parameter::Axis;
 use server::block::rotatable::Rotatable;
+use server::constants::Gamemode;
 use server::inventory::menu::OpenContainer;
 use server::network::binary::var_int::VarInt;
 use server::network::protocol::play::clientbound::{Chat, EntityProperties, PlayerAbilities};
@@ -142,6 +143,7 @@ impl WorldExtension for Dungeon {
             0.0,
             profile,
             client_id,
+            Gamemode::Survival,
             DungeonPlayer { 
                 is_ready: false,
                 sidebar: Sidebar::new(),

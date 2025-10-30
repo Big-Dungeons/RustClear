@@ -1,4 +1,4 @@
-use crate::constants::Sound;
+use crate::constants::{Gamemode, Sound};
 use crate::entity::entity::EntityId;
 use crate::entity::entity_metadata::PlayerMetadata;
 use crate::inventory::item::{get_item_stack, Item};
@@ -69,6 +69,7 @@ pub struct Player<E : PlayerExtension> {
     pub client_id: ClientId,
     pub entity_id: EntityId,
 
+    pub gamemode: Gamemode,
     pub metadata: PlayerMetadata,
     pub dirty_metadata: bool,
 
@@ -108,6 +109,7 @@ impl<E : PlayerExtension> Player<E> {
         position: DVec3,
         yaw: f32,
         pitch: f32,
+        gamemode: Gamemode,
         extension: E,
     ) -> Self {
         Self {
@@ -116,6 +118,7 @@ impl<E : PlayerExtension> Player<E> {
             profile: game_profile,
             client_id,
             entity_id,
+            gamemode,
             metadata: PlayerMetadata { layers: Default::default() },
             dirty_metadata: false,
             position,
