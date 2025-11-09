@@ -12,10 +12,10 @@ use crate::register_packets;
 use crate::types::block_position::BlockPosition;
 use crate::types::chat_component::ChatComponent;
 use crate::types::sized_string::SizedString;
-use blocks::packet_serializable;
 use bytes::BytesMut;
 use enumset::{EnumSet, EnumSetType};
 use glam::{IVec3, Vec3};
+use macros::packet_serializable;
 use uuid::Uuid;
 
 register_packets! {

@@ -1,8 +1,8 @@
 use crate::network::packets::packet::IdentifiedPacket;
 use crate::network::packets::packet_serialize::PacketSerializable;
 use crate::register_packets;
-use blocks::packet_serializable;
 use bytes::BytesMut;
+use macros::packet_serializable;
 
 register_packets! {
     StatusResponse<'_> = 0x00;

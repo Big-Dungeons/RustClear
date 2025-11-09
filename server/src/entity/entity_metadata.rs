@@ -1,7 +1,7 @@
 use crate::entity::entity_metadata_serializable::MetadataSerializable;
 use crate::network::packets::packet_serialize::PacketSerializable;
-use blocks::entity_metadata_serializable;
 use enumset::{EnumSet, EnumSetType};
+use macros::entity_metadata_serializable;
 
 #[derive(EnumSetType)]
 pub enum SkinLayers {

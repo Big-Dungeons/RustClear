@@ -7,9 +7,9 @@ use crate::register_serverbound_packets;
 use crate::types::block_position::BlockPosition;
 use crate::types::sized_string::SizedString;
 use anyhow::bail;
-use blocks::packet_deserializable;
 use bytes::Buf;
 use glam::{IVec3, Vec3};
+use macros::packet_deserializable;
 
 register_serverbound_packets! {
     Play;

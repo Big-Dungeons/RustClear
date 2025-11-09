@@ -1,6 +1,6 @@
 use crate::block::metadata::BlockMetadata;
 use crate::block::rotatable::Rotatable;
-use blocks::BlockMetadata;
+use macros::BlockMetadata;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, BlockMetadata)]

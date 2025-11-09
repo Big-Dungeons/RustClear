@@ -1,5 +1,5 @@
 use crate::types::sized_string::SizedString;
-use blocks::packet_deserializable;
+use macros::packet_deserializable;
 
 // 0x00
 packet_deserializable! {

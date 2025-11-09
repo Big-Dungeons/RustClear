@@ -3,7 +3,7 @@
 use crate::block::block_parameter::{Axis, ButtonDirection, HorizontalDirection, LeverOrientation, StairDirection, TorchDirection, TrapdoorDirection, VineMetadata};
 use crate::block::metadata::{u2, u3};
 use crate::types::direction::Direction;
-use blocks::block_macro;
+use macros::block_macro;
 
 block_macro! {
 

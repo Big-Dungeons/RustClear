@@ -1,9 +1,9 @@
 use crate::network::packets::packet::IdentifiedPacket;
 use crate::network::packets::packet_serialize::PacketSerializable;
 use crate::register_packets;
-use blocks::packet_serializable;
 use bytes::BytesMut;
 use fstr::FString;
+use macros::packet_serializable;
 
 register_packets! {
     // LoginDisconnect = 0x00;

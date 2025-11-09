@@ -1,8 +1,8 @@
 use crate::network::binary::nbt::NBT;
 use crate::network::packets::packet_deserialize::PacketDeserializable;
 use crate::network::packets::packet_serialize::PacketSerializable;
-use blocks::packet_serializable;
 use bytes::{Buf, BytesMut};
+use macros::packet_serializable;
 
 packet_serializable! {
     #[derive(Debug, Clone, PartialEq)]

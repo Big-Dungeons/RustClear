@@ -104,15 +104,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "blocks"
-version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "bumpalo"
 version = "3.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -914,6 +905,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "memchr"
 version = "2.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1361,11 +1361,11 @@ name = "server"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "blocks",
  "bytes",
  "enumset",
  "fstr",
  "glam",
+ "macros",
  "rand",
  "replays",
  "serde",

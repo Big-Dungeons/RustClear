@@ -1,4 +1,4 @@
-use blocks::packet_deserializable;
+use macros::packet_deserializable;
 
 // 0x00
 // unused since it doesn't do any reading,

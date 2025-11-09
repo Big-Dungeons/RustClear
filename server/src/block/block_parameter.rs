@@ -1,7 +1,7 @@
 use crate::block::metadata::BlockMetadata;
 use crate::block::rotatable::Rotatable;
 use crate::types::direction::Direction;
-use blocks::BlockMetadata;
+use macros::BlockMetadata;
 
 /// This type of rotation is used in blocks like Logs, etc
 #[repr(u8)]
