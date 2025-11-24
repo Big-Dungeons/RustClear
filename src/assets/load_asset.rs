@@ -2,7 +2,7 @@ use crate::dungeon::door::door::DoorType;
 use crate::dungeon::room::room_data::RoomData;
 use anyhow::Context;
 use base64::{engine::general_purpose, Engine};
-use server::block::blocks::Blocks;
+use server::block::Block;
 use server::utils::hasher::deterministic_hasher::DeterministicHashMap;
 use std::collections::HashMap;
 use std::path::Path;
@@ -49,7 +49,7 @@ impl LoadAsset for RoomDataAssets {
 
 impl LoadAsset for DoorDataAssets {
     const SUBPATH: &'static str = "door_data/doors.txt";
-    type Output = HashMap<DoorType, Vec<Vec<Blocks>>>;
+    type Output = HashMap<DoorType, Vec<Vec<Block>>>;
 
     async fn load_asset(path: &Path) -> anyhow::Result<Self::Output> {
         let path = path.join(Self::SUBPATH);
@@ -57,15 +57,15 @@ impl LoadAsset for DoorDataAssets {
 
         // Might be a good idea to make a new format for storing doors so that indexes etc don't need to be hard coded.
         // But this works for now...
-        let door_data: Vec<Vec<Blocks>> = storage
+        let door_data: Vec<Vec<Block>> = storage
             .split("\n")
             .map(|line| {
-                let mut blocks: Vec<Blocks> = Vec::new();
+                let mut blocks: Vec<Block> = Vec::new();
 
                 for i in (0..line.len() - 1).step_by(4) {
                     let substr = line.get(i..i + 4).unwrap();
                     let state = u16::from_str_radix(substr, 16).unwrap();
-                    blocks.push(Blocks::from(state));
+                    blocks.push(Block::from(state));
                 }
 
                 blocks

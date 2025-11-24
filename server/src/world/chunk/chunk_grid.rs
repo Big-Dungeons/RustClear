@@ -1,4 +1,4 @@
-use crate::block::blocks::Blocks;
+use crate::block::blocks::Block;
 use crate::network::protocol::play::clientbound::{BlockChange, ChunkData};
 use crate::world::chunk::chunk::Chunk;
 use glam::{ivec3, IVec3};
@@ -36,9 +36,9 @@ impl ChunkGrid {
         }
     }
 
-    pub fn get_block_at(&self, x: i32, y: i32, z: i32) -> Blocks {
+    pub fn get_block_at(&self, x: i32, y: i32, z: i32) -> Block {
         if !self.is_block_valid(x, y, z) {
-            return Blocks::Air;
+            return Block::Air;
         }
         let chunk_x = x >> 4;
         let chunk_z = z >> 4;
@@ -48,10 +48,10 @@ impl ChunkGrid {
             let local_z = z & 15;
             return chunk.get_block_at(local_x, y, local_z)
         }
-        Blocks::Air
+        Block::Air
     }
 
-    pub fn set_block_at(&mut self, block: Blocks, x: i32, y: i32, z: i32) {
+    pub fn set_block_at(&mut self, block: Block, x: i32, y: i32, z: i32) {
         if !self.is_block_valid(x, y, z) {
             return;
         }
@@ -64,7 +64,7 @@ impl ChunkGrid {
             chunk.set_block_at(block, local_x, y, local_z);
             chunk.packet_buffer.write_packet(&BlockChange {
                 block_pos: ivec3(x, y, z),
-                block_state: block.get_block_state_id(),
+                block_state: block.get_blockstate_id(),
             })
         }
     }
@@ -168,7 +168,7 @@ impl ChunkGrid {
         }
     }
 
-    pub fn fill_blocks(&mut self, block: Blocks, start: IVec3, end: IVec3) {
+    pub fn fill_blocks(&mut self, block: Block, start: IVec3, end: IVec3) {
         iterate_blocks(start, end, |x, y, z| {
             self.set_block_at(block, x, y, z)
         })

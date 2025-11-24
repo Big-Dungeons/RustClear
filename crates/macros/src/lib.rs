@@ -1,10 +1,11 @@
 mod packet_serializable;
 mod packet_deserializable;
 mod entity_metadata;
+mod blocks;
 
-use crate::entity_metadata::entity_metadata_serializable_macro;
 use crate::packet_deserializable::packet_deserializable_macro;
 use crate::packet_serializable::packet_serializable_macro;
+use crate::{blocks::blocks_macro, entity_metadata::entity_metadata_serializable_macro};
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, DeriveInput, Fields, Ident, ItemEnum};
@@ -24,6 +25,11 @@ pub fn entity_metadata_serializable(input: TokenStream) -> TokenStream {
     entity_metadata_serializable_macro(input)
 }
 
+
+#[proc_macro]
+pub fn blocks(input: TokenStream) -> TokenStream {
+    blocks_macro(input)
+}
 
 // todo: new file for block stuff
 // at that point im redoing the macro

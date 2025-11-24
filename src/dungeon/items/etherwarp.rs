@@ -95,9 +95,9 @@ fn traverse_voxels(chunk_grid: &ChunkGrid, start: DVec3, end: DVec3) -> EtherRes
         // Check block at current voxel coordinates
         let current_block = chunk_grid.get_block_at(x, y, z);
 
-        if !VALID_ETHER_WARP_BLOCK_IDS.contains((current_block.get_block_state_id() >> 4) as usize) {
-            let block_up1 = chunk_grid.get_block_at(x, y + 1, z).get_block_state_id() >> 4;
-            let block_up2 = chunk_grid.get_block_at(x, y + 2, z).get_block_state_id() >> 4;
+        if !VALID_ETHER_WARP_BLOCK_IDS.contains((current_block.get_blockstate_id() >> 4) as usize) {
+            let block_up1 = chunk_grid.get_block_at(x, y + 1, z).get_blockstate_id() >> 4;
+            let block_up2 = chunk_grid.get_block_at(x, y + 2, z).get_blockstate_id() >> 4;
 
             return if VALID_ETHER_WARP_BLOCK_IDS.contains(block_up1 as usize) && VALID_ETHER_WARP_BLOCK_IDS.contains(block_up2 as usize) {
                 EtherResult::Valid(x, y, z)

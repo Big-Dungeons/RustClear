@@ -1,4 +1,4 @@
-use crate::block::blocks::Blocks;
+use crate::block::blocks::Block;
 use crate::entity::entity::EntityId;
 use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::protocol::play::clientbound::ChunkData;
@@ -40,15 +40,15 @@ impl Chunk {
         }
     }
     
-    pub fn get_block_at(&self, local_x: i32, y: i32, local_z: i32) -> Blocks {
+    pub fn get_block_at(&self, local_x: i32, y: i32, local_z: i32) -> Block {
         if let Some(section) = &self.chunk_sections[(y / 16) as usize] {
             let index = ((y & 15) << 8) | (local_z << 4) | local_x;
-            return Blocks::from(section.data[index as usize])
+            return Block::from(section.data[index as usize])
         }
-        Blocks::Air
+        Block::Air
     }
     
-    pub fn set_block_at(&mut self, block: Blocks, local_x: i32, y: i32, local_z: i32) {
+    pub fn set_block_at(&mut self, block: Block, local_x: i32, y: i32, local_z: i32) {
         let section_index = (y / 16) as usize;
         if self.chunk_sections[section_index].is_none() {
             self.chunk_sections[section_index] = Some(ChunkSection {
@@ -57,13 +57,13 @@ impl Chunk {
             })
         }
         if let Some(section) = &mut self.chunk_sections[section_index] {
-            let block_state_id = block.get_block_state_id();
+            let block_state_id = block.get_blockstate_id();
             let index = ((y & 15) << 8) | (local_z << 4) | local_x;
 
             if section.data[index as usize] != 0 {
                 section.solid_block_amount -= 1;
             }
-            if block != Blocks::Air {
+            if block != Block::Air {
                 section.solid_block_amount += 1;
             }
             section.data[index as usize] = block_state_id;

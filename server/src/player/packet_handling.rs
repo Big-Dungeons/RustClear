@@ -5,7 +5,7 @@ use crate::network::protocol::play::serverbound;
 use crate::network::protocol::play::serverbound::{ArmSwing, ChatMessage, ClickWindow, ClientSettings, ClientStatus, CreativeInventoryAction, HeldItemChange, PlayerAction, PlayerActionType, PlayerBlockPlacement, PlayerDigging, PlayerLook, PlayerPosition, PlayerPositionLook, PlayerUpdate, TabComplete, UseEntity};
 use crate::player::player::{Player, PlayerExtension};
 use crate::types::chat_component::ChatComponent;
-use crate::types::direction::Direction;
+use crate::types::direction::Direction3D;
 use enumset::EnumSet;
 use glam::IVec3;
 
@@ -82,7 +82,7 @@ impl ProcessPacket for PlayerDigging {
 
 pub struct BlockInteractResult {
     pub position: IVec3,
-    pub direction: Direction,
+    pub direction: Direction3D,
 }
 
 impl ProcessPacket for PlayerBlockPlacement {
@@ -96,12 +96,12 @@ impl ProcessPacket for PlayerBlockPlacement {
                 Some(BlockInteractResult {
                     position: *self.position,
                     direction: match self.placed_direction {
-                        0 => Direction::Down,
-                        1 => Direction::Up,
-                        2 => Direction::North,
-                        3 => Direction::South,
-                        4 => Direction::West,
-                        5 => Direction::East,
+                        0 => Direction3D::Down,
+                        1 => Direction3D::Up,
+                        2 => Direction3D::North,
+                        3 => Direction3D::South,
+                        4 => Direction3D::West,
+                        5 => Direction3D::East,
                         _ => unreachable!()
                     },
                 })

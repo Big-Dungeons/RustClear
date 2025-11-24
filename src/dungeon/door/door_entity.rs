@@ -1,7 +1,7 @@
 use crate::dungeon::dungeon::Dungeon;
 use crate::dungeon::dungeon_player::DungeonPlayer;
 use glam::ivec3;
-use server::block::blocks::Blocks;
+use server::block::Block;
 use server::constants::{EntityVariant, ObjectVariant};
 use server::entity::entity::{EntityBase, EntityExtension};
 use server::entity::entity_appearance::EntityAppearance;
@@ -12,7 +12,7 @@ use server::network::protocol::play::clientbound::{DestroyEntites, EntityAttach,
 use server::Player;
 
 pub(super) struct DoorEntityAppearance {
-    pub block: Blocks,
+    pub block: Block,
 }
 
 impl EntityAppearance<Dungeon> for DoorEntityAppearance {
@@ -54,7 +54,7 @@ impl EntityAppearance<Dungeon> for DoorEntityAppearance {
                     });
 
                     let object_data = {
-                        let block_state_id = self.block.get_block_state_id() as i32;
+                        let block_state_id = self.block.get_blockstate_id() as i32;
                         let block_id = block_state_id >> 4;
                         let metadata = block_state_id & 0b1111;
                         block_id | (metadata << 12)
@@ -123,7 +123,7 @@ impl EntityExtension<Dungeon> for DoorEntityExtension {
             let z = entity.position.z as i32;
 
             world.chunk_grid.fill_blocks(
-                Blocks::Air,
+                Block::Air,
                 ivec3(x, 69, z),
                 ivec3(x + 2, 72, z + 2),
             );

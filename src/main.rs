@@ -101,6 +101,12 @@ async fn main() -> anyhow::Result<()> {
 
     let mut world = initialize_world(tx)?;
     spawn_mort(&mut world);
+    
+    for room in world.rooms.iter() {
+        if room.borrow().data.name.contains("Museum") {
+            println!("found m")
+        }
+    }
 
     let mut tick_interval = tokio::time::interval(Duration::from_millis(50));
     loop {

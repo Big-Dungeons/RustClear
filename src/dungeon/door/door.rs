@@ -4,8 +4,8 @@ use crate::dungeon::seeded_rng::seeded_rng;
 use glam::{ivec3, DVec3, IVec3};
 use rand::prelude::IndexedRandom;
 use server::block::block_parameter::Axis;
-use server::block::blocks::Blocks;
 use server::block::rotatable::Rotatable;
+use server::block::Block;
 use server::world::chunk::chunk_grid::ChunkGrid;
 use server::World;
 use std::collections::HashMap;
@@ -48,19 +48,20 @@ impl Door {
         &self.door_type
     }
 
-    const fn get_block(&self) -> Blocks {
+    const fn get_block(&self) -> Block {
         match self.door_type {
-            DoorType::Normal => Blocks::Air,
-            DoorType::Entrance => Blocks::SilverfishBlock { variant: 5 },
-            DoorType::Wither => Blocks::CoalBlock,
-            DoorType::Blood => Blocks::StainedHardenedClay { color: 14 }
+            DoorType::Normal => Block::Air,
+            _ => Block::Air,
+            // DoorType::Entrance => Blocks::SilverfishBlock { variant: 5 },
+            // DoorType::Wither => Blocks::CoalBlock,
+            // DoorType::Blood => Blocks::StainedHardenedClay { color: 14 }
         }
     }
     
     pub fn load_into_world(
         &self,
         chunk_grid: &mut ChunkGrid,
-        door_blocks: &HashMap<DoorType, Vec<Vec<Blocks>>>
+        door_blocks: &HashMap<DoorType, Vec<Vec<Block>>>
     ) {
         // Area to fill with air
         let (dx, dz) = match self.axis {
@@ -70,20 +71,20 @@ impl Door {
 
         // Doors have a thick bedrock floor usually
         chunk_grid.fill_blocks(
-            Blocks::Bedrock,
+            Block::Bedrock,
             ivec3(self.x - dx, 67, self.z - dz),
             ivec3(self.x + dx, 66, self.z + dz),
         );
 
         // Might need to replace with a random palette of cobble, stone, gravel etc if we want to mimic hypixel FULLY, but this works fine.
         chunk_grid.fill_blocks(
-            Blocks::Stone { variant: 0 },
+            Block::Stone,
             ivec3(self.x - (dz - 2) * 2, 68, self.z - (dx - 2) * 2),
             ivec3(self.x + (dz - 2) * 2, 68, self.z + (dx - 2) * 2),
         );
 
         chunk_grid.fill_blocks(
-            Blocks::Air,
+            Block::Air,
             ivec3(self.x - dx, 69, self.z - dz),
             ivec3(self.x + dx, 73, self.z + dz),
         );
@@ -108,7 +109,7 @@ impl Door {
             let bp = ivec3(x - 2, y, z - 2).rotate(self_direction);
 
             let mut block_to_place = *block;
-            block_to_place.rotate(self_direction);
+            // block_to_place.rotate(self_direction);
             chunk_grid.set_block_at(block_to_place, self.x + bp.x, 69 + bp.y, self.z + bp.z);
         }
 
@@ -148,7 +149,7 @@ impl Door {
         self.is_open = true;
         
         world.chunk_grid.fill_blocks(
-            Blocks::Barrier,
+            Block::Air,
             ivec3(self.x - 1, 69, self.z - 1),
             ivec3(self.x + 1, 72, self.z + 1),
         );

@@ -15,7 +15,7 @@ use server::network::protocol::play::serverbound::PlayerDiggingAction;
 use server::player::packet_handling::BlockInteractResult;
 use server::player::sidebar::Sidebar;
 use server::types::chat_component::ChatComponent;
-use server::types::direction::Direction;
+use server::types::direction::Direction3D;
 use server::{Player, PlayerExtension, World};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
@@ -101,7 +101,7 @@ impl PlayerExtension for DungeonPlayer {
     }
 
     fn dig(player: &mut Player<Self>, position: IVec3, action: &PlayerDiggingAction) {
-
+        
         #[cfg(not(feature = "dungeon-breaker"))]
         {
             let mut restore_block = false;
@@ -124,9 +124,10 @@ impl PlayerExtension for DungeonPlayer {
             }
             if restore_block {
                 let block = player.world().chunk_grid.get_block_at(position.x, position.y, position.z);
+                // println!("block {block:?}");
                 player.write_packet(&BlockChange {
                     block_pos: position,
-                    block_state: block.get_block_state_id(),
+                    block_state: block.get_blockstate_id(),
                 })
             }
         }
@@ -159,17 +160,17 @@ impl PlayerExtension for DungeonPlayer {
             {
                 let mut pos = block.position;
                 match block.direction {
-                    Direction::Down => pos.y -= 1,
-                    Direction::Up => pos.y += 1,
-                    Direction::North => pos.z -= 1,
-                    Direction::South => pos.z += 1,
-                    Direction::West => pos.x -= 1,
-                    Direction::East => pos.x += 1,
+                    Direction3D::Down => pos.y -= 1,
+                    Direction3D::Up => pos.y += 1,
+                    Direction3D::North => pos.z -= 1,
+                    Direction3D::South => pos.z += 1,
+                    Direction3D::West => pos.x -= 1,
+                    Direction3D::East => pos.x += 1,
                 }
                 let block = player.world().chunk_grid.get_block_at(pos.x, pos.y, pos.z);
                 player.write_packet(&BlockChange {
                     block_pos: pos,
-                    block_state: block.get_block_state_id(),
+                    block_state: block.get_blockstate_id(),
                 });
             }
             

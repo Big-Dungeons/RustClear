@@ -2,7 +2,7 @@ use crate::dungeon::room::room::{Room, RoomSegment};
 use crate::dungeon::seeded_rng::seeded_rng;
 use rand::seq::IteratorRandom;
 use serde_json::Value;
-use server::block::blocks::Blocks;
+use server::block::Block;
 use server::utils::hasher::deterministic_hasher::DeterministicHashMap;
 use std::cell::RefCell;
 use std::collections::HashSet;
@@ -143,7 +143,7 @@ pub struct RoomData {
     pub length: i32,
     pub height: i32,
     // do we need to keep this once loaded into world?
-    pub block_data: Vec<Blocks>,
+    pub block_data: Vec<Block>,
     pub crusher_data: Vec<Value>, // Needs to be parsed when rooms are generated
 }
 
@@ -167,13 +167,13 @@ impl RoomData {
 
         let hex_data = json_data["block_data"].as_str().unwrap();
 
-        let mut block_data: Vec<Blocks> = Vec::new();
+        let mut block_data: Vec<Block> = Vec::new();
 
         for i in (0..hex_data.len()).step_by(4) {
             let hex_str = hex_data.get(i..i + 4).unwrap();
 
             let num = u16::from_str_radix(hex_str, 16).unwrap();
-            let block = Blocks::from(num);
+            let block = Block::from(num);
 
             block_data.push(block)
         }

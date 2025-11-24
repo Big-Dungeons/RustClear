@@ -2,10 +2,10 @@ use crate::dungeon::door::door::Door;
 use crate::dungeon::dungeon::DUNGEON_ORIGIN;
 use crate::dungeon::room::room_data::RoomData;
 use glam::{dvec3, ivec3, IVec3};
-use server::block::blocks::Blocks;
+use server::block::Block;
 use server::block::rotatable::Rotatable;
 use server::types::aabb::AABB;
-use server::types::direction::Direction;
+use server::types::direction::Direction3D;
 use server::world::chunk::chunk_grid::ChunkGrid;
 use server::ClientId;
 use std::cell::RefCell;
@@ -33,7 +33,7 @@ pub struct Room {
     pub segments: Vec<RoomSegment>,
     pub room_bounds: Vec<RoomBounds>,
     
-    pub rotation: Direction,
+    pub rotation: Direction3D,
     pub data: RoomData,
 
     pub discovered: bool,
@@ -108,7 +108,7 @@ impl Room {
 
     pub fn get_corner_pos_from(
         segments: &[RoomSegment],
-        rotation: &Direction,
+        rotation: &Direction3D,
         room_data: &RoomData
     ) -> IVec3 {
         let min_x = segments.iter().min_by(|a, b| a.x.cmp(&b.x)).unwrap().x;
@@ -119,10 +119,10 @@ impl Room {
         let z = min_z as i32 * 32 + DUNGEON_ORIGIN.y;
 
         match rotation {
-            Direction::North => ivec3(x, y, z),
-            Direction::East => ivec3(x + room_data.length - 1, y, z),
-            Direction::South => ivec3(x + room_data.length - 1, y, z + room_data.width - 1),
-            Direction::West => ivec3(x, y, z + room_data.width - 1),
+            Direction3D::North => ivec3(x, y, z),
+            Direction3D::East => ivec3(x + room_data.length - 1, y, z),
+            Direction3D::South => ivec3(x + room_data.length - 1, y, z + room_data.width - 1),
+            Direction3D::West => ivec3(x, y, z + room_data.width - 1),
             _ => unreachable!(),
         }
     }
@@ -131,13 +131,13 @@ impl Room {
         let corner = self.get_corner_pos();
 
         for (index, block) in self.data.block_data.iter().enumerate() {
-            if *block == Blocks::Air {
+            if *block == Block::Air {
                 continue;
             }
             // not sure if editing room data might ruin something,
             // so to be safe im just cloning it
             let mut block = *block;
-            block.rotate(self.rotation);
+            // block.rotate(self.rotation);
 
             let index = index as i32;
 
@@ -190,7 +190,7 @@ impl Room {
     }
 }
 
-fn get_rotation_from_segments(segments: &[RoomSegment]) -> Direction {
+fn get_rotation_from_segments(segments: &[RoomSegment]) -> Direction3D {
     let unique_x = segments.iter()
         .map(|segment| segment.x)
         .collect::<HashSet<usize>>();
@@ -210,31 +210,31 @@ fn get_rotation_from_segments(segments: &[RoomSegment]) -> Direction {
             }
             match bitmask {
                 // Doors on all sides, never changes
-                0b1111 => Direction::North,
+                0b1111 => Direction3D::North,
                 // Dead end 1x1
-                0b1000 => Direction::North,
-                0b0100 => Direction::East,
-                0b0010 => Direction::South,
-                0b0001 => Direction::West,
+                0b1000 => Direction3D::North,
+                0b0100 => Direction3D::East,
+                0b0010 => Direction3D::South,
+                0b0001 => Direction3D::West,
                 // Opposite doors
-                0b0101 => Direction::North,
-                0b1010 => Direction::East,
+                0b0101 => Direction3D::North,
+                0b1010 => Direction3D::East,
                 // L bend
-                0b0011 => Direction::North,
-                0b1001 => Direction::East,
-                0b1100 => Direction::South,
-                0b0110 => Direction::West,
+                0b0011 => Direction3D::North,
+                0b1001 => Direction3D::East,
+                0b1100 => Direction3D::South,
+                0b0110 => Direction3D::West,
                 // Triple door
-                0b1011 => Direction::North,
-                0b1101 => Direction::East,
-                0b1110 => Direction::South,
-                0b0111 => Direction::West,
-                _ => Direction::North,
+                0b1011 => Direction3D::North,
+                0b1101 => Direction3D::East,
+                0b1110 => Direction3D::South,
+                0b0111 => Direction3D::West,
+                _ => Direction3D::North,
             }
         }
         2 => match unique_z.len() == 1 {
-            true => Direction::North,
-            false => Direction::East,
+            true => Direction3D::North,
+            false => Direction3D::East,
         },
         3 => {
             // L room
@@ -251,30 +251,30 @@ fn get_rotation_from_segments(segments: &[RoomSegment]) -> Direction {
                 let max_z = segments.iter().max_by(|a, b| a.z.cmp(&b.z)).unwrap().z;
 
                 if corner_value.x == min_x && corner_value.z == min_z {
-                    return Direction::East
+                    return Direction3D::East
                 }
                 if corner_value.x == max_x && corner_value.z == min_z {
-                    return Direction::South
+                    return Direction3D::South
                 }
                 if corner_value.x == max_x && corner_value.z == max_z {
-                    return Direction::West
+                    return Direction3D::West
                 }
-                return Direction::North
+                return Direction3D::North
             }
 
             match unique_z.len() == 1 {
-                true => Direction::North,
-                false => Direction::East,
+                true => Direction3D::North,
+                false => Direction3D::East,
             }
         },
         4 => {
             if unique_x.len() == 2 && unique_z.len() == 2 {
-                return Direction::North
+                return Direction3D::North
             }
 
             match unique_z.len() == 1 {
-                true => Direction::North,
-                false => Direction::East,
+                true => Direction3D::North,
+                false => Direction3D::East,
             }
         },
         _ => unreachable!(),
