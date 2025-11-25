@@ -22,7 +22,7 @@ pub struct BlockEntry {
 }
 
 impl Parse for BlockEntry {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
 
         // block toughness must be present for every block entry
         let block_toughness: LitFloat;

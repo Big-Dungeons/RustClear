@@ -8,7 +8,7 @@ use crate::dungeon::room::room_data::{get_random_data_with_type, RoomData, RoomS
 use anyhow::bail;
 use glam::{ivec3, DVec3, IVec2};
 use server::block::block_parameter::Axis;
-use server::block::rotatable::Rotatable;
+use server::block::rotatable::Rotate;
 use server::constants::Gamemode;
 use server::inventory::menu::OpenContainer;
 use server::network::binary::var_int::VarInt;

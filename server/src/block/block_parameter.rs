@@ -1,7 +1,28 @@
 use crate::block::metadata::BlockMetadata;
-use crate::block::rotatable::Rotatable;
-use crate::types::direction::Direction3D;
+use crate::block::rotatable::Rotate;
+use crate::types::direction::{Direction, Direction3D};
 use macros::BlockMetadata;
+
+/// Used for blocks like: Wool, Stained Glass, Stained Hardened Clay
+#[derive(Debug, Clone, Copy, PartialEq, Eq, BlockMetadata)]
+pub enum BlockColor {
+    White,
+    Orange,
+    Magenta,
+    LightBlue,
+    Yellow,
+    Lime,
+    Pink,
+    Gray,
+    LightGray,
+    Cyan,
+    Purple,
+    Blue,
+    Brown,
+    Green,
+    Red,
+    Black,
+}
 
 /// This type of rotation is used in blocks like Logs, etc
 #[repr(u8)]
@@ -10,34 +31,29 @@ pub enum Axis {
     Y,
     X,
     Z,
-    None
+    None,
 }
 
-impl Rotatable for Axis {
-    fn rotate(&self, other: Direction3D) -> Self {
-        match other {
-            Direction3D::North | Direction3D::South => {
-                *self
-            }
-            Direction3D::East | Direction3D::West => {
-                match self {
-                    Axis::Y => Axis::Y,
-                    Axis::X => Axis::Z,
-                    Axis::Z => Axis::X,
-                    Axis::None => Axis::None,
-                }
-            }
-            _ => unreachable!()
+impl Axis {
+    pub fn get_direction(&self) -> Direction {
+        match self {
+            Axis::X => Direction::East,
+            Axis::Z => Direction::North,
+            _ => unreachable!(),
         }
     }
 }
 
-impl Axis {
-    pub fn get_direction(&self) -> Direction3D {
-        match self {
-            Axis::X => Direction3D::East,
-            Axis::Z => Direction3D::North,
-            _ => Direction3D::Up
+impl Rotate for Axis {
+    fn rotate(&self, other: Direction) -> Self {
+        match other {
+            Direction::North | Direction::South => *self,
+            Direction::East | Direction::West => match self {
+                Axis::Y => Axis::Y,
+                Axis::X => Axis::Z,
+                Axis::Z => Axis::X,
+                Axis::None => Axis::None,
+            },
         }
     }
 }
@@ -54,7 +70,7 @@ pub enum LeverOrientation {
     North,
     UpZ,
     UpX,
-    DownZ
+    DownZ,
 }
 
 // TODO: Rotate, or maybe wrap around a different direction and just have different Blockmetadata impl
@@ -64,27 +80,9 @@ pub enum TrapdoorDirection {
     North,
     South,
     West,
-    East
+    East,
 }
 
-// TODO: This needs rotation
-#[repr(transparent)]
-#[derive(PartialEq, Debug, Copy, Clone, Eq)]
-pub struct VineMetadata(u8);
-
-impl VineMetadata {
-    pub fn meta_size() -> u8 {
-        4
-    }
-    pub fn get_meta(&self) -> u8 {
-        self.0
-    }
-    pub fn from_meta(meta: u8) -> Self {
-        VineMetadata(meta)
-    }
-}
-
-/// custom direction for Torch blocks, since they used a slightly modified version of direction.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, BlockMetadata)]
 pub enum TorchDirection {
@@ -95,7 +93,6 @@ pub enum TorchDirection {
     Up = 5,
 }
 
-
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, BlockMetadata)]
 pub enum StairDirection {
@@ -105,53 +102,42 @@ pub enum StairDirection {
     North,
 }
 
-impl Rotatable for StairDirection {
-    fn rotate(&self, other: Direction3D) -> Self {
+impl Rotate for StairDirection {
+    fn rotate(&self, other: Direction) -> Self {
         match other {
-            Direction3D::North => {
-                match self {
-                    StairDirection::North => StairDirection::North,
-                    StairDirection::East => StairDirection::East,
-                    StairDirection::South => StairDirection::South,
-                    StairDirection::West => StairDirection::West,
-                }
+            Direction::North => match self {
+                StairDirection::North => StairDirection::North,
+                StairDirection::East => StairDirection::East,
+                StairDirection::South => StairDirection::South,
+                StairDirection::West => StairDirection::West,
             },
-            Direction3D::East => {
-                match self {
-                    StairDirection::North => StairDirection::East,
-                    StairDirection::East => StairDirection::South,
-                    StairDirection::South => StairDirection::West,
-                    StairDirection::West => StairDirection::North,
-                }
-            }
-            Direction3D::South => {
-                match self {
-                    StairDirection::North => StairDirection::South,
-                    StairDirection::East => StairDirection::West,
-                    StairDirection::South => StairDirection::North,
-                    StairDirection::West => StairDirection::East,
-                }
-            }
-            Direction3D::West => {
-                match self {
-                    StairDirection::North => StairDirection::West,
-                    StairDirection::East => StairDirection::North,
-                    StairDirection::South => StairDirection::East,
-                    StairDirection::West => StairDirection::South,
-                }
-            }
-            _ => unreachable!()
-
+            Direction::East => match self {
+                StairDirection::North => StairDirection::East,
+                StairDirection::East => StairDirection::South,
+                StairDirection::South => StairDirection::West,
+                StairDirection::West => StairDirection::North,
+            },
+            Direction::South => match self {
+                StairDirection::North => StairDirection::South,
+                StairDirection::East => StairDirection::West,
+                StairDirection::South => StairDirection::North,
+                StairDirection::West => StairDirection::East,
+            },
+            Direction::West => match self {
+                StairDirection::North => StairDirection::West,
+                StairDirection::East => StairDirection::North,
+                StairDirection::South => StairDirection::East,
+                StairDirection::West => StairDirection::South,
+            },
         }
     }
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ButtonDirection(Direction3D);
 
-impl Rotatable for ButtonDirection {
-    fn rotate(&self, direction: Direction3D) -> Self {
+impl Rotate for ButtonDirection {
+    fn rotate(&self, direction: Direction) -> Self {
         ButtonDirection(self.0.rotate(direction))
     }
 }
@@ -197,22 +183,20 @@ pub enum RailShape {
     NorthEast,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, BlockMetadata)]
-pub enum BlockColor {
-    White,
-    Orange,
-    Magenta,
-    LightBlue,
-    Yellow,
-    Lime,
-    Pink,
-    Gray,
-    LightGray,
-    Cyan,
-    Purple,
-    Blue,
-    Brown,
-    Green,
-    Red,
-    Black,
+
+// TODO: This needs rotation
+#[repr(transparent)]
+#[derive(PartialEq, Debug, Copy, Clone, Eq)]
+pub struct VineMetadata(u8);
+
+impl VineMetadata {
+    pub fn meta_size() -> u8 {
+        4
+    }
+    pub fn get_meta(&self) -> u8 {
+        self.0
+    }
+    pub fn from_meta(meta: u8) -> Self {
+        VineMetadata(meta)
+    }
 }

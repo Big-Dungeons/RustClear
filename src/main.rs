@@ -8,7 +8,7 @@ use crate::dungeon::seeded_rng::{seeded_rng, SeededRng};
 use anyhow::bail;
 use glam::ivec3;
 use rand::prelude::IndexedRandom;
-use server::block::rotatable::Rotatable;
+use server::block::rotatable::Rotate;
 use server::entity::entity_appearance::PlayerAppearance;
 use server::inventory::menu::OpenContainer;
 use server::network::internal_packets::NetworkThreadMessage;
