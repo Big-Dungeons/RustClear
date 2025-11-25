@@ -162,11 +162,11 @@ pub fn blocks_macro(input: TokenStream) -> TokenStream {
             
             entry_serialization.extend(quote! {
                 meta |= #ident.get_meta() << offset;
-                offset += <#ty>::meta_size();
+                offset += <#ty>::META_SIZE;
             });
             entry_deserialization.extend(quote! {
-                let #ident = <#ty>::from_meta(((meta >> offset) & ((1 << <#ty>::meta_size()) - 1)) as u8);
-                offset += <#ty>::meta_size();
+                let #ident = <#ty>::from_meta(((meta >> offset) & ((1 << <#ty>::META_SIZE) - 1)) as u8);
+                offset += <#ty>::META_SIZE;
             });
         }
         
@@ -177,7 +177,7 @@ pub fn blocks_macro(input: TokenStream) -> TokenStream {
         
         if let Some(block_variants) = &entry.variants {
             
-            let variant_min_size = (64 - (block_variants.idents.len() - 1).leading_zeros()) as u8;
+            let variant_min_size = (usize::BITS - (block_variants.idents.len() - 1).leading_zeros()) as u8;
             let mut variant_deserialization: proc_macro2::TokenStream = Default::default();
             
             for (index, v_ident) in block_variants.idents.iter().enumerate() {

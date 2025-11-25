@@ -143,9 +143,8 @@ impl Rotate for ButtonDirection {
 }
 
 impl BlockMetadata for ButtonDirection {
-    fn meta_size() -> u8 {
-        3
-    }
+    const META_SIZE: u8 = 3;
+
     fn get_meta(&self) -> u8 {
         match self.0 {
             Direction3D::Down => 0,
@@ -189,14 +188,13 @@ pub enum RailShape {
 #[derive(PartialEq, Debug, Copy, Clone, Eq)]
 pub struct VineMetadata(u8);
 
-impl VineMetadata {
-    pub fn meta_size() -> u8 {
-        4
-    }
-    pub fn get_meta(&self) -> u8 {
+impl BlockMetadata for VineMetadata {
+    const META_SIZE: u8 = 4;
+
+    fn get_meta(&self) -> u8 {
         self.0
     }
-    pub fn from_meta(meta: u8) -> Self {
+    fn from_meta(meta: u8) -> Self {
         VineMetadata(meta)
     }
 }
