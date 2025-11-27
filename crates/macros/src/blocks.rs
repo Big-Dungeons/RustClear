@@ -2,6 +2,14 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse::{Parse, ParseStream}, parse_macro_input, punctuated::Punctuated, token, Ident, LitFloat, Token, Type};
 
+const ROTATABLE_TYPES: &[&str] = &[
+    "ButtonDirection",
+    "StairDirection", 
+    "Direction3D",
+    "Direction",
+    "Axis"
+];
+
 pub struct BlockVariants {
     idents: Vec<Ident>,
 }
@@ -14,7 +22,7 @@ pub struct BlockField {
 pub struct BlockEntry {
     block_toughness: LitFloat,
     // only valid options: Pickaxe, Axe and Shovel
-    tool: Option<Ident>,
+    _tool: Option<Ident>,
 
     ident: Ident,
     variants: Option<BlockVariants>,
@@ -104,7 +112,7 @@ impl Parse for BlockEntry {
 
         Ok(Self {
             block_toughness,
-            tool,
+            _tool: tool,
             ident,
             variants,
             fields,
@@ -118,9 +126,9 @@ pub struct BlockEntries {
 
 impl Parse for BlockEntries {
     fn parse(input: ParseStream) -> syn::Result<Self> {
-        let puntuacted: Punctuated::<BlockEntry, Token![,]> = Punctuated::parse_terminated(input)?;
+        let punctuated: Punctuated<BlockEntry, Token![,]> = Punctuated::parse_terminated(input)?;
         Ok(Self {
-            entries: puntuacted.into_iter().collect()
+            entries: punctuated.into_iter().collect()
         })
     }
 }
@@ -133,6 +141,8 @@ pub fn blocks_macro(input: TokenStream) -> TokenStream {
     
     let mut serialization: proc_macro2::TokenStream = Default::default();
     let mut deserialization: proc_macro2::TokenStream = Default::default();
+
+    let mut rotate: proc_macro2::TokenStream = Default::default();
     
     for (block_id, entry) in entries.iter().enumerate() {
     
@@ -148,6 +158,8 @@ pub fn blocks_macro(input: TokenStream) -> TokenStream {
         
         let mut entry_serialization: proc_macro2::TokenStream = Default::default();
         let mut entry_deserialization: proc_macro2::TokenStream = Default::default();
+
+        let mut entry_rotate: proc_macro2::TokenStream = Default::default();
         
         for block_field in entry.fields.iter() {
             let ident = &block_field.ident;
@@ -168,6 +180,20 @@ pub fn blocks_macro(input: TokenStream) -> TokenStream {
                 let #ident = <#ty>::from_meta(((meta >> offset) & ((1 << <#ty>::META_SIZE) - 1)) as u8);
                 offset += <#ty>::META_SIZE;
             });
+
+            if let Type::Path(path) = ty {
+                let ty_ident = &path.path.segments.last().unwrap().ident;
+
+                if ROTATABLE_TYPES.contains(&&*ty_ident.to_string()) {
+                    entry_rotate.extend(quote! {
+                        #ident: #ident.rotate(dir),
+                    })
+                } else {
+                    entry_rotate.extend(quote! {
+                        #ident: *#ident,
+                    })
+                }
+            }
         }
         
         if !entry.fields.is_empty() {
@@ -203,6 +229,14 @@ pub fn blocks_macro(input: TokenStream) -> TokenStream {
                 block_toughness.extend(quote! {
                     Self::#v_ident #fields_struct_pattern => #toughness,
                 });
+
+                rotate.extend(quote! {
+                    Self::#v_ident #fields_struct_pattern => {
+                        Self::#v_ident {
+                            #entry_rotate
+                        }
+                    }
+                })
             }
             
             deserialization.extend(quote! {
@@ -241,6 +275,14 @@ pub fn blocks_macro(input: TokenStream) -> TokenStream {
             block_toughness.extend(quote! {
                 Self::#entry_ident { .. } => #toughness,
             });
+
+            rotate.extend(quote! {
+                Self::#entry_ident #fields_struct_pattern => {
+                    Self::#entry_ident {
+                        #entry_rotate
+                    }
+                }
+            })
         }
     }
     
@@ -271,6 +313,14 @@ pub fn blocks_macro(input: TokenStream) -> TokenStream {
                 match block_id {
                     #deserialization
                     _ => Block::Air,
+                }
+            }
+        }
+
+        impl Rotate for Block {
+            fn rotate(&self, dir: Direction) -> Self {
+                match self {
+                    #rotate
                 }
             }
         }

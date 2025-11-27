@@ -3,7 +3,7 @@ use crate::dungeon::dungeon::Dungeon;
 use crate::dungeon::seeded_rng::seeded_rng;
 use glam::{ivec3, DVec3, IVec3};
 use rand::prelude::IndexedRandom;
-use server::block::block_parameter::Axis;
+use server::block::block_parameter::{Axis, BlockColor};
 use server::block::rotatable::Rotate;
 use server::block::Block;
 use server::world::chunk::chunk_grid::ChunkGrid;
@@ -51,10 +51,9 @@ impl Door {
     const fn get_block(&self) -> Block {
         match self.door_type {
             DoorType::Normal => Block::Air,
-            _ => Block::Air,
-            // DoorType::Entrance => Blocks::SilverfishBlock { variant: 5 },
-            // DoorType::Wither => Blocks::CoalBlock,
-            // DoorType::Blood => Blocks::StainedHardenedClay { color: 14 }
+            DoorType::Entrance => Block::SilverfishChiseledStoneBrick,
+            DoorType::Wither => Block::CoalBlock,
+            DoorType::Blood => Block::StainedHardenedClay { color: BlockColor::Red }
         }
     }
     
@@ -108,8 +107,7 @@ impl Door {
 
             let bp = ivec3(x - 2, y, z - 2).rotate(self_direction);
 
-            let mut block_to_place = *block;
-            // block_to_place.rotate(self_direction);
+            let block_to_place = block.rotate(self_direction);
             chunk_grid.set_block_at(block_to_place, self.x + bp.x, 69 + bp.y, self.z + bp.z);
         }
 
@@ -149,7 +147,7 @@ impl Door {
         self.is_open = true;
         
         world.chunk_grid.fill_blocks(
-            Block::Air,
+            Block::Barrier,
             ivec3(self.x - 1, 69, self.z - 1),
             ivec3(self.x + 1, 72, self.z + 1),
         );

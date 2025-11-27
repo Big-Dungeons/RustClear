@@ -133,19 +133,14 @@ impl Room {
             if *block == Block::Air {
                 continue;
             }
-            // not sure if editing room data might ruin something,
-            // so to be safe im just cloning it
-            let mut block = *block;
-            // todo
-            // block.rotate(self.rotation);
-
+            
             let index = index as i32;
-
             let x = index % self.data.width;
             let z = (index / self.data.width) % self.data.length;
             let y = self.data.bottom + index / (self.data.width * self.data.length);
 
             let bp = ivec3(x, y, z).rotate(self.rotation);
+            let block = block.rotate(self.rotation);
 
             chunk_grid.set_block_at(block, corner.x + bp.x, y, corner.z + bp.z);
         }

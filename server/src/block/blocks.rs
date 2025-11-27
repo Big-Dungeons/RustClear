@@ -1,7 +1,8 @@
 #![allow(unused)]
 
-use crate::block::block_parameter::{Axis, BlockColor, ButtonDirection, LeverOrientation, RailShape, StairDirection, TorchDirection, TrapdoorDirection, VineMetadata};
+use crate::block::block_parameter::{Axis, BlockColor, ButtonDirection, LeverOrientation, RailShape, StairDirection, TorchDirection, TrapdoorDirection, VineMetadata,};
 use crate::block::metadata::BlockMetadata;
+use crate::block::rotatable::Rotate;
 use crate::types::direction::{Direction, Direction3D};
 use macros::blocks;
 
@@ -237,7 +238,8 @@ blocks! {
             StoneBrickSlab,
             NetherbrickSlab,
             QuartzSlab,
-        }
+        },
+        top_half: bool
     },
     #[block_toughness = 2.0, tool = Pickaxe]
     Bricks,
@@ -711,6 +713,7 @@ blocks! {
             AcaciaLog,
             DarkOakLog,
         },
+        _placeholder: bool, // an extra bit needs to be used, since there is only 1 bit needed for variants when mc serializes with 2
         axis: Axis
     },
     #[block_toughness = 2.0, tool = Axe]

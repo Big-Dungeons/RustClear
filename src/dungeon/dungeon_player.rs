@@ -124,7 +124,7 @@ impl PlayerExtension for DungeonPlayer {
             }
             if restore_block {
                 let block = player.world().chunk_grid.get_block_at(position.x, position.y, position.z);
-                // println!("block {block:?}");
+                println!("block {block:?}");
                 player.write_packet(&BlockChange {
                     block_pos: position,
                     block_state: block.get_blockstate_id(),
