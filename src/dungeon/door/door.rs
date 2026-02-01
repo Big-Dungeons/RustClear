@@ -6,9 +6,9 @@ use rand::prelude::IndexedRandom;
 use server::block::block_parameter::{Axis, BlockColor};
 use server::block::rotatable::Rotate;
 use server::block::Block;
+use server::utils::hasher::deterministic_hasher::DeterministicHashMap;
 use server::world::chunk::chunk_grid::ChunkGrid;
 use server::World;
-use std::collections::HashMap;
 
 #[derive(Hash, Eq, PartialEq)]
 pub enum DoorType {
@@ -60,7 +60,7 @@ impl Door {
     pub fn load_into_world(
         &self,
         chunk_grid: &mut ChunkGrid,
-        door_blocks: &HashMap<DoorType, Vec<Vec<Block>>>
+        door_blocks: &DeterministicHashMap<DoorType, Vec<Vec<Block>>>
     ) {
         // Area to fill with air
         let (dx, dz) = match self.axis {

@@ -1,37 +1,44 @@
 #![allow(clippy::collapsible_if, clippy::too_many_arguments, clippy::new_without_default)]
 
-use crate::assets::{get_assets, load_assets};
+use crate::dungeon::door::door::DoorType;
 use crate::dungeon::dungeon::{Dungeon, DungeonState};
 use crate::dungeon::entities::npc::InteractableNPC;
 use crate::dungeon::menus::MortMenu;
+use crate::dungeon::room::room_data::RoomData;
 use crate::dungeon::seeded_rng::{seeded_rng, SeededRng};
 use anyhow::bail;
 use glam::ivec3;
+use include_dir::include_dir;
 use rand::prelude::IndexedRandom;
 use server::block::rotatable::Rotate;
+use server::block::Block;
 use server::entity::entity_appearance::PlayerAppearance;
 use server::inventory::menu::OpenContainer;
 use server::network::internal_packets::NetworkThreadMessage;
 use server::network::network::start_network;
 use server::types::chat_component::{ChatComponent, MCColors};
 use server::types::status::Status;
+use server::utils::hasher::deterministic_hasher::DeterministicHashMap;
 use server::world::world::World;
 use std::time::Duration;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::mpsc::UnboundedSender as Sender;
 
-mod assets;
 mod dungeon;
 
 pub fn initialize_world(tx: Sender<NetworkThreadMessage>) -> anyhow::Result<World<Dungeon>> {
     let rng_seed: u64 = rand::random();
     SeededRng::set_seed(rng_seed);
 
-    let dungeon_layouts = &get_assets().dungeon_seeds;
+    let dungeon_layouts = include_str!("../DungeonData/dungeon_layouts.txt")
+        .split("\n")
+        .collect::<Vec<&str>>();
+
     let layout = dungeon_layouts.choose(&mut seeded_rng()).unwrap();
 
-    let room_data_storage = &get_assets().room_data;
-    let door_type_blocks = &get_assets().door_data;
+    // todo: fix room heights from moody's room data
+    let room_data_storage = &room_data();
+    let door_type_blocks = &door_block_data();
 
     let dungeon = Dungeon::from_string(layout, room_data_storage)?;
     // if you do anything with entities or anything that has a pointer to world.
@@ -84,26 +91,18 @@ pub fn spawn_mort(world: &mut World<Dungeon>) {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // todo: either a config file with repo/path or command line args.
-    load_assets(
-        "assets",
-        "https://github.com/Big-Dungeons/ClearData/archive/refs/heads/main.zip",
-    ).await?;
-    // ^^^ for rooms/doors this is really pointless, because there is no reason to customize them, especially once finalised
-    // I can understand it for favicon tho
-
     let text = ChatComponent::new("RustClear").color(MCColors::Gold)
         .append(ChatComponent::new(" version ").color(MCColors::Gray))
         .append(ChatComponent::new(env!("CARGO_PKG_VERSION")).color(MCColors::Green));
 
-    let status = Status::new(0, 1, text, get_assets().icon_data);
+    let status = Status::new(0, 1, text, "");
     let (tx, mut rx) = start_network("127.0.0.1:4972", status);
 
     let mut world = initialize_world(tx)?;
     spawn_mort(&mut world);
-    
+
     for room in world.rooms.iter() {
-        if room.borrow().data.name.contains("Museum") {
+        if room.borrow().data.name.contains("Quartz") {
             println!("found m")
         }
     }
@@ -124,4 +123,60 @@ async fn main() -> anyhow::Result<()> {
         world.tick();
         // println!("elapsed {:?}", start.elapsed())
     }
+}
+
+fn room_data() -> DeterministicHashMap<usize, RoomData> {
+    let rooms_directory = include_dir!("DungeonData/room_data/");
+    let room_data_storage: DeterministicHashMap<usize, RoomData> = rooms_directory.entries()
+        .iter()
+        .map(|file| {
+            let file = file.as_file().unwrap();
+
+            let contents = file.contents_utf8().unwrap();
+            let name = file.path().file_name().unwrap().to_str().unwrap();
+            let room_data = RoomData::from_raw_json(contents);
+
+            let name_parts: Vec<&str> = name.split(",").collect();
+            let room_id = name_parts.first().unwrap().parse::<usize>().unwrap();
+
+            (room_id, room_data)
+        }).collect();
+    room_data_storage
+}
+
+fn door_block_data() -> DeterministicHashMap<DoorType, Vec<Vec<Block>>> {
+    let door_data: Vec<Vec<Block>> = include_str!("../DungeonData/door_data/doors.txt")
+        .split("\n")
+        .map(|line| {
+            let mut blocks: Vec<Block> = Vec::new();
+
+            for i in (0..line.len() - 1).step_by(4) {
+                let substr = line.get(i..i + 4).unwrap();
+                let state = u16::from_str_radix(substr, 16).unwrap();
+
+                blocks.push(Block::from(state));
+            }
+
+            blocks
+        })
+        .collect();
+
+    DeterministicHashMap::from_iter(
+        vec![
+            (DoorType::Blood, vec![door_data[0].clone()]),
+            (DoorType::Entrance, vec![door_data[1].clone()]),
+            (
+                DoorType::Normal,
+                vec![
+                    door_data[1].clone(),
+                    door_data[2].clone(),
+                    door_data[3].clone(),
+                    door_data[4].clone(),
+                    door_data[5].clone(),
+                    door_data[6].clone(),
+                    door_data[7].clone(),
+                ],
+            ),
+        ].into_iter(),
+    )
 }
