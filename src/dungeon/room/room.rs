@@ -114,6 +114,10 @@ impl Room {
         self.segments.iter().flat_map(|seg| seg.neighbours.iter().flatten())
     }
 
+    pub fn players(&mut self) -> impl Iterator<Item = &mut Player<DungeonPlayer>> {
+        self.players.values().map(|it| unsafe { &mut *it.get() })
+    }
+
     pub fn get_corner_pos(&self) -> IVec3 {
         Room::get_corner_pos_from(&self.segments, &self.rotation, &self.data)
     }
@@ -168,7 +172,7 @@ impl Room {
 
     pub fn remove_player_ref(&mut self, client_id: ClientId) {
         debug_assert!(self.players.contains_key(&client_id), "player wasn't in the room");
-        let segment = self.players.remove(&client_id).unwrap();
+        self.players.remove(&client_id);
 
         // if let Some(segment) = segment {
         //     self.segments[segment].player_ref_count -= 1;

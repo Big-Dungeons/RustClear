@@ -161,6 +161,10 @@ impl<W : WorldExtension> Chunk<W> {
         !self.entities.is_empty()
     }
 
+    pub fn players(&mut self) -> impl Iterator<Item = &mut Player<W::Player>> {
+        self.players.values().map(|it| unsafe { &mut *it.get() })
+    }
+
     pub fn write_spawn_entities<P : PlayerExtension>(
         &self,
         player: &mut Player<P>

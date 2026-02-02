@@ -229,8 +229,7 @@ impl DungeonPlayer {
                 // can't use one outside because of borrow checker
                 let sidebar = &mut player.extension.sidebar;
 
-                for player_rc in world.players.iter() {
-                    let player = unsafe { &*player_rc.get() };
+                for player in world.players() {
                     let color = if player.extension.is_ready { 'a' } else { 'c' };
                     sidebar.push(&format!("§{color}[M] §7{}", player.profile.username));
                 }

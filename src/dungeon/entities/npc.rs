@@ -18,9 +18,9 @@ impl EntityExtension<Dungeon> for InteractableNPC {
             return;
         }
 
-        let player: Option<&Player<DungeonPlayer>> = entity.world().players.iter()
-            // todo custom iter for player to unwrap 
-            .map(|p| unsafe { &*p.get() })
+        let player: Option<&Player<DungeonPlayer>> = entity
+            .world()
+            .players()
             .filter(|p| entity.position.distance(p.position) <= 5.0)
             .min_by(|a, b| {
                 let dist_a = entity.position.distance(a.position);

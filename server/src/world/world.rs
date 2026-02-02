@@ -247,8 +247,7 @@ impl<W: WorldExtension> World<W> {
             entity.tick()
         }
 
-        for player in self.players.iter_mut() {
-            let player = unsafe { player.get().as_mut().unwrap() };
+        for player in self.players_mut() {
             player.write_packet(&packet_destroy_entities);
             player.tick();
         }
@@ -290,6 +289,14 @@ impl<W: WorldExtension> World<W> {
                 ));
             }
         }
+    }
+
+    pub fn players(&self) -> impl Iterator<Item = &Player<W::Player>> {
+        self.players.iter().map(|it| unsafe { &*it.get() })
+    }
+    
+    pub fn players_mut(&mut self) -> impl Iterator<Item = &mut Player<W::Player>> {
+        self.players.iter().map(|it| unsafe { &mut *it.get() })
     }
 }
 

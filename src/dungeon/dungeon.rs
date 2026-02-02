@@ -66,8 +66,8 @@ impl WorldExtension for Dungeon {
                     let s = if seconds_remaining == 1 { "" } else { "s" };
                     let str = format!("§aStarting in {} second{}.", seconds_remaining, s);
 
-                    for player_rc in world.players.iter_mut() {
-                        let player = unsafe { &mut *player_rc.get() };
+                    // todo: global packet buffer for these global stuff
+                    for player in world.players_mut() {
                         player.write_packet(&Chat {
                             component: ChatComponent::new(str.clone()),
                             chat_type: 0,
@@ -127,8 +127,7 @@ impl WorldExtension for Dungeon {
                 }
 
                 if let Some(packet) = world.extension.map.get_packet() {
-                    for player_rc in world.players.iter_mut() {
-                        let player = unsafe { &mut *player_rc.get() };
+                    for player in world.players_mut() {
                         player.write_packet(&packet)
                     }
                 }
@@ -195,7 +194,7 @@ impl WorldExtension for Dungeon {
         player.flush_packets()
     }
 
-    fn on_player_leave(world: &mut World<Self>, player: &mut Player<Self::Player>) {
+    fn on_player_leave(_: &mut World<Self>, player: &mut Player<Self::Player>) {
         if let Some((room_rc, _)) = &player.current_room {
             let mut room = room_rc.borrow_mut();
             room.remove_player_ref(player.client_id)
@@ -210,8 +209,7 @@ impl Dungeon {
     }
 
     pub fn start_dungeon(world: &mut World<Self>) {
-        for player_rc in world.players.iter_mut() {
-            let player = unsafe { &mut *player_rc.get() };
+        for player in world.players_mut() {
             if let OpenContainer::Menu(_) = player.get_container() {
                 player.open_container(OpenContainer::None)
             }
@@ -243,16 +241,14 @@ impl Dungeon {
             chat_type: 0,
         };
 
-        for player_rc in world.players.iter_mut() {
-            let player = unsafe { &mut *player_rc.get() };
+        for player in world.players_mut() {
             player.write_packet(&packet)
         }
 
         if is_ready {
             let mut should_start = true;
 
-            for player_rc in world.players.iter() {
-                let player = unsafe { &*player_rc.get() };
+            for player in world.players_mut() {
                 if !player.extension.is_ready {
                     should_start = false
                 }
