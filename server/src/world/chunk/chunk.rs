@@ -3,19 +3,21 @@ use crate::entity::entity::EntityId;
 use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::protocol::play::clientbound::ChunkData;
 use crate::player::player::ClientId;
-use crate::{Player, PlayerExtension};
+use crate::{Player, PlayerExtension, WorldExtension};
 use glam::DVec3;
-use std::collections::HashSet;
+use std::cell::UnsafeCell;
+use std::collections::{HashMap, HashSet};
+use std::rc::Rc;
 
 pub struct ChunkSection {
     solid_block_amount: u16,
     data: Box<[u16; 4096]>,
 }
-pub struct Chunk {
+pub struct Chunk<W : WorldExtension> {
     pub chunk_sections: [Option<ChunkSection>; 16],
     pub packet_buffer: PacketBuffer,
     
-    pub players: HashSet<ClientId>,
+    pub players: HashMap<ClientId, Rc<UnsafeCell<Player<W::Player>>>>,
     pub entities: HashSet<EntityId>,
 
     // contains the chunk data packet,
@@ -26,13 +28,13 @@ pub struct Chunk {
     dirty: bool,
 }
 
-impl Chunk {
+impl<W : WorldExtension> Chunk<W> {
     
     pub fn new() -> Self {
         Self {
             chunk_sections: [const { None }; 16],
             packet_buffer: PacketBuffer::new(),
-            players: HashSet::new(),
+            players: HashMap::new(),
             entities: HashSet::new(),
 
             cached_chunk_data: PacketBuffer::new(),
@@ -131,9 +133,9 @@ impl Chunk {
         into.copy_from(&self.cached_chunk_data);
     }
 
-    pub fn insert_player(&mut self, client_id: ClientId) {
-        debug_assert!(!self.players.contains(&client_id), "player already in chunk");
-        self.players.insert(client_id);
+    pub fn insert_player(&mut self, client_id: ClientId, player: Rc<UnsafeCell<Player<W::Player>>>) {
+        debug_assert!(!self.players.contains_key(&client_id), "player already in chunk");
+        self.players.insert(client_id, player);
     }
 
     pub fn insert_entity(&mut self, entity_id: EntityId) {
@@ -142,7 +144,7 @@ impl Chunk {
     }
 
     pub fn remove_player(&mut self, client_id: ClientId) {
-        debug_assert!(self.players.contains(&client_id), "player was never in this chunk");
+        debug_assert!(self.players.contains_key(&client_id), "player was never in this chunk");
         self.players.remove(&client_id);
     }
 

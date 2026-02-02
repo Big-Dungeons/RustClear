@@ -66,7 +66,8 @@ impl WorldExtension for Dungeon {
                     let s = if seconds_remaining == 1 { "" } else { "s" };
                     let str = format!("§aStarting in {} second{}.", seconds_remaining, s);
 
-                    for player in world.players.iter_mut() {
+                    for player_rc in world.players.iter_mut() {
+                        let player = unsafe { &mut *player_rc.get() };
                         player.write_packet(&Chat {
                             component: ChatComponent::new(str.clone()),
                             chat_type: 0,
@@ -77,7 +78,9 @@ impl WorldExtension for Dungeon {
             DungeonState::Started { ticks } => {
                 *ticks += 1;
 
-                for player in world.players.iter_mut() {
+                for player_rc in world.players.iter_mut() {
+                    let player = unsafe { &mut *player_rc.get() };
+
                     let Some((new_room, new_segment)) = world.extension.get_room(&player.position, player.collision_aabb()) else {
                         if let Some((old_room, _)) = &player.extension.current_room {
                             // was in a room, now in no room
@@ -90,16 +93,16 @@ impl WorldExtension for Dungeon {
                         if !Rc::ptr_eq(old_room, new_room) {
                             // was in a different room, moved to new room
                             old_room.borrow_mut().remove_player_ref(player.client_id);
-                            new_room.borrow_mut().add_player_ref(player.client_id, new_segment);
+                            new_room.borrow_mut().add_player_ref(player.client_id, player_rc.clone());
                             player.extension.current_room = Some((new_room.clone(), new_segment));
                         } else if *old_segment != new_segment {
                             // same room, different segment
-                            new_room.borrow_mut().update_player_segment(player.client_id, new_segment);
+                            // new_room.borrow_mut().update_player_segment(player.client_id, new_segment);
                             *old_segment = new_segment;
                         }
                     } else {
                         // no previous room
-                        new_room.borrow_mut().add_player_ref(player.client_id, new_segment);
+                        new_room.borrow_mut().add_player_ref(player.client_id, player_rc.clone());
                         player.extension.current_room = Some((new_room.clone(), new_segment));
                     }
                 }
@@ -109,18 +112,23 @@ impl WorldExtension for Dungeon {
                 // and for sections if it has a player, try to spawn its neighbours
 
                 // tick puzzles, etc
-                
-                for room_rc in world.extension.rooms.iter_mut() {
+
+                for index in 0..world.rooms.len() {
+                    let room_rc = world.rooms[index].clone();
                     let mut room = room_rc.borrow_mut();
-                    
+
                     if !room.players.is_empty() && !room.discovered {
+                        let room_impl = unsafe { &mut *room.implementation.get() };
+                        room_impl.discover(&mut room, world);
+
                         room.discovered = true;
                         world.extension.map.draw_room(&room);
                     }
                 }
-                
+
                 if let Some(packet) = world.extension.map.get_packet() {
-                    for player in world.players.iter_mut() {
+                    for player_rc in world.players.iter_mut() {
+                        let player = unsafe { &mut *player_rc.get() };
                         player.write_packet(&packet)
                     }
                 }
@@ -150,11 +158,6 @@ impl WorldExtension for Dungeon {
                 current_room: None,
                 cooldowns: HashMap::new(),
                 active_abilities: Cell::new(Vec::new()),
-
-                #[cfg(feature = "dungeon-breaker")]
-                pickaxe_charges: 20,
-                #[cfg(feature = "dungeon-breaker")]
-                broken_blocks: vec![],
             }
         );
 
@@ -193,11 +196,9 @@ impl WorldExtension for Dungeon {
     }
 
     fn on_player_leave(world: &mut World<Self>, player: &mut Player<Self::Player>) {
-        #[cfg(feature = "dungeon-breaker")]
-        {
-            for (position, block, _) in player.broken_blocks.iter() {
-                world.chunk_grid.set_block_at(*block, position.x, position.y, position.z)
-            }
+        if let Some((room_rc, _)) = &player.current_room {
+            let mut room = room_rc.borrow_mut();
+            room.remove_player_ref(player.client_id)
         }
     }
 }
@@ -209,7 +210,8 @@ impl Dungeon {
     }
 
     pub fn start_dungeon(world: &mut World<Self>) {
-        for player in world.players.iter_mut() {
+        for player_rc in world.players.iter_mut() {
+            let player = unsafe { &mut *player_rc.get() };
             if let OpenContainer::Menu(_) = player.get_container() {
                 player.open_container(OpenContainer::None)
             }
@@ -241,14 +243,16 @@ impl Dungeon {
             chat_type: 0,
         };
 
-        for player in world.players.iter_mut() {
+        for player_rc in world.players.iter_mut() {
+            let player = unsafe { &mut *player_rc.get() };
             player.write_packet(&packet)
         }
 
         if is_ready {
             let mut should_start = true;
 
-            for player in world.players.iter() {
+            for player_rc in world.players.iter() {
+                let player = unsafe { &*player_rc.get() };
                 if !player.extension.is_ready {
                     should_start = false
                 }

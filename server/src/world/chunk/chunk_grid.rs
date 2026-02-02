@@ -1,14 +1,15 @@
 use crate::block::blocks::Block;
 use crate::network::protocol::play::clientbound::{BlockChange, ChunkData};
 use crate::world::chunk::chunk::Chunk;
+use crate::WorldExtension;
 use glam::{ivec3, IVec3};
 use std::cmp::{max, min};
 
 /// Chunk grid
 ///
 /// Stores a square grid of chunks, based on the provided size.
-pub struct ChunkGrid {
-    pub chunks: Vec<Chunk>,
+pub struct ChunkGrid<W : WorldExtension> {
+    pub chunks: Vec<Chunk<W>>,
     pub size: usize,
 
     index_offset_x: usize,
@@ -21,9 +22,9 @@ pub enum ChunkDiff {
     Old,
 }
 
-impl ChunkGrid {
+impl<W : WorldExtension> ChunkGrid<W> {
 
-    pub fn new(size: usize, offset_x: usize, offset_z: usize) -> ChunkGrid {
+    pub fn new(size: usize, offset_x: usize, offset_z: usize) -> Self {
         let mut chunks = Vec::with_capacity(size * size);
         for _ in 0..size * size {
             chunks.push(Chunk::new());
@@ -78,7 +79,7 @@ impl ChunkGrid {
     }
 
     /// returns the chunk at the x and z coordinates provided, none if no chunk is present
-    pub fn get_chunk(&self, chunk_x: i32, chunk_z: i32) -> Option<&Chunk> {
+    pub fn get_chunk(&self, chunk_x: i32, chunk_z: i32) -> Option<&Chunk<W>> {
         let size = self.size as i32;
         let x = chunk_x + self.index_offset_x as i32;
         let z = chunk_z + self.index_offset_z as i32;
@@ -88,7 +89,7 @@ impl ChunkGrid {
         self.chunks.get(z as usize * self.size + x as usize)
     }
 
-    pub fn get_chunk_mut(&mut self, chunk_x: i32, chunk_z: i32) -> Option<&mut Chunk> {
+    pub fn get_chunk_mut(&mut self, chunk_x: i32, chunk_z: i32) -> Option<&mut Chunk<W>> {
         let size = self.size as i32;
         let x = chunk_x + self.index_offset_x as i32;
         let z = chunk_z + self.index_offset_z as i32;
@@ -105,7 +106,7 @@ impl ChunkGrid {
         view_distance: i32,
         mut callback: F,
     ) where
-        F: FnMut(&mut Chunk, i32, i32)
+        F: FnMut(&mut Chunk<W>, i32, i32)
     {
         let min_x = max(chunk_x - view_distance + self.index_offset_x as i32, 0);
         let min_z = max(chunk_z - view_distance + self.index_offset_z as i32, 0);
@@ -147,19 +148,18 @@ impl ChunkGrid {
             for z in min_z..=max_z {
                 let in_old_range =
                     x >= old_min_x && x <= old_max_x &&
-                        z >= old_min_z && z <= old_max_z;
+                    z >= old_min_z && z <= old_max_z;
 
                 if !in_old_range {
                     callback(x - self.index_offset_x as i32, z - self.index_offset_z as i32, ChunkDiff::New);
                 }
             }
         }
-
         for x in old_min_x..=old_max_x {
             for z in old_min_z..=old_max_z {
                 let in_new_range =
                     x >= min_x && x <= max_x &&
-                        z >= min_z && z <= max_z;
+                    z >= min_z && z <= max_z;
 
                 if !in_new_range {
                     callback(x - self.index_offset_x as i32, z - self.index_offset_z as i32, ChunkDiff::Old);
@@ -173,15 +173,15 @@ impl ChunkGrid {
             self.set_block_at(block, x, y, z)
         })
     }
+}
 
-    pub fn get_unload_chunk_packet(chunk_x: i32, chunk_z: i32) -> ChunkData {
-        ChunkData {
-            chunk_x,
-            chunk_z,
-            is_new_chunk: true,
-            bitmask: 0,
-            data: vec![],
-        }
+pub fn get_unload_chunk_packet(chunk_x: i32, chunk_z: i32) -> ChunkData {
+    ChunkData {
+        chunk_x,
+        chunk_z,
+        is_new_chunk: true,
+        bitmask: 0,
+        data: vec![],
     }
 }
 

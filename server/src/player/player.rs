@@ -16,7 +16,8 @@ use crate::network::protocol::play::serverbound::PlayerDiggingAction;
 use crate::player::packet_handling::BlockInteractResult;
 use crate::types::aabb::AABB;
 use crate::world::chunk::chunk::get_chunk_position;
-use crate::world::chunk::chunk_grid::{ChunkDiff, ChunkGrid};
+use crate::world::chunk::chunk_grid;
+use crate::world::chunk::chunk_grid::ChunkDiff;
 use crate::world::world::VIEW_DISTANCE;
 use crate::world::world::{World, WorldExtension};
 use fstr::FString;
@@ -215,9 +216,7 @@ impl<E : PlayerExtension> Player<E> {
             if let Some(old_chunk) = chunk_grid.get_chunk_mut(last_chunk_x, last_chunk_z) {
                 old_chunk.remove_player(self.client_id)
             }
-            if let Some(new_chunk) = chunk_grid.get_chunk_mut(chunk_x, chunk_z) {
-                new_chunk.insert_player(self.client_id)
-            }
+            self.world_mut().add_player_to_chunk(self.client_id, chunk_x, chunk_z);
             
             self.world().chunk_grid.for_each_diff(
                 (chunk_x, chunk_z),
@@ -232,7 +231,7 @@ impl<E : PlayerExtension> Player<E> {
                         chunk.write_spawn_entities(self);
                     } else {
                         chunk.write_despawn_entities(self);
-                        self.write_packet(&ChunkGrid::get_unload_chunk_packet(x, z));
+                        self.write_packet(&chunk_grid::get_unload_chunk_packet(x, z));
                     }
                 }
             )

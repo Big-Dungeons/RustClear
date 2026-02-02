@@ -12,8 +12,10 @@ use crate::world::chunk::get_chunk_position;
 use enumset::EnumSet;
 use glam::{DVec3, Vec3};
 use slotmap::SecondaryMap;
+use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
+use std::rc::Rc;
 use tokio::sync::mpsc::UnboundedSender;
 
 pub const VIEW_DISTANCE: i32 = 6;
@@ -29,7 +31,8 @@ pub trait WorldExtension: Sized {
 pub struct World<W: WorldExtension> {
     pub network_tx: UnboundedSender<NetworkThreadMessage>,
 
-    pub players: Vec<Player<W::Player>>,
+    // maybe go back to only map for players?
+    pub players: Vec<Rc<UnsafeCell<Player<W::Player>>>>,
     pub player_map: SecondaryMap<ClientId, usize>,
 
     entity_id: i32,
@@ -37,7 +40,7 @@ pub struct World<W: WorldExtension> {
     pub entity_map: HashMap<EntityId, usize>,
     entities_for_removal: Vec<EntityId>,
 
-    pub chunk_grid: ChunkGrid,
+    pub chunk_grid: ChunkGrid<W>,
 
     pub extension: W,
 }
@@ -73,9 +76,9 @@ impl<W: WorldExtension> World<W> {
         gamemode: Gamemode,
         extension: W::Player,
     ) -> &mut Player<W::Player> {
-        let entity_id = self.new_entity_id();
 
-        let mut player = Player::new(
+        let entity_id = self.new_entity_id();
+        let player_rc = Rc::new(UnsafeCell::new(Player::new(
             self,
             profile,
             client_id,
@@ -85,7 +88,8 @@ impl<W: WorldExtension> World<W> {
             pitch,
             gamemode,
             extension
-        );
+        )));
+        let mut player = unsafe { &mut *player_rc.get() };
 
         player.write_packet(&JoinGame {
             entity_id: player.entity_id,
@@ -99,7 +103,7 @@ impl<W: WorldExtension> World<W> {
 
         let (chunk_x, chunk_z) = get_chunk_position(player.position);
         if let Some(chunk) = self.chunk_grid.get_chunk_mut(chunk_x, chunk_z) {
-            chunk.insert_player(client_id)
+            chunk.insert_player(client_id, player_rc.clone())
         }
 
         self.chunk_grid
@@ -134,9 +138,10 @@ impl<W: WorldExtension> World<W> {
         player.flush_packets();
 
         let index = self.players.len();
-        self.players.push(player);
+        self.players.push(player_rc);
         self.player_map.insert(client_id, index);
-        &mut self.players[index]
+        // should always be present
+        unsafe { self.players[index].get().as_mut().unwrap() }
     }
 
     pub fn spawn_entity<A: EntityAppearance<W> + 'static, E: EntityExtension<W> + 'static>(
@@ -158,7 +163,8 @@ impl<W: WorldExtension> World<W> {
             self.chunk_grid
                 .for_each_in_view(chunk_x, chunk_z, VIEW_DISTANCE, |chunk, _, _| {
                     if chunk.has_players() {
-                        for player in self.players.iter_mut().filter(|p| chunk.players.contains(&p.client_id)) {
+                        for (_, player_rc) in chunk.players.iter() {
+                            let player = unsafe { &mut *player_rc.get() };
                             entity.enter_view(player)
                         }
                     }
@@ -194,11 +200,12 @@ impl<W: WorldExtension> World<W> {
         if let Some(index) = self.player_map.remove(client_id) {
             let last_index = self.players.len() - 1;
 
-            let mut player = self.players.swap_remove(index);
-            W::on_player_leave(self, &mut player);
+            let player_rc = self.players.swap_remove(index);
+            let player = unsafe { player_rc.get().as_mut().unwrap() };
+            W::on_player_leave(self, player);
 
             if last_index != index {
-                let moved_id = self.players[index].client_id;
+                let moved_id = unsafe { self.players[index].get().as_ref().unwrap() }.client_id;
                 self.player_map.insert(moved_id, index);
             }
 
@@ -207,6 +214,8 @@ impl<W: WorldExtension> World<W> {
             if let Some(chunk) = self.chunk_grid.get_chunk_mut(chunk_x, chunk_z) {
                 chunk.remove_player(client_id)
             }
+
+            assert_eq!(Rc::strong_count(&player_rc), 1, "player leaked")
         }
     }
 
@@ -239,12 +248,23 @@ impl<W: WorldExtension> World<W> {
         }
 
         for player in self.players.iter_mut() {
+            let player = unsafe { player.get().as_mut().unwrap() };
             player.write_packet(&packet_destroy_entities);
             player.tick();
         }
 
         for chunk in self.chunk_grid.chunks.iter_mut() {
             chunk.packet_buffer.clear()
+        }
+    }
+
+    pub fn add_player_to_chunk(&mut self, client_id: ClientId, chunk_x: i32, chunk_z: i32) {
+        if let Some(index) = self.player_map.get(client_id) {
+            let player = self.players[*index].clone();
+
+            if let Some(chunk) = self.chunk_grid.get_chunk_mut(chunk_x, chunk_z) {
+                chunk.insert_player(client_id, player)
+            }
         }
     }
 
@@ -258,7 +278,8 @@ impl<W: WorldExtension> World<W> {
             }
             MainThreadMessage::PacketReceived { client_id, packet } => {
                 if let Some(index) = self.player_map.get(client_id) {
-                    let player = &mut self.players[*index];
+                    let player_rc = &mut self.players[*index];
+                    let player = unsafe { &mut *player_rc.get() };
                     packet.process(player)
                 }
             }

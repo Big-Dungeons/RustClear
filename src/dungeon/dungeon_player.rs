@@ -1,7 +1,5 @@
 use crate::dungeon::dungeon::{Dungeon, DungeonState};
 use crate::dungeon::items::ability::{Ability, ActiveAbility, Cooldown};
-#[cfg(feature = "dungeon-breaker")]
-use crate::dungeon::items::dungeon_breaker::dungeon_breaker_dig;
 use crate::dungeon::items::dungeon_items::DungeonItem;
 use crate::dungeon::room::room::Room;
 use chrono::Local;
@@ -32,11 +30,6 @@ pub struct DungeonPlayer {
     // however if you pair with cooldowns it should be fine
     pub active_abilities: Cell<Vec<ActiveAbility>>,
     pub cooldowns: HashMap<DungeonItem, Cooldown>,
-
-    #[cfg(feature = "dungeon-breaker")]
-    pub pickaxe_charges: usize,
-    #[cfg(feature = "dungeon-breaker")]
-    pub broken_blocks: Vec<(IVec3, server::block::blocks::Blocks, usize)>,
 
 }
 
@@ -78,80 +71,33 @@ impl PlayerExtension for DungeonPlayer {
             cooldown.ticks_remaining -= 1;
             cooldown.ticks_remaining != 0
         });
-
-        #[cfg(feature = "dungeon-breaker")]
-        {
-            if player.ticks_existed.is_multiple_of(20) {
-                if player.extension.pickaxe_charges != 20 {
-                    let min = std::cmp::min(20 - player.extension.pickaxe_charges, 2);
-                    player.extension.pickaxe_charges += min;
-                }
-            }
-
-            let chunk_grid = &mut player.world_mut().chunk_grid;
-            player.extension.broken_blocks.retain_mut(|(position, block, ticks)| {
-                *ticks -= 1;
-                if *ticks == 0 {
-                    // for last 3 seconds, every second plays a particle and sound
-                    chunk_grid.set_block_at(*block, position.x, position.y, position.z);
-                }
-               *ticks != 0
-            });
-        }
     }
 
     fn dig(player: &mut Player<Self>, position: IVec3, action: &PlayerDiggingAction) {
-        
-        #[cfg(not(feature = "dungeon-breaker"))]
-        {
-            let mut restore_block = false;
-            match action {
-                PlayerDiggingAction::StartDestroyBlock => {
-                    if let Some(item) = *player.inventory.get_hotbar_slot(player.held_slot as usize) {
-                        if matches!(item, DungeonItem::Pickaxe) {
-                            restore_block = true;
-                        }
+        let mut restore_block = false;
+        match action {
+            PlayerDiggingAction::StartDestroyBlock => {
+                if let Some(item) = *player.inventory.get_hotbar_slot(player.held_slot as usize) {
+                    if matches!(item, DungeonItem::Pickaxe) {
+                        restore_block = true;
                     }
+                }
 
-                    // only doors can be interacted with left click I think
-                    let world = player.world_mut();
-                    DungeonPlayer::try_open_door(player, world, &position);
-                }
-                PlayerDiggingAction::FinishDestroyBlock => {
-                    restore_block = true;
-                }
-                _ => {}
+                // only doors can be interacted with left click I think
+                let world = player.world_mut();
+                DungeonPlayer::try_open_door(player, world, &position);
             }
-            if restore_block {
-                let block = player.world().chunk_grid.get_block_at(position.x, position.y, position.z);
-                println!("block {block:?}");
-                player.write_packet(&BlockChange {
-                    block_pos: position,
-                    block_state: block.get_blockstate_id(),
-                })
+            PlayerDiggingAction::FinishDestroyBlock => {
+                restore_block = true;
             }
+            _ => {}
         }
-
-        #[cfg(feature = "dungeon-breaker")]
-        {
-            let world = player.world_mut();
-
-            // try open doors with left click before continuing with dungeon breaker
-            if DungeonPlayer::try_open_door(player, world, &position) {
-                return;
-            }
-
-            if !dungeon_breaker_dig(player, world, position, action) {
-                let block = world.chunk_grid.get_block_at(
-                    position.x,
-                    position.y,
-                    position.z
-                );
-                player.write_packet(&BlockChange {
-                    block_pos: position,
-                    block_state: block.get_block_state_id(),
-                })
-            }
+        if restore_block {
+            let block = player.world().chunk_grid.get_block_at(position.x, position.y, position.z);
+            player.write_packet(&BlockChange {
+                block_pos: position,
+                block_state: block.get_blockstate_id(),
+            })
         }
     }
 
@@ -283,7 +229,8 @@ impl DungeonPlayer {
                 // can't use one outside because of borrow checker
                 let sidebar = &mut player.extension.sidebar;
 
-                for player in world.players.iter() {
+                for player_rc in world.players.iter() {
+                    let player = unsafe { &*player_rc.get() };
                     let color = if player.extension.is_ready { 'a' } else { 'c' };
                     sidebar.push(&format!("§{color}[M] §7{}", player.profile.username));
                 }
@@ -345,7 +292,8 @@ impl DungeonPlayer {
                         
                     "#});
                 } else {
-                    for p in world.players.iter() {
+                    for player_rc in world.players.iter() {
+                        let p = unsafe { &*player_rc.get() };
                         if p.client_id != player.client_id {
                             sidebar.push(&format!("§e[M] §7{}", p.profile.username));
                         }

@@ -1,3 +1,4 @@
+use crate::dungeon::dungeon::Dungeon;
 use crate::dungeon::dungeon_player::DungeonPlayer;
 use crate::dungeon::room::room_data::RoomType;
 use glam::{dvec3, vec3, DVec3};
@@ -62,7 +63,7 @@ pub fn etherwarp(player: &mut Player<DungeonPlayer>) {
     }
 }
 
-fn traverse_voxels(chunk_grid: &ChunkGrid, start: DVec3, end: DVec3) -> EtherResult {
+fn traverse_voxels(chunk_grid: &ChunkGrid<Dungeon>, start: DVec3, end: DVec3) -> EtherResult {
     let (x0, y0, z0) = (start.x, start.y, start.z);
     let (x1, y1, z1) = (end.x, end.y, end.z);
 

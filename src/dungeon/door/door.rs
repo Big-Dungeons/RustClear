@@ -59,7 +59,7 @@ impl Door {
     
     pub fn load_into_world(
         &self,
-        chunk_grid: &mut ChunkGrid,
+        chunk_grid: &mut ChunkGrid<Dungeon>,
         door_blocks: &DeterministicHashMap<DoorType, Vec<Vec<Block>>>
     ) {
         // Area to fill with air

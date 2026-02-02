@@ -1,3 +1,4 @@
+use crate::dungeon::dungeon::Dungeon;
 use crate::dungeon::dungeon_player::DungeonPlayer;
 use crate::dungeon::items::etherwarp::VALID_ETHER_WARP_BLOCK_IDS;
 use crate::dungeon::room::room_data::RoomType;
@@ -82,7 +83,7 @@ pub fn instant_transmission(
     }
 }
 
-fn is_valid(chunk_grid: &ChunkGrid, position: IVec3) -> bool {
+fn is_valid(chunk_grid: &ChunkGrid<Dungeon>, position: IVec3) -> bool {
     let block1 = chunk_grid.get_block_at(position.x, position.y, position.z).get_blockstate_id() >> 4;
     let block2 = chunk_grid.get_block_at(position.x, position.y + 1, position.z).get_blockstate_id() >> 4;
     VALID_ETHER_WARP_BLOCK_IDS.contains(block1 as usize) && VALID_ETHER_WARP_BLOCK_IDS.contains(block2 as usize)

@@ -1,14 +1,17 @@
 use crate::dungeon::door::door::Door;
-use crate::dungeon::dungeon::DUNGEON_ORIGIN;
+use crate::dungeon::dungeon::{Dungeon, DUNGEON_ORIGIN};
+use crate::dungeon::dungeon_player::DungeonPlayer;
 use crate::dungeon::room::room_data::RoomData;
+use crate::dungeon::room::room_implementation::Puzzle;
+use crate::dungeon::room::room_implementation::{MobRoom, RoomImplementation};
 use glam::{dvec3, ivec3, IVec3};
 use server::block::rotatable::Rotate;
 use server::block::Block;
 use server::types::aabb::AABB;
 use server::types::direction::Direction;
 use server::world::chunk::chunk_grid::ChunkGrid;
-use server::ClientId;
-use std::cell::RefCell;
+use server::{ClientId, Player};
+use std::cell::{RefCell, UnsafeCell};
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
@@ -41,7 +44,10 @@ pub struct Room {
     pub completed: bool,
 
     // usize is index of the section they're in
-    pub players: HashMap<ClientId, Option<usize>>
+    // pub players: HashMap<ClientId, Option<usize>>,
+    pub players: HashMap<ClientId, Rc<UnsafeCell<Player<DungeonPlayer>>>>,
+
+    pub implementation: UnsafeCell<Box<dyn RoomImplementation>>
 }
 
 impl Room {
@@ -86,7 +92,12 @@ impl Room {
                 });
             }
         }
-        
+
+        let implementation: UnsafeCell<Box<dyn RoomImplementation>> = match room_data.name.as_str() {
+            "Three Weirdos" => UnsafeCell::new(Box::new(Puzzle {})),
+            _ => UnsafeCell::new(Box::new(MobRoom {})),
+        };
+
         Self {
             segments,
             room_bounds,
@@ -95,6 +106,7 @@ impl Room {
             discovered: false,
             completed: false,
             players: HashMap::new(),
+            implementation
         }
     }
 
@@ -126,7 +138,7 @@ impl Room {
         }
     }
     
-    pub fn load_into_world(&self, chunk_grid: &mut ChunkGrid) {
+    pub fn load_into_world(&self, chunk_grid: &mut ChunkGrid<Dungeon>) {
         let corner = self.get_corner_pos();
 
         for (index, block) in self.data.block_data.iter().enumerate() {
@@ -146,35 +158,35 @@ impl Room {
         }
     }
 
-    pub fn add_player_ref(&mut self, client_id: ClientId, segment: Option<usize>) {
+    pub fn add_player_ref(&mut self, client_id: ClientId, player: Rc<UnsafeCell<Player<DungeonPlayer>>>/*segment: Option<usize>*/) {
         debug_assert!(!self.players.contains_key(&client_id), "player already in room");
-        self.players.insert(client_id, segment);
-        if let Some(segment) = segment {
-            self.segments[segment].player_ref_count += 1;
-        }
+        self.players.insert(client_id, player);
+        // if let Some(segment) = segment {
+        //     self.segments[segment].player_ref_count += 1;
+        // }
     }
 
     pub fn remove_player_ref(&mut self, client_id: ClientId) {
         debug_assert!(self.players.contains_key(&client_id), "player wasn't in the room");
         let segment = self.players.remove(&client_id).unwrap();
 
-        if let Some(segment) = segment {
-            self.segments[segment].player_ref_count -= 1;
-        }
+        // if let Some(segment) = segment {
+        //     self.segments[segment].player_ref_count -= 1;
+        // }
     }
 
-    pub fn update_player_segment(&mut self, client_id: ClientId, new: Option<usize>) {
-        let old = self.players.get_mut(&client_id).unwrap();
-        debug_assert!(*old != new, "tried updated player section, when section hasn't changed");
-
-        if let Some(segment) = *old {
-            self.segments[segment].player_ref_count -= 1;
-        };
-        if let Some(segment) = new {
-            self.segments[segment].player_ref_count += 1;
-        }
-        *old = new;
-    }
+    // pub fn update_player_segment(&mut self, client_id: ClientId, new: Option<usize>) {
+    //     let old = self.players.get_mut(&client_id).unwrap();
+    //     debug_assert!(*old != new, "tried updated player section, when section hasn't changed");
+    //
+    //     if let Some(segment) = *old {
+    //         self.segments[segment].player_ref_count -= 1;
+    //     };
+    //     if let Some(segment) = new {
+    //         self.segments[segment].player_ref_count += 1;
+    //     }
+    //     *old = new;
+    // }
 
     pub fn get_world_block_position(&self, room_position: IVec3) -> IVec3 {
         let corner = self.get_corner_pos();
