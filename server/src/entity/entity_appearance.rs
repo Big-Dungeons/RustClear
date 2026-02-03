@@ -89,6 +89,7 @@ impl<W: WorldExtension> EntityAppearance<W> for MobAppearance {
 }
 
 pub struct PlayerAppearance {
+    name: &'static str,
     metadata: PlayerMetadata,
     uuid: Uuid,
     texture: &'static str,
@@ -98,11 +99,13 @@ pub struct PlayerAppearance {
 impl PlayerAppearance {
 
     pub fn new(
+        name: &'static str,
         metadata: PlayerMetadata,
         texture: &'static str,
         signature: &'static str
     ) -> Self {
         Self {
+            name,
             metadata,
             uuid: Uuid::new_v4(),
             texture,
@@ -126,7 +129,7 @@ impl<W: WorldExtension> EntityAppearance<W> for PlayerAppearance {
                 game_mode: 0,
                 profile: &GameProfile {
                     uuid: self.uuid,
-                    username: FString::EMPTY,
+                    username: FString::new(self.name),
                     properties: HashMap::from([("textures".into(), GameProfileProperty {
                         value: self.texture.into(),
                         signature: Some(self.signature.into()),

@@ -1,18 +1,22 @@
 use crate::dungeon::door::door::Door;
 use crate::dungeon::dungeon::{Dungeon, DUNGEON_ORIGIN};
 use crate::dungeon::dungeon_player::DungeonPlayer;
+use crate::dungeon::room::puzzles::quiz::QuizPuzzle;
+use crate::dungeon::room::puzzles::three_weirdos::ThreeWeirdosPuzzle;
 use crate::dungeon::room::room_data::RoomData;
-use crate::dungeon::room::room_implementation::Puzzle;
 use crate::dungeon::room::room_implementation::{MobRoom, RoomImplementation};
-use glam::{dvec3, ivec3, IVec3};
+use glam::{dvec3, ivec3, usize, IVec3};
 use server::block::rotatable::Rotate;
 use server::block::Block;
+use server::network::protocol::play::clientbound::Chat;
 use server::types::aabb::AABB;
+use server::types::chat_component::ChatComponent;
 use server::types::direction::Direction;
 use server::world::chunk::chunk_grid::ChunkGrid;
-use server::{ClientId, Player};
+use server::{ClientId, Player, World};
 use std::cell::{RefCell, UnsafeCell};
-use std::collections::{HashMap, HashSet};
+use std::cmp::{max, min};
+use std::collections::HashMap;
 use std::rc::Rc;
 
 pub struct RoomSegment {
@@ -32,26 +36,27 @@ pub struct RoomBounds {
     pub segment_index: Option<usize>
 }
 
+pub enum RoomStatus {
+    Undiscovered,
+    Discovered,
+    Complete,
+    Failed,
+}
+
 pub struct Room {
     pub segments: Vec<RoomSegment>,
     pub room_bounds: Vec<RoomBounds>,
-    
     pub rotation: Direction,
     pub data: RoomData,
 
-    pub discovered: bool,
-    // idk if a bool value,
-    pub completed: bool,
+    pub status: RoomStatus,
 
-    // usize is index of the section they're in
-    // pub players: HashMap<ClientId, Option<usize>>,
     pub players: HashMap<ClientId, Rc<UnsafeCell<Player<DungeonPlayer>>>>,
-
     pub implementation: UnsafeCell<Box<dyn RoomImplementation>>
 }
 
 impl Room {
-    
+
     pub fn new(
         segments: Vec<RoomSegment>,
         room_data: RoomData,
@@ -63,7 +68,7 @@ impl Room {
             let x = (segment.x as i32 * 32 + DUNGEON_ORIGIN.x) as f64;
             let y = room_data.bottom as f64;
             let z = (segment.z as i32 * 32 + DUNGEON_ORIGIN.y) as f64;
-            let max_y = (room_data.bottom + room_data.height) as f64;
+            let max_y = (room_data.bottom + room_data.height) as f64 + 100.0;
 
             room_bounds.push(RoomBounds {
                 aabb: AABB::new(dvec3(x, y, z), dvec3(x + 31.0, max_y, z + 31.0)),
@@ -94,7 +99,8 @@ impl Room {
         }
 
         let implementation: UnsafeCell<Box<dyn RoomImplementation>> = match room_data.name.as_str() {
-            "Three Weirdos" => UnsafeCell::new(Box::new(Puzzle {})),
+            "Three Weirdos" => UnsafeCell::new(Box::new(ThreeWeirdosPuzzle::default())),
+            "Quiz" => UnsafeCell::new(Box::new(QuizPuzzle {})),
             _ => UnsafeCell::new(Box::new(MobRoom {})),
         };
 
@@ -103,10 +109,9 @@ impl Room {
             room_bounds,
             rotation,
             data: room_data,
-            discovered: false,
-            completed: false,
+            status: RoomStatus::Undiscovered,
+            implementation,
             players: HashMap::new(),
-            implementation
         }
     }
 
@@ -141,7 +146,7 @@ impl Room {
             Direction::West => ivec3(x, y, z + room_data.width - 1),
         }
     }
-    
+
     pub fn load_into_world(&self, chunk_grid: &mut ChunkGrid<Dungeon>) {
         let corner = self.get_corner_pos();
 
@@ -149,7 +154,7 @@ impl Room {
             if *block == Block::Air {
                 continue;
             }
-            
+
             let index = index as i32;
             let x = index % self.data.width;
             let z = (index / self.data.width) % self.data.length;
@@ -165,32 +170,12 @@ impl Room {
     pub fn add_player_ref(&mut self, client_id: ClientId, player: Rc<UnsafeCell<Player<DungeonPlayer>>>/*segment: Option<usize>*/) {
         debug_assert!(!self.players.contains_key(&client_id), "player already in room");
         self.players.insert(client_id, player);
-        // if let Some(segment) = segment {
-        //     self.segments[segment].player_ref_count += 1;
-        // }
     }
 
     pub fn remove_player_ref(&mut self, client_id: ClientId) {
         debug_assert!(self.players.contains_key(&client_id), "player wasn't in the room");
         self.players.remove(&client_id);
-
-        // if let Some(segment) = segment {
-        //     self.segments[segment].player_ref_count -= 1;
-        // }
     }
-
-    // pub fn update_player_segment(&mut self, client_id: ClientId, new: Option<usize>) {
-    //     let old = self.players.get_mut(&client_id).unwrap();
-    //     debug_assert!(*old != new, "tried updated player section, when section hasn't changed");
-    //
-    //     if let Some(segment) = *old {
-    //         self.segments[segment].player_ref_count -= 1;
-    //     };
-    //     if let Some(segment) = new {
-    //         self.segments[segment].player_ref_count += 1;
-    //     }
-    //     *old = new;
-    // }
 
     pub fn get_world_block_position(&self, room_position: IVec3) -> IVec3 {
         let corner = self.get_corner_pos();
@@ -199,17 +184,113 @@ impl Room {
         position.z += corner.z;
         position
     }
+
+    pub fn is_undiscovered(&self) -> bool {
+        matches!(self.status, RoomStatus::Undiscovered)
+    }
+
+    // run essentially when it discovers a room...
+    pub fn discover(&mut self, world: &mut World<Dungeon>) {
+        self.status = RoomStatus::Discovered;
+        let implementation = unsafe { &mut *self.implementation.get() };
+        implementation.discover(self, world);
+
+        world.map.draw_room(self)
+    }
+
+    pub fn tick(&mut self, world: &mut World<Dungeon>) {
+        let implementation = unsafe { &mut *self.implementation.get() };
+        implementation.tick(self, world)
+    }
+
+    pub fn interact_with_block(
+        room_rc: &Rc<RefCell<Room>>,
+        player: &mut Player<DungeonPlayer>,
+        position: IVec3
+    ) {
+        if Self::try_open_door(room_rc, player, position) {
+            return;
+        }
+
+        let mut room = room_rc.borrow_mut();
+        let implementation = unsafe { &mut *room.implementation.get() };
+        implementation.interact(&mut room, player, position);
+
+        drop(room);
+
+        // let room = room_rc.borrow();
+        // let relative = {
+        //     let corner = room.get_corner_pos();
+        //     let p = IVec3 {
+        //         x: position.x - corner.x,
+        //         y: position.y,
+        //         z: position.z - corner.z,
+        //     };
+        //     match room.rotation {
+        //         Direction::North => p,
+        //         Direction::East => IVec3 { x: p.z, y: p.y, z: -p.x },
+        //         Direction::South => IVec3 { x: -p.x, y: p.y, z: -p.z },
+        //         Direction::West => IVec3 { x: -p.z, y: p.y, z: p.x },
+        //     }
+        // };
+
+        // player.write_packet(&Chat {
+        //     component: ChatComponent::new(format!("relative position {}", relative)),
+        //     chat_type: 0,
+        // })
+    }
+
+    pub fn attack_block(room_rc: &Rc<RefCell<Room>>, player: &mut Player<DungeonPlayer>, position: IVec3) {
+        if Self::try_open_door(room_rc, player, position) {
+            return;
+        }
+        // player.write_packet(&Chat {
+        //     component: ChatComponent::new("lc block"),
+        //     chat_type: 0,
+        // })
+    }
+
+    fn try_open_door(room_rc: &Rc<RefCell<Room>>, player: &mut Player<DungeonPlayer>, position: IVec3) -> bool {
+        let room = room_rc.borrow();
+        let world = player.world_mut();
+        for neighbour in room.neighbours() {
+            let mut door = neighbour.door.borrow_mut();
+            if !door.contains(position) || door.is_open {
+                continue;
+            }
+            if !door.can_open(world) {
+                // todo: proper chat message and sound
+                player.write_packet(&Chat {
+                    component: ChatComponent::new("no key"),
+                    chat_type: 0,
+                });
+                continue;
+            }
+            door.open(world);
+            drop(door);
+
+            neighbour.room.borrow_mut().discover(world);
+            return true
+        }
+        false
+    }
 }
 
 fn get_rotation_from_segments(segments: &[RoomSegment]) -> Direction {
-    let unique_x = segments.iter()
-        .map(|segment| segment.x)
-        .collect::<HashSet<usize>>();
-    let unique_z = segments.iter()
-        .map(|segment| segment.z)
-        .collect::<HashSet<usize>>();
+    let mut min_x = usize::MAX;
+    let mut min_z = usize::MAX;
+    let mut max_x = usize::MIN;
+    let mut max_z = usize::MIN;
 
-    let not_long = unique_x.len() > 1 && unique_z.len() > 1;
+    for segment in segments {
+        min_x = min(min_x, segment.x);
+        min_z = min(min_z, segment.z);
+        max_x = max(max_x, segment.x);
+        max_z = max(max_z, segment.z);
+    }
+
+    let width = (max_x - min_x) + 1;
+    let length = (max_z - min_z) + 1;
 
     match segments.len() {
         1 => {
@@ -222,70 +303,51 @@ fn get_rotation_from_segments(segments: &[RoomSegment]) -> Direction {
             match bitmask {
                 // Doors on all sides, never changes
                 0b1111 => Direction::North,
-                // Dead end 1x1
-                0b1000 => Direction::North,
-                0b0100 => Direction::East,
-                0b0010 => Direction::South,
-                0b0001 => Direction::West,
                 // Opposite doors
                 0b0101 => Direction::North,
                 0b1010 => Direction::East,
-                // L bend
-                0b0011 => Direction::North,
-                0b1001 => Direction::East,
-                0b1100 => Direction::South,
-                0b0110 => Direction::West,
-                // Triple door
-                0b1011 => Direction::North,
-                0b1101 => Direction::East,
-                0b1110 => Direction::South,
-                0b0111 => Direction::West,
+                // Dead end | L Bend | Triple Door
+                0b1000 | 0b0011 | 0b1011 => Direction::North,
+                0b0100 | 0b1001 | 0b1101 => Direction::East,
+                0b0010 | 0b1100 | 0b1110 => Direction::South,
+                0b0001 | 0b0110 | 0b0111 => Direction::West,
                 _ => Direction::North,
             }
         }
-        2 => match unique_z.len() == 1 {
+        2 => match length == 1 {
             true => Direction::North,
             false => Direction::East,
         },
         3 => {
             // L room
-            if not_long {
-                let corner_value = segments.iter().find(|x| {
-                    segments.iter().all(|y| {
-                        x.x.abs_diff(y.x) + x.z.abs_diff(y.z) <= 1
+            if width == 2 && length == 2 {
+                let corner = segments.iter().find(|a| {
+                    segments.iter().all(|b| {
+                        a.x.abs_diff(b.x) + a.z.abs_diff(b.z) <= 1
                     })
                 }).expect("Invalid L room: Segments:");
 
-                let min_x = segments.iter().min_by(|a, b| a.x.cmp(&b.x)).unwrap().x;
-                let min_z = segments.iter().min_by(|a, b| a.z.cmp(&b.z)).unwrap().z;
-                let max_x = segments.iter().max_by(|a, b| a.x.cmp(&b.x)).unwrap().x;
-                let max_z = segments.iter().max_by(|a, b| a.z.cmp(&b.z)).unwrap().z;
-
-                if corner_value.x == min_x && corner_value.z == min_z {
-                    return Direction::East
+                match (corner.x, corner.z) {
+                    (x, z) if x == min_x && z == min_z => Direction::East,
+                    (x, z) if x == max_x && z == min_z => Direction::South,
+                    (x, z) if x == max_x && z == max_z => Direction::West,
+                    _ => Direction::North,
                 }
-                if corner_value.x == max_x && corner_value.z == min_z {
-                    return Direction::South
+            } else {
+                match length == 1 {
+                    true => Direction::North,
+                    false => Direction::East,
                 }
-                if corner_value.x == max_x && corner_value.z == max_z {
-                    return Direction::West
-                }
-                return Direction::North
-            }
-
-            match unique_z.len() == 1 {
-                true => Direction::North,
-                false => Direction::East,
             }
         },
         4 => {
-            if unique_x.len() == 2 && unique_z.len() == 2 {
-                return Direction::North
-            }
-
-            match unique_z.len() == 1 {
-                true => Direction::North,
-                false => Direction::East,
+            if width == 2 && length == 2 {
+                Direction::North
+            } else {
+                match length == 1 {
+                    true => Direction::North,
+                    false => Direction::East,
+                }
             }
         },
         _ => unreachable!(),

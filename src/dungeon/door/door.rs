@@ -162,7 +162,7 @@ impl Door {
     }
 
     // inner bit of door, blocks abilities
-    pub fn contains(&self, block_pos: &IVec3) -> bool {
+    pub fn contains(&self, block_pos: IVec3) -> bool {
         let (x ,y , z) = (block_pos.x, block_pos.y, block_pos.z);
         (x >= self.inner_start.x && x <= self.inner_end.x) &&
         (y >= self.inner_start.y && y <= self.inner_end.y) &&

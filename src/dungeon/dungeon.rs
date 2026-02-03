@@ -3,7 +3,7 @@ use crate::dungeon::door::door_positions::DOOR_POSITIONS;
 use crate::dungeon::dungeon_player::DungeonPlayer;
 use crate::dungeon::items::dungeon_items::DungeonItem;
 use crate::dungeon::map::DungeonMap;
-use crate::dungeon::room::room::{Room, RoomNeighbour, RoomSegment};
+use crate::dungeon::room::room::{Room, RoomNeighbour, RoomSegment, RoomStatus};
 use crate::dungeon::room::room_data::{get_random_data_with_type, RoomData, RoomShape, RoomType};
 use anyhow::bail;
 use glam::{ivec3, DVec3, IVec2};
@@ -45,6 +45,7 @@ pub struct Dungeon {
     // but what if we ever want to do some fun stuff with more than 1
     pub blood_key_count: usize,
     pub wither_key_count: usize,
+    pub cleared_percent: i32,
 }
 
 impl WorldExtension for Dungeon {
@@ -112,20 +113,30 @@ impl WorldExtension for Dungeon {
                 // and for sections if it has a player, try to spawn its neighbours
 
                 // tick puzzles, etc
+                
+                // clear percent is based on segments and not 
+                let mut total_segments = 0;
+                let mut complete_segments = 0;
 
                 for index in 0..world.rooms.len() {
                     let room_rc = world.rooms[index].clone();
                     let mut room = room_rc.borrow_mut();
 
-                    if !room.players.is_empty() && !room.discovered {
-                        let room_impl = unsafe { &mut *room.implementation.get() };
-                        room_impl.discover(&mut room, world);
+                    if !room.players.is_empty() && room.is_undiscovered() {
+                        room.discover(world)
+                    }
 
-                        room.discovered = true;
-                        world.extension.map.draw_room(&room);
+                    room.tick(world);
+                    
+                    total_segments += room.segments.len();
+                    if matches!(room.status, RoomStatus::Complete) {
+                        complete_segments += room.segments.len();
                     }
                 }
 
+                let p = complete_segments as f32 / total_segments as f32;
+                world.cleared_percent = ((p * 100.0).round() as i32).clamp(0, 100);
+                
                 if let Some(packet) = world.extension.map.get_packet() {
                     for player in world.players_mut() {
                         player.write_packet(&packet)
@@ -219,14 +230,13 @@ impl Dungeon {
 
         {
             let entrance_room = world.entrance_room();
-            entrance_room.borrow_mut().discovered = true;
+            entrance_room.borrow_mut().status = RoomStatus::Complete;
             world.map.draw_room(&entrance_room.borrow());
         }
 
         for neighbour in world.entrance_room().borrow().neighbours() {
             neighbour.door.borrow_mut().open(world);
-            neighbour.room.borrow_mut().discovered = true;
-            world.map.draw_room(&neighbour.room.borrow());
+            neighbour.room.borrow_mut().discover(world);
         }
     }
 
@@ -464,7 +474,7 @@ impl Dungeon {
             map: DungeonMap::new(map_offset_x, map_offset_y),
             wither_key_count,
             blood_key_count: 1,
-
+            cleared_percent: 0,
         })
     }
 

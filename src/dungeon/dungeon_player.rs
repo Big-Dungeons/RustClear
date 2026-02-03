@@ -8,13 +8,12 @@ use indoc::{formatdoc, indoc};
 use server::constants::PotionEffect;
 use server::inventory::item::get_item_stack;
 use server::inventory::item_stack::ItemStack;
-use server::network::protocol::play::clientbound::{AddEffect, BlockChange, Chat};
+use server::network::protocol::play::clientbound::{AddEffect, BlockChange};
 use server::network::protocol::play::serverbound::PlayerDiggingAction;
 use server::player::packet_handling::BlockInteractResult;
 use server::player::sidebar::Sidebar;
-use server::types::chat_component::ChatComponent;
 use server::types::direction::Direction3D;
-use server::{Player, PlayerExtension, World};
+use server::{Player, PlayerExtension};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -83,9 +82,9 @@ impl PlayerExtension for DungeonPlayer {
                     }
                 }
 
-                // only doors can be interacted with left click I think
-                let world = player.world_mut();
-                DungeonPlayer::try_open_door(player, world, &position);
+                if let Some(room_rc) = player.get_current_room() && player.world().has_started() {
+                    Room::attack_block(&room_rc, player, position);
+                }
             }
             PlayerDiggingAction::FinishDestroyBlock => {
                 restore_block = true;
@@ -119,9 +118,10 @@ impl PlayerExtension for DungeonPlayer {
                     block_state: block.get_blockstate_id(),
                 });
             }
-            
-            let world = player.world_mut();
-            DungeonPlayer::try_open_door(player, world, &block.position);
+
+            if let Some(room_rc) = player.get_current_room() && player.world().has_started() {
+                Room::interact_with_block(&room_rc, player, block.position);
+            }
         }
 
         let held_item = *player.inventory.get_hotbar_slot(player.held_slot as usize);
@@ -165,35 +165,6 @@ impl DungeonPlayer {
         None
     }
 
-    pub fn try_open_door(player: &mut Player<Self>, world: &mut World<Dungeon>, position: &IVec3) -> bool {
-        if world.has_started() {
-            if let Some(room_rc) = player.extension.get_current_room() {
-                for neighbour in room_rc.borrow().neighbours() {
-                    let mut door = neighbour.door.borrow_mut();
-
-                    if !door.contains(position) || door.is_open {
-                        continue;
-                    }
-                    if !door.can_open(world) {
-                        // todo: proper chat message and sound
-                        player.write_packet(&Chat {
-                            component: ChatComponent::new("no key"),
-                            chat_type: 0,
-                        });
-                        continue;
-                    }
-                    door.open(world);
-                    drop(door);
-
-                    neighbour.room.borrow_mut().discovered = true;
-                    world.map.draw_room(&neighbour.room.borrow());
-                    return true;
-                }
-            }
-        }
-        false
-    }
-    
     fn update_sidebar(player: &mut Player<DungeonPlayer>) {
         // really scuffed icl
 
@@ -258,31 +229,20 @@ impl DungeonPlayer {
                     let seconds = seconds % 60;
                     format!("{}{}s", if seconds < 10 { "0" } else { "" }, seconds)
                 };
-                // TODO: cleared percentage
-                // clear percentage is based on amount of tiles that are cleared.
-
                 let (has_blood_key, wither_key_count) = (
                     if world.blood_key_count != 0 { "§a✓" } else { "§c✖" },
                     world.wither_key_count,
                 );
 
+                // sidebar needs fixing again
+                let clear_percent = world.cleared_percent;
                 sidebar.push(&formatdoc! {r#"
                         Keys: §c■ {has_blood_key} §8■ §a{wither_key_count}x
                         Time elapsed: §a§a{time}
-                        Cleared: §c{clear_percent}% §8§8({score})
+                        Cleared: §c{clear_percent}% §r§8({score})
 
                     "#,
-                    clear_percent = "0",
                     score = "0",
-                });
-
-                // temp
-                #[cfg(feature = "dungeon-breaker")]
-                sidebar.push(&formatdoc!{r#"
-                    charges {charges}
-
-                "#,
-                    charges = player.extension.pickaxe_charges,
                 });
 
                 if world.players.len() == 1 {

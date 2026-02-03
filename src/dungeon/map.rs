@@ -1,5 +1,5 @@
 use crate::dungeon::door::door::DoorType;
-use crate::dungeon::room::room::Room;
+use crate::dungeon::room::room::{Room, RoomStatus};
 use crate::dungeon::room::room_data::{RoomData, RoomShape, RoomType::*};
 use server::block::block_parameter::Axis;
 use server::network::protocol::play::clientbound::Maps;
@@ -171,7 +171,7 @@ impl DungeonMap {
                     _ => unreachable!()
                 };
 
-                if neighbour_room.discovered {
+                if !neighbour_room.is_undiscovered() {
                     let color = get_door_color(room, &neighbour_room);
                     self.fill_px(x, y, width, height, color);
                 } else {
@@ -208,14 +208,25 @@ impl DungeonMap {
             let y = room.segments[0].z * 20 + 16;
             self.fill_px(x, y, 4, 4, color)
         }
+        
+        self.draw_checkmark(room)
+    }
+    
+    pub fn draw_checkmark(&mut self, room: &Room) {
+        if matches!(room.status, RoomStatus::Complete | RoomStatus::Failed) {
+            let color = match room.status {
+                RoomStatus::Undiscovered => unreachable!(),
+                RoomStatus::Discovered => unreachable!(),
+                RoomStatus::Complete => GREEN,
+                RoomStatus::Failed => RED,
+            };
 
-        {
-            // render checkamrk
+            // todo render X when failed 
             let x = room.segments[0].x * 20 + 4;
             let y = room.segments[0].z * 20 + 4;
 
             for (cx, cy) in CHECKMARK_POSITIONS {
-                self.set_px(x + cx, y + cy, GREEN)
+                self.set_px(x + cx, y + cy, color)
             }
         }
     }
