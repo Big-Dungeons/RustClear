@@ -1,10 +1,8 @@
 use crate::inventory::menu::OpenContainer;
 use crate::network::packets::packet::ProcessPacket;
-use crate::network::protocol::play::clientbound::Chat;
 use crate::network::protocol::play::serverbound;
 use crate::network::protocol::play::serverbound::{ArmSwing, ChatMessage, ClickWindow, ClientSettings, ClientStatus, CreativeInventoryAction, HeldItemChange, PlayerAction, PlayerActionType, PlayerBlockPlacement, PlayerDigging, PlayerLook, PlayerPosition, PlayerPositionLook, PlayerUpdate, TabComplete, UseEntity};
 use crate::player::player::{Player, PlayerExtension};
-use crate::types::chat_component::ChatComponent;
 use crate::types::direction::Direction3D;
 use enumset::EnumSet;
 use glam::IVec3;
@@ -23,10 +21,8 @@ impl ProcessPacket for serverbound::KeepAlive {
 
 impl ProcessPacket for ChatMessage {
     fn process<P : PlayerExtension>(&self, player: &mut Player<P>) {
-        player.write_packet(&Chat {
-            component: ChatComponent::new(String::from_utf8(self.message.as_bytes().to_vec()).unwrap()),
-            chat_type: 0,
-        })
+        let commands = player.command_dispatcher();
+        commands.dispatch(player, &self.message)
     }
 }
 

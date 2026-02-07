@@ -1,3 +1,4 @@
+use crate::commands::command::CommandDispatcher;
 use crate::constants::{Gamemode, Sound};
 use crate::entity::entity::EntityId;
 use crate::entity::entity_metadata::PlayerMetadata;
@@ -11,10 +12,11 @@ use crate::network::packets::packet::IdentifiedPacket;
 use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::packets::packet_serialize::PacketSerializable;
 use crate::network::protocol::play::clientbound;
-use crate::network::protocol::play::clientbound::{ConfirmTransaction, PacketPlayerMetadata, PlayerData, PlayerListItem, SoundEffect, WindowItems};
+use crate::network::protocol::play::clientbound::{Chat, ConfirmTransaction, PacketPlayerMetadata, PlayerData, PlayerListItem, SoundEffect, WindowItems};
 use crate::network::protocol::play::serverbound::PlayerDiggingAction;
 use crate::player::packet_handling::BlockInteractResult;
 use crate::types::aabb::AABB;
+use crate::types::chat_component::ChatComponent;
 use crate::world::chunk::chunk::get_chunk_position;
 use crate::world::chunk::chunk_grid;
 use crate::world::chunk::chunk_grid::ChunkDiff;
@@ -97,6 +99,8 @@ pub struct Player<E : PlayerExtension> {
     // removes npc from tab list after some ticks
     npc_profiles_for_removal: HashMap<Uuid, usize>,
 
+    pub commands: UnsafeCell<CommandDispatcher<E>>,
+
     pub extension: E
 }
 
@@ -141,6 +145,7 @@ impl<E : PlayerExtension> Player<E> {
 
             npc_profiles_for_removal: HashMap::new(),
 
+            commands: UnsafeCell::new(CommandDispatcher::new()),
             extension,
         }
     }
@@ -151,6 +156,14 @@ impl<E : PlayerExtension> Player<E> {
 
     pub fn world_mut<'a>(&mut self) -> &'a mut World<E::World> {
         unsafe { self.world.as_mut() }
+    }
+
+    pub fn command_dispatcher<'a>(&self) -> &'a CommandDispatcher<E> {
+        unsafe { &*self.commands.get() }
+    }
+
+    pub fn command_dispatcher_mut<'a>(&self) -> &'a mut CommandDispatcher<E> {
+        unsafe { &mut *self.commands.get() }
     }
 
     pub fn write_packet<P : IdentifiedPacket + PacketSerializable>(&mut self, packet: &P) {
@@ -254,6 +267,13 @@ impl<E : PlayerExtension> Player<E> {
         self.sent_block_placement = false;
         self.last_position = self.position;
         self.flush_packets();
+    }
+
+    pub fn send_message(&mut self, str: &str) {
+        self.write_packet(&Chat {
+            component: ChatComponent::new(str),
+            chat_type: 0,
+        });
     }
     
     pub fn play_sound_at(&mut self, sound: Sound, volume: f32, pitch: f32, position: DVec3) {
