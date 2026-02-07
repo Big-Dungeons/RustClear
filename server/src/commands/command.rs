@@ -2,7 +2,7 @@ use crate::commands::string_reader::StringReader;
 use crate::{Player, PlayerExtension};
 use std::collections::HashMap;
 
-pub type CommandFunction<P> = fn(&mut StringReader, &mut Player<P>) -> anyhow::Result<()>;
+pub type CommandFunction<P> = Box<dyn for<'a> Fn(&'a mut StringReader<'a>, &mut Player<P>) -> anyhow::Result<()>>;
 
 pub struct Command<P: PlayerExtension> {
     pub literal: &'static str,
@@ -43,18 +43,17 @@ impl<P: PlayerExtension> CommandDispatcher<P> {
 
 #[macro_export]
 macro_rules! command {
-    // Syntax: literal, |first: Type, rest: Type,...| { body }
     ($lit:expr, | $first:ident : $first_ty:ty $(, $rest:ident : $ty:ty )* | $body:block) => {{
         server::commands::command::Command {
             literal: concat!("/", $lit),
-            callback: |reader: &mut StringReader, $first: $first_ty| -> anyhow::Result<()> {
+            callback: Box::new(|reader: &mut server::commands::string_reader::StringReader<'_>, $first: $first_ty| -> anyhow::Result<()> {
                 use server::commands::command_parse::CommandParse;
                 $(
                     let mut $rest: $ty = CommandParse::parse(reader)?;
                 )*
                 $body
                 Ok(())
-            }
+            })
         }
     }};
 }

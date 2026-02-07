@@ -9,16 +9,17 @@ use anyhow::bail;
 use glam::{ivec3, DVec3, IVec2};
 use server::block::block_parameter::Axis;
 use server::block::rotatable::Rotate;
+use server::commands::command_parse::GreedyString;
 use server::constants::Gamemode;
 use server::inventory::menu::OpenContainer;
 use server::network::binary::var_int::VarInt;
-use server::network::protocol::play::clientbound::{Chat, EntityProperties, PlayerAbilities};
+use server::network::protocol::play::clientbound::{Chat, EntityProperties, PlayerAbilities, PositionLook, Relative};
 use server::player::attribute::{Attribute, AttributeMap, AttributeModifier};
 use server::player::sidebar::Sidebar;
 use server::types::aabb::AABB;
 use server::types::chat_component::ChatComponent;
 use server::utils::hasher::deterministic_hasher::DeterministicHashMap;
-use server::{ClientId, GameProfile, Player, World, WorldExtension};
+use server::{command, ClientId, GameProfile, Player, World, WorldExtension};
 use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -202,6 +203,30 @@ impl WorldExtension for Dungeon {
         player.inventory.set_slot(43, Some(DungeonItem::AspectOfTheVoid));
         player.inventory.set_slot(44, Some(DungeonItem::SkyblockMenu));
         player.sync_inventory();
+
+        let cmd = command!("tproom", |player: &mut Player<DungeonPlayer>, room_name: GreedyString| {
+            let name = room_name.str;
+            for room_rc in player.world().rooms.iter() {
+                let room = room_rc.borrow();
+                if room.data.name.to_lowercase().contains(name) {
+                    for neighbour in room.neighbours() {
+                        let door = neighbour.door.borrow();
+                        player.write_packet(&PositionLook {
+                            x: door.x as f64 + 0.5,
+                            y: 69.0,
+                            z: door.z as f64 + 0.5,
+                            yaw: 0.0,
+                            pitch: 0.0,
+                            flags: Relative::Yaw | Relative::Pitch,
+                        });
+                    }
+                    return Ok(());
+                }
+            }
+            player.send_message(format!("no room with name containing {name}").as_str())
+        });
+        player.command_dispatcher_mut().register_command(cmd);
+
         player.flush_packets()
     }
 
