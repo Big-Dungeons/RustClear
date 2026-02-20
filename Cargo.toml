@@ -24,6 +24,7 @@ glam = "0.30.5"
 enumset = "1.1.10"
 fstr = { path = "crates/fstr" }
 include_dir = "0.7.4"
+bevy_ecs = "0.18.0"
 
 [profile.dev.package."*"]
 opt-level = 3

@@ -1,6 +1,6 @@
 use crate::commands::command::CommandDispatcher;
 use crate::constants::{Gamemode, Sound};
-use crate::entity::entity::EntityId;
+use crate::entity::entities::MCEntityId;
 use crate::entity::entity_metadata::PlayerMetadata;
 use crate::inventory::item::{get_item_stack, Item};
 use crate::inventory::item_stack::ItemStack;
@@ -14,7 +14,7 @@ use crate::network::packets::packet_serialize::PacketSerializable;
 use crate::network::protocol::play::clientbound;
 use crate::network::protocol::play::clientbound::{Chat, ConfirmTransaction, PacketPlayerMetadata, PlayerData, PlayerListItem, SoundEffect, WindowItems};
 use crate::network::protocol::play::serverbound::PlayerDiggingAction;
-use crate::player::packet_handling::BlockInteractResult;
+use crate::player::packet_processing::BlockInteractResult;
 use crate::types::aabb::AABB;
 use crate::types::chat_component::ChatComponent;
 use crate::world::chunk::chunk::get_chunk_position;
@@ -48,7 +48,7 @@ pub struct GameProfile {
 
 #[allow(unused_variables)]
 pub trait PlayerExtension : Sized {
-    type World: WorldExtension<Player = Self>;
+    type World: WorldExtension<Player = Self> + 'static;
     type Item: Item;
     
     fn tick(player: &mut Player<Self>);
@@ -70,7 +70,7 @@ pub struct Player<E : PlayerExtension> {
 
     pub profile: GameProfile,
     pub client_id: ClientId,
-    pub entity_id: EntityId,
+    pub entity_id: MCEntityId,
 
     pub gamemode: Gamemode,
     pub metadata: PlayerMetadata,
@@ -110,7 +110,7 @@ impl<E : PlayerExtension> Player<E> {
         world: &mut World<E::World>,
         game_profile: GameProfile,
         client_id: ClientId,
-        entity_id: EntityId,
+        entity_id: MCEntityId,
         position: DVec3,
         yaw: f32,
         pitch: f32,
@@ -264,6 +264,7 @@ impl<E : PlayerExtension> Player<E> {
             }
         }
         
+        self.packet_buffer.copy_from(&self.world().global_packet_buffer);
         self.sent_block_placement = false;
         self.last_position = self.position;
         self.flush_packets();

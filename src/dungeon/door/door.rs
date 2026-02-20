@@ -1,4 +1,4 @@
-use crate::dungeon::door::door_entity::{DoorEntityAppearance, DoorEntityExtension};
+use crate::dungeon::door::door_entity::DoorEntity;
 use crate::dungeon::dungeon::Dungeon;
 use crate::dungeon::seeded_rng::seeded_rng;
 use glam::{ivec3, DVec3, IVec3};
@@ -151,14 +151,12 @@ impl Door {
             ivec3(self.x - 1, 69, self.z - 1),
             ivec3(self.x + 1, 72, self.z + 1),
         );
-        // door entity gets rid of blocks when it disappears
-        world.spawn_entity(
+
+        DoorEntity::spawn_into_world(
+            world,
             DVec3::new(self.x as f64 - 1.0, 69.0, self.z as f64 - 1.0),
-            0.0,
-            0.0,
-            DoorEntityAppearance { block: self.get_block() },
-            DoorEntityExtension {}
-        );
+            self.get_block()
+        )
     }
 
     // inner bit of door, blocks abilities

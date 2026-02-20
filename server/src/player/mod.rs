@@ -1,4 +1,4 @@
 pub mod player;
-pub mod packet_handling;
+pub mod packet_processing;
 pub mod attribute;
 pub mod sidebar;

@@ -46,7 +46,7 @@ pub enum Particle {
     BlockDust = 38,
     Droplet = 39,
     ItemTake = 40,
-    MobAppearance = 41,
+    MobAppear = 41,
 }
 
 impl PacketSerializable for Particle {

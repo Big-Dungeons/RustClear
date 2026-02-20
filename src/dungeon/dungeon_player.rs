@@ -10,7 +10,7 @@ use server::inventory::item::get_item_stack;
 use server::inventory::item_stack::ItemStack;
 use server::network::protocol::play::clientbound::{AddEffect, BlockChange};
 use server::network::protocol::play::serverbound::PlayerDiggingAction;
-use server::player::packet_handling::BlockInteractResult;
+use server::player::packet_processing::BlockInteractResult;
 use server::player::sidebar::Sidebar;
 use server::types::direction::Direction3D;
 use server::{Player, PlayerExtension};

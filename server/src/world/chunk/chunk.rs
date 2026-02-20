@@ -1,9 +1,10 @@
 use crate::block::blocks::Block;
-use crate::entity::entity::EntityId;
+use crate::entity::entity::MinecraftEntity;
 use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::protocol::play::clientbound::ChunkData;
 use crate::player::player::ClientId;
 use crate::{Player, PlayerExtension, WorldExtension};
+use bevy_ecs::entity::Entity;
 use glam::DVec3;
 use std::cell::UnsafeCell;
 use std::collections::{HashMap, HashSet};
@@ -18,7 +19,7 @@ pub struct Chunk<W : WorldExtension> {
     pub packet_buffer: PacketBuffer,
     
     pub players: HashMap<ClientId, Rc<UnsafeCell<Player<W::Player>>>>,
-    pub entities: HashSet<EntityId>,
+    pub entities: HashSet<Entity>,
 
     // contains the chunk data packet,
     // and is updated when a player tries to access it and is dirty,
@@ -28,7 +29,7 @@ pub struct Chunk<W : WorldExtension> {
     dirty: bool,
 }
 
-impl<W : WorldExtension> Chunk<W> {
+impl<W : WorldExtension + 'static> Chunk<W> {
     
     pub fn new() -> Self {
         Self {
@@ -138,7 +139,7 @@ impl<W : WorldExtension> Chunk<W> {
         self.players.insert(client_id, player);
     }
 
-    pub fn insert_entity(&mut self, entity_id: EntityId) {
+    pub fn insert_entity(&mut self, entity_id: Entity) {
         debug_assert!(!self.entities.contains(&entity_id), "entity already in chunk");
         self.entities.insert(entity_id);
     }
@@ -148,7 +149,7 @@ impl<W : WorldExtension> Chunk<W> {
         self.players.remove(&client_id);
     }
 
-    pub fn remove_entity(&mut self, entity_id: EntityId) {
+    pub fn remove_entity(&mut self, entity_id: Entity) {
         debug_assert!(self.entities.contains(&entity_id), "entity was never in this chunk");
         self.entities.remove(&entity_id);
     }
@@ -165,28 +166,36 @@ impl<W : WorldExtension> Chunk<W> {
         self.players.values().map(|it| unsafe { &mut *it.get() })
     }
 
-    pub fn write_spawn_entities<P : PlayerExtension>(
+    pub fn write_spawn_entities<P>(
         &self,
         player: &mut Player<P>
-    ) {
+    )
+    where
+        P: PlayerExtension<World = W>,
+        W: WorldExtension<Player = P>,
+    {
         let world = player.world_mut();
-        for entity_id in self.entities.iter() {
-            if let Some(index) = world.entity_map.get(entity_id) {
-                let entity = &mut world.entities[*index];
-                entity.enter_view(player)
+        for id in self.entities.iter() {
+            let entity = world.entities.get_entity(*id);
+            if let Some(mc_entity) = entity.get::<MinecraftEntity<W>>() {
+                (mc_entity.enter_view)(mc_entity, &entity, player)
             }
         }
     }
 
-    pub fn write_despawn_entities<P : PlayerExtension>(
+    pub fn write_despawn_entities<P>(
         &self,
         player: &mut Player<P>
-    ) {
+    )
+    where
+        P: PlayerExtension<World = W>,
+        W: WorldExtension<Player = P>,
+    {
         let world = player.world_mut();
-        for entity_id in self.entities.iter() {
-            if let Some(index) = world.entity_map.get(entity_id) {
-                let entity = &mut world.entities[*index];
-                entity.leave_view(player)
+        for id in self.entities.iter() {
+            let entity = world.entities.get_entity(*id);
+            if let Some(mc_entity) = entity.get::<MinecraftEntity<W>>() {
+                (mc_entity.leave_view)(mc_entity, &entity, player)
             }
         }
     }

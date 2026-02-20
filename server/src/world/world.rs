@@ -1,19 +1,23 @@
 use crate::constants::{Gamemode, Particle};
-use crate::entity::entity::{Entity, EntityExtension, EntityId};
-use crate::entity::entity_appearance::EntityAppearance;
+use crate::entity::components::EntityAppearance;
+use crate::entity::entities::Entities;
+use crate::entity::entity::MinecraftEntity;
 use crate::network::binary::var_int::VarInt;
 use crate::network::internal_packets::{MainThreadMessage, NetworkThreadMessage};
-use crate::network::packets::packet::ProcessPacket;
+use crate::network::packets::packet::{IdentifiedPacket, ProcessPacket};
+use crate::network::packets::packet_buffer::PacketBuffer;
+use crate::network::packets::packet_serialize::PacketSerializable;
 use crate::network::protocol::play::clientbound::{DestroyEntites, JoinGame, Particles, PlayerData, PlayerListItem, PositionLook};
 use crate::player::player::{ClientId, GameProfile, Player, PlayerExtension};
 use crate::types::status::StatusUpdate;
 use crate::world::chunk::chunk_grid::ChunkGrid;
 use crate::world::chunk::get_chunk_position;
+use bevy_ecs::bundle::Bundle;
+use bevy_ecs::entity::Entity;
 use enumset::EnumSet;
 use glam::{DVec3, Vec3};
 use slotmap::SecondaryMap;
 use std::cell::UnsafeCell;
-use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 use tokio::sync::mpsc::UnboundedSender;
@@ -30,40 +34,32 @@ pub trait WorldExtension: Sized {
 
 pub struct World<W: WorldExtension> {
     pub network_tx: UnboundedSender<NetworkThreadMessage>,
+    pub global_packet_buffer: PacketBuffer,
 
     // maybe go back to only map for players?
     pub players: Vec<Rc<UnsafeCell<Player<W::Player>>>>,
     pub player_map: SecondaryMap<ClientId, usize>,
 
-    entity_id: i32,
-    pub entities: Vec<Entity<W>>,
-    pub entity_map: HashMap<EntityId, usize>,
-    entities_for_removal: Vec<EntityId>,
+    pub entities: Entities<W>,
+    entities_for_removal: Vec<Entity>,
 
     pub chunk_grid: ChunkGrid<W>,
-
     pub extension: W,
 }
 
-impl<W: WorldExtension> World<W> {
+impl<W: WorldExtension + 'static> World<W> {
 
     pub fn new(network_tx: UnboundedSender<NetworkThreadMessage>, extension: W) -> Self {
         Self {
             network_tx,
+            global_packet_buffer: PacketBuffer::new(),
             players: Vec::new(),
             player_map: SecondaryMap::new(),
-            entity_id: 0,
-            entities: Vec::new(),
-            entity_map: HashMap::new(),
+            entities: Entities::new(),
             entities_for_removal: Vec::new(),
             chunk_grid: ChunkGrid::new(16, 13, 13),
             extension,
         }
-    }
-
-    pub fn new_entity_id(&mut self) -> i32 {
-        self.entity_id += 1;
-        self.entity_id
     }
 
     pub fn spawn_player(
@@ -77,7 +73,7 @@ impl<W: WorldExtension> World<W> {
         extension: W::Player,
     ) -> &mut Player<W::Player> {
 
-        let entity_id = self.new_entity_id();
+        let entity_id = self.entities.next_entity_id();
         let player_rc = Rc::new(UnsafeCell::new(Player::new(
             self,
             profile,
@@ -89,7 +85,7 @@ impl<W: WorldExtension> World<W> {
             gamemode,
             extension
         )));
-        let mut player = unsafe { &mut *player_rc.get() };
+        let player = unsafe { &mut *player_rc.get() };
 
         player.write_packet(&JoinGame {
             entity_id: player.entity_id,
@@ -132,7 +128,7 @@ impl<W: WorldExtension> World<W> {
 
         self.chunk_grid
             .for_each_in_view(chunk_x, chunk_z, VIEW_DISTANCE, |chunk, _, _| {
-                chunk.write_spawn_entities(&mut player);
+                chunk.write_spawn_entities(player);
             });
 
         player.flush_packets();
@@ -144,37 +140,47 @@ impl<W: WorldExtension> World<W> {
         unsafe { self.players[index].get().as_mut().unwrap() }
     }
 
-    pub fn spawn_entity<A: EntityAppearance<W> + 'static, E: EntityExtension<W> + 'static>(
+    pub fn spawn_entity<T : EntityAppearance<W>, B : Bundle>(
         &mut self,
         position: DVec3,
         yaw: f32,
         pitch: f32,
-        appearance: A,
-        extension: E,
-    ) -> &mut Entity<W> {
-        let entity_id = self.new_entity_id();
-        let mut entity = Entity::new(self, entity_id, position, yaw, pitch, appearance, extension);
+        appearance: T,
+        components: B,
+    ) -> Entity {
+        let entity_base = MinecraftEntity::new::<T>(
+            self,
+            position,
+            yaw,
+            pitch
+        );
+        
+        // kinda scuffed ngl
+        self.entities.register_appearance_update::<T>();
+        
+        let entity_id = self.entities.spawn((components, entity_base, appearance));
+        let entity_ref = self.entities.get_entity(entity_id);
 
         let (chunk_x, chunk_z) = get_chunk_position(position);
 
         if let Some(chunk) = self.chunk_grid.get_chunk_mut(chunk_x, chunk_z) {
             chunk.insert_entity(entity_id);
-
+    
             self.chunk_grid
                 .for_each_in_view(chunk_x, chunk_z, VIEW_DISTANCE, |chunk, _, _| {
-                    if chunk.has_players() {
-                        for (_, player_rc) in chunk.players.iter() {
-                            let player = unsafe { &mut *player_rc.get() };
-                            entity.enter_view(player)
+                    if let Some(mc_entity) = entity_ref.get::<MinecraftEntity<W>>() {
+                        for player in chunk.players() {
+                            (mc_entity.enter_view)(mc_entity, &entity_ref, player)
                         }
                     }
                 });
         }
 
-        let index = self.entities.len();
-        self.entities.push(entity);
-        self.entity_map.insert(entity_id, index);
-        &mut self.entities[index]
+        entity_id
+    }
+
+    pub fn write_global_packet<P : IdentifiedPacket + PacketSerializable>(&mut self, packet: &P) {
+        self.global_packet_buffer.write_packet(packet)
     }
 
     pub fn spawn_particle(&mut self, particle: Particle, position: Vec3, offset: Vec3, count: i32) {
@@ -219,42 +225,42 @@ impl<W: WorldExtension> World<W> {
         }
     }
 
-    pub fn remove_entity(&mut self, entity_id: EntityId) {
-        self.entities_for_removal.push(entity_id);
+    pub fn remove_entity(&mut self, entity: Entity) {
+        self.entities_for_removal.push(entity);
     }
 
     pub fn tick(&mut self) {
         // tick extension
         W::tick(self);
 
-        let mut packet_destroy_entities = DestroyEntites { entities: vec![] };
-        for entity_id in self.entities_for_removal.drain(..) {
-            if let Some(index) = self.entity_map.remove(&entity_id) {
-                let last_index = self.entities.len() - 1;
-                let mut entity = self.entities.swap_remove(index);
+        let mut packet_destroy_entities = DestroyEntites {
+            entities: vec![]
+        };
 
-                
-                entity.destroy(&mut packet_destroy_entities);
+        for id in self.entities_for_removal.drain(..) {
+            {
+                let entity = self.entities.get_entity(id);
+                if let Some(mc_entity) = entity.get::<MinecraftEntity<W>>() {
+                    (mc_entity.destroy)(mc_entity, &entity, &mut packet_destroy_entities);
 
-                if last_index != index {
-                    let moved_id = self.entities[index].base.id;
-                    self.entity_map.insert(moved_id, index);
+                    let (chunk_x, chunk_z) = get_chunk_position(mc_entity.position);
+                    if let Some(chunk) = self.chunk_grid.get_chunk_mut(chunk_x, chunk_z) {
+                        chunk.remove_entity(id)
+                    }
                 }
             }
+            self.entities.despawn(id)
         }
-
-        for entity in self.entities.iter_mut() {
-            entity.tick()
-        }
+        self.entities.tick();
 
         for player in self.players_mut() {
             player.write_packet(&packet_destroy_entities);
             player.tick();
         }
-
         for chunk in self.chunk_grid.chunks.iter_mut() {
             chunk.packet_buffer.clear()
         }
+        self.global_packet_buffer.clear()
     }
 
     pub fn add_player_to_chunk(&mut self, client_id: ClientId, chunk_x: i32, chunk_z: i32) {

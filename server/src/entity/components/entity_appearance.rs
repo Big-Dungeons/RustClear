@@ -1,41 +1,35 @@
 use crate::constants::EntityVariant;
-use crate::entity::entity::EntityBase;
+use crate::entity::entity::MinecraftEntity;
 use crate::entity::entity_metadata::{EntityMetadata, PlayerMetadata};
 use crate::network::binary::var_int::VarInt;
 use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::protocol::play::clientbound::{DestroyEntites, EntityRotate, EntityTeleport, EntityYawRotate, PlayerData, PlayerListItem, SpawnMob, SpawnPlayer};
 use crate::{GameProfile, GameProfileProperty, Player, WorldExtension};
+use bevy_ecs::component::Mutable;
+use bevy_ecs::prelude::Component;
 use fstr::FString;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-pub trait EntityAppearance<W: WorldExtension> {
-    fn initialize(&self, entity: &mut EntityBase<W>);
+pub trait EntityAppearance<W: WorldExtension + 'static>: Component<Mutability = Mutable> + Sized {
 
-    fn destroy(&self, entity: &mut EntityBase<W>, packet: &mut DestroyEntites);
+    fn enter_player_view(&self, entity: &MinecraftEntity<W>, player: &mut Player<W::Player>);
 
-    fn enter_player_view(&self, entity: &mut EntityBase<W>, player: &mut Player<W::Player>);
+    fn leave_player_view(&self, entity: &MinecraftEntity<W>, player: &mut Player<W::Player>);
 
-    fn leave_player_view(&self, entity: &mut EntityBase<W>, player: &mut Player<W::Player>);
+    fn update_position(&self, entity: &MinecraftEntity<W>, packet_buffer: &mut PacketBuffer);
 
-    fn update_position(&self, entity: &mut EntityBase<W>, chunk_buffer: &mut PacketBuffer);
-
-    fn update_rotation(&self, entity: &mut EntityBase<W>, chunk_buffer: &mut PacketBuffer);
+    fn destroy(&self, entity: &MinecraftEntity<W>, packet: &mut DestroyEntites);
 }
 
+#[derive(Component)]
 pub struct MobAppearance {
     pub variant: EntityVariant,
     pub metadata: EntityMetadata,
 }
 
-impl<W: WorldExtension> EntityAppearance<W> for MobAppearance {
-    fn initialize(&self, _: &mut EntityBase<W>) {}
-
-    fn destroy(&self, entity_base: &mut EntityBase<W>, packet: &mut DestroyEntites) {
-        packet.entities.push(VarInt(entity_base.id))
-    }
-
-    fn enter_player_view(&self, entity: &mut EntityBase<W>, player: &mut Player<W::Player>) {
+impl<W: WorldExtension + 'static> EntityAppearance<W> for MobAppearance {
+    fn enter_player_view(&self, entity: &MinecraftEntity<W>, player: &mut Player<W::Player>) {
         player.write_packet(&SpawnMob {
             entity_id: entity.id,
             entity_variant: self.variant,
@@ -53,41 +47,25 @@ impl<W: WorldExtension> EntityAppearance<W> for MobAppearance {
         player.write_packet(&EntityYawRotate {
             entity_id: entity.id,
             yaw: entity.yaw,
-        })
+        });
     }
 
-    fn leave_player_view(&self, entity: &mut EntityBase<W>, player: &mut Player<W::Player>) {
+    fn leave_player_view(&self, entity: &MinecraftEntity<W>, player: &mut Player<W::Player>) {
         player.write_packet(&DestroyEntites {
             entities: vec![VarInt(entity.id)],
         })
     }
 
-    fn update_position(&self, entity: &mut EntityBase<W>, packet_buffer: &mut PacketBuffer) {
-        packet_buffer.write_packet(&EntityTeleport {
-            entity_id: entity.id,
-            pos_x: entity.position.x,
-            pos_y: entity.position.y,
-            pos_z: entity.position.z,
-            yaw: entity.yaw,
-            pitch: entity.pitch,
-            on_ground: false,
-        })
+    fn update_position(&self, entity: &MinecraftEntity<W>, packet_buffer: &mut PacketBuffer) {
+        update_position(entity, packet_buffer)
     }
 
-    fn update_rotation(&self, entity: &mut EntityBase<W>, packet_buffer: &mut PacketBuffer) {
-        packet_buffer.write_packet(&EntityRotate {
-            entity_id: entity.id,
-            yaw: entity.yaw,
-            pitch: entity.pitch,
-            on_ground: false,
-        });
-        packet_buffer.write_packet(&EntityYawRotate {
-            entity_id: entity.id,
-            yaw: entity.yaw,
-        });
+    fn destroy(&self, entity: &MinecraftEntity<W>, packet: &mut DestroyEntites) {
+        packet.entities.push(VarInt(entity.id))
     }
 }
 
+#[derive(Component)]
 pub struct PlayerAppearance {
     name: &'static str,
     metadata: PlayerMetadata,
@@ -97,7 +75,6 @@ pub struct PlayerAppearance {
 }
 
 impl PlayerAppearance {
-
     pub fn new(
         name: &'static str,
         metadata: PlayerMetadata,
@@ -114,14 +91,8 @@ impl PlayerAppearance {
     }
 }
 
-impl<W: WorldExtension> EntityAppearance<W> for PlayerAppearance {
-    fn initialize(&self, _: &mut EntityBase<W>) {}
-
-    fn destroy(&self, entity: &mut EntityBase<W>, packet: &mut DestroyEntites) {
-        packet.entities.push(VarInt(entity.id))
-    }
-
-    fn enter_player_view(&self, entity: &mut EntityBase<W>, player: &mut Player<W::Player>) {
+impl<W: WorldExtension + 'static> EntityAppearance<W> for PlayerAppearance {
+    fn enter_player_view(&self, entity: &MinecraftEntity<W>, player: &mut Player<W::Player>) {
         player.write_packet(&PlayerListItem {
             action: VarInt(0),
             players: &[PlayerData {
@@ -157,39 +128,38 @@ impl<W: WorldExtension> EntityAppearance<W> for PlayerAppearance {
         });
         player.write_packet(&EntityYawRotate {
             entity_id: entity.id,
-            yaw: entity.yaw,
+            yaw: entity.yaw
         });
         player.add_delayed_profile_remove(self.uuid);
     }
 
-    fn leave_player_view(&self, entity: &mut EntityBase<W>, player: &mut Player<W::Player>) {
+    fn leave_player_view(&self, entity: &MinecraftEntity<W>, player: &mut Player<W::Player>) {
         player.write_packet(&DestroyEntites {
             entities: vec![VarInt(entity.id)],
         })
     }
 
-    fn update_position(&self, entity: &mut EntityBase<W>, packet_buffer: &mut PacketBuffer) {
-        packet_buffer.write_packet(&EntityTeleport {
-            entity_id: entity.id,
-            pos_x: entity.position.x,
-            pos_y: entity.position.y,
-            pos_z: entity.position.z,
-            yaw: entity.yaw,
-            pitch: entity.pitch,
-            on_ground: false,
-        })
+    fn update_position(&self, entity: &MinecraftEntity<W>, packet_buffer: &mut PacketBuffer) {
+        update_position(entity, packet_buffer)
     }
 
-    fn update_rotation(&self, entity: &mut EntityBase<W>, packet_buffer: &mut PacketBuffer) {
-        packet_buffer.write_packet(&EntityRotate {
-            entity_id: entity.id,
-            yaw: entity.yaw,
-            pitch: entity.pitch,
-            on_ground: false,
-        });
-        packet_buffer.write_packet(&EntityYawRotate {
-            entity_id: entity.id,
-            yaw: entity.yaw,
-        });
+    fn destroy(&self, entity: &MinecraftEntity<W>, packet: &mut DestroyEntites) {
+        packet.entities.push(VarInt(entity.id))
     }
+}
+
+fn update_position<W : WorldExtension>(entity: &MinecraftEntity<W>, buffer: &mut PacketBuffer) {
+    buffer.write_packet(&EntityTeleport {
+        entity_id: entity.id,
+        pos_x: entity.position.x,
+        pos_y: entity.position.y,
+        pos_z: entity.position.z,
+        yaw: entity.yaw,
+        pitch: entity.pitch,
+        on_ground: false,
+    });
+    buffer.write_packet(&EntityYawRotate {
+        entity_id: entity.id,
+        yaw: entity.yaw,
+    });
 }

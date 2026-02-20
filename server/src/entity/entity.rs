@@ -1,32 +1,22 @@
-use crate::entity::entity_appearance::EntityAppearance;
+use crate::entity::components::EntityAppearance;
+use crate::entity::entities::MCEntityId;
 use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::protocol::play::clientbound::DestroyEntites;
-use crate::network::protocol::play::serverbound::EntityInteractionType;
 use crate::world::chunk::get_chunk_position;
 use crate::{Player, World, WorldExtension};
+use bevy_ecs::component::Component;
+use bevy_ecs::world::{EntityMut, EntityRef};
 use glam::DVec3;
 use std::ptr::NonNull;
 
-pub type EntityId = i32;
-
-#[allow(unused_variables)]
-pub trait EntityExtension<W : WorldExtension> {
-    fn tick(&mut self, entity: &mut EntityBase<W>, chunk_buffer: &mut PacketBuffer);
-
-    fn interact(
-        &mut self,
-        entity: &mut EntityBase<W>,
-        player: &mut Player<W::Player>,
-        action: EntityInteractionType
-    ) {}
-}
-
-pub struct EntityBase<W : WorldExtension> {
+#[derive(Component)]
+#[derive(Clone)]
+pub struct MinecraftEntity<W: WorldExtension> {
     world: NonNull<World<W>>,
-    pub id: EntityId,
+    pub id: MCEntityId,
 
     pub position: DVec3,
-    pub velocity: DVec3,
+    pub velocity: DVec3, // maybe seperate?
     pub yaw: f32,
     pub pitch: f32,
 
@@ -35,37 +25,23 @@ pub struct EntityBase<W : WorldExtension> {
     pub last_pitch: f32,
 
     pub ticks_existed: u32,
+
+    pub enter_view: fn(entity: &MinecraftEntity<W>, &EntityRef, &mut Player<W::Player>),
+    pub leave_view: fn(entity: &MinecraftEntity<W>, &EntityRef, &mut Player<W::Player>),
+    pub update_position: fn(entity: &MinecraftEntity<W>, EntityMut, packet_buffer: &mut PacketBuffer),
+    pub destroy: fn(entity: &MinecraftEntity<W>, &EntityRef, packet: &mut DestroyEntites)
 }
 
-impl<W : WorldExtension> EntityBase<W> {
+impl<W: WorldExtension + 'static> MinecraftEntity<W> {
 
-    pub fn world<'a>(&self) -> &'a World<W> {
-        unsafe { self.world.as_ref() }
-    }
-
-    pub fn world_mut<'a>(&mut self) -> &'a mut World<W> {
-        unsafe { self.world.as_mut() }
-    }
-}
-
-pub struct Entity<W : WorldExtension> {
-    pub base: EntityBase<W>,
-    appearance: Box<dyn EntityAppearance<W>>,
-    extension: Box<dyn EntityExtension<W>>,
-}
-
-impl<W : WorldExtension> Entity<W> {
-
-    pub fn new<A : EntityAppearance<W> + 'static, E : EntityExtension<W> + 'static>(
+    pub fn new<T : EntityAppearance<W>>(
         world: &mut World<W>,
-        entity_id: EntityId,
         position: DVec3,
         yaw: f32,
         pitch: f32,
-        appearance: A,
-        extension: E,
-    ) -> Self {
-        let mut base = EntityBase {
+    ) -> MinecraftEntity<W> {
+        let entity_id = world.entities.next_entity_id();
+        MinecraftEntity {
             world: NonNull::from_mut(world),
             id: entity_id,
             position,
@@ -76,51 +52,51 @@ impl<W : WorldExtension> Entity<W> {
             last_yaw: yaw,
             last_pitch: pitch,
             ticks_existed: 0,
-        };
-        appearance.initialize(&mut base);
-        Self {
-            base,
-            appearance: Box::new(appearance),
-            extension: Box::new(extension),
+
+            enter_view: |entity, entity_ref, player| {
+                let appearance = entity_ref.get::<T>().unwrap();
+                appearance.enter_player_view(entity, player)
+            },
+            leave_view: |entity, entity_ref, player| {
+                let appearance = entity_ref.get::<T>().unwrap();
+                appearance.leave_player_view(entity, player)
+            },
+            update_position: |entity, entity_ref, buffer| {
+                let appearance = entity_ref.get::<T>().unwrap();
+                appearance.update_position(entity, buffer)
+            },
+            destroy: |entity, entity_ref, packet| {
+                let appearance = entity_ref.get::<T>().unwrap();
+                appearance.destroy(entity, packet)
+            }
         }
     }
 
-    pub fn tick(&mut self) {
-        let base = &mut self.base;
-        base.ticks_existed += 1;
+    pub fn world<'a>(&self) -> &'a World<W> {
+        unsafe { self.world.as_ref() }
+    }
 
-        let (chunk_x, chunk_z) = get_chunk_position(base.position);
-        let Some(chunk) = base.world_mut().chunk_grid.get_chunk_mut(chunk_x, chunk_z) else {
-            // maybe should allow ticking if not in chunk
-            return;
-        };
+    pub fn world_mut<'a>(&mut self) -> &'a mut World<W> {
+        unsafe { self.world.as_mut() }
+    }
 
-        self.extension.tick(base, &mut chunk.packet_buffer);
-        
-        if base.position != base.last_position { 
-            self.appearance.update_position(base, &mut chunk.packet_buffer);
-            base.last_position = base.position;
+    pub(crate) fn update<T : EntityAppearance<W>>(&mut self, appearance: &T) {
+        if self.position != self.last_position || self.yaw != self.last_yaw || self.pitch != self.last_pitch {
+            let (chunk_x, chunk_z) = get_chunk_position(self.position);
+            let Some(chunk) = self.world_mut().chunk_grid.get_chunk_mut(chunk_x, chunk_z) else {
+                return;
+            };
+
+            appearance.update_position(self, &mut chunk.packet_buffer);
+            self.last_position = self.position;
+            self.last_yaw = self.yaw;
+            self.last_pitch = self.pitch;
         }
-        if base.yaw != base.last_yaw || base.pitch != base.last_pitch {
-            self.appearance.update_rotation(base, &mut chunk.packet_buffer);
-            base.last_yaw = base.yaw;
-            base.last_pitch = base.pitch;
-        }
-    }
-    
-    pub fn interact(&mut self, player: &mut Player<W::Player>, action: EntityInteractionType) {
-        self.extension.interact(&mut self.base, player, action);
-    }
-    
-    pub fn enter_view(&mut self, player: &mut Player<W::Player>) {
-        self.appearance.enter_player_view(&mut self.base, player);
-    }
 
-    pub fn leave_view(&mut self, player: &mut Player<W::Player>) {
-        self.appearance.leave_player_view(&mut self.base, player);
-    }
-
-    pub fn destroy(&mut self, packet: &mut DestroyEntites) {
-        self.appearance.destroy(&mut self.base, packet);
+        self.ticks_existed += 1;
     }
 }
+
+
+unsafe impl<W: WorldExtension> Send for MinecraftEntity<W> {}
+unsafe impl<W: WorldExtension> Sync for MinecraftEntity<W> {}

@@ -1,3 +1,4 @@
+use crate::entity::components::Interactable;
 use crate::inventory::menu::OpenContainer;
 use crate::network::packets::packet::ProcessPacket;
 use crate::network::protocol::play::serverbound;
@@ -28,9 +29,13 @@ impl ProcessPacket for ChatMessage {
 
 impl ProcessPacket for UseEntity {
     fn process<P : PlayerExtension>(&self, player: &mut Player<P>) {
-        if let Some(index) = player.world_mut().entity_map.get(&self.entity_id.0) {
-            let entity = &mut player.world_mut().entities[*index];
-            entity.interact(player, self.action)
+        let world = player.world_mut();
+        if let Some(entity_id) = world.entities.mc_id_to_entity(self.entity_id.0) {
+
+            let entity = world.entities.get_entity_mut(*entity_id);
+            if let Some(interactable) = entity.get::<Interactable<P::World>>() {
+                (interactable.callback)(entity, player);
+            }
         }
     }
 }

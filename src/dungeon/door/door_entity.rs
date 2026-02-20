@@ -1,35 +1,69 @@
 use crate::dungeon::dungeon::Dungeon;
 use crate::dungeon::dungeon_player::DungeonPlayer;
-use glam::ivec3;
+use bevy_ecs::entity::Entity;
+use bevy_ecs::prelude::Component;
+use bevy_ecs::query::With;
+use glam::{ivec3, DVec3};
 use server::block::Block;
 use server::constants::{EntityVariant, ObjectVariant};
-use server::entity::entity::{EntityBase, EntityExtension};
-use server::entity::entity_appearance::EntityAppearance;
+use server::entity::components::{EntityAppearance, EntityBehaviour};
+use server::entity::entity::MinecraftEntity;
 use server::entity::entity_metadata::EntityMetadata;
 use server::network::binary::var_int::VarInt;
 use server::network::packets::packet_buffer::PacketBuffer;
 use server::network::protocol::play::clientbound::{DestroyEntites, EntityAttach, EntityRelativeMove, SpawnMob, SpawnObject};
-use server::Player;
+use server::{Player, World};
 
-pub(super) struct DoorEntityAppearance {
-    pub block: Block,
-}
+#[derive(Component)]
+pub struct DoorBehaviour;
 
-impl EntityAppearance<Dungeon> for DoorEntityAppearance {
+impl EntityBehaviour<Dungeon> for DoorBehaviour {
 
-    fn initialize(&self, entity: &mut EntityBase<Dungeon>) {
-        // reserve 72 entity ids
-        let world = entity.world_mut();
-        for _ in 0..72 {
-            world.new_entity_id();
+    fn tick(_: &mut MinecraftEntity<Dungeon>, _: &mut Self) {}
+
+    fn query(world: &mut bevy_ecs::prelude::World) {
+        // need entity(id) from query,
+        // without using macro IDK if there's a good way to define a nicer query with traits ,
+        let mut query = world.query_filtered::<(Entity, &mut MinecraftEntity<Dungeon>), With<DoorBehaviour>>();
+        for (entity_id, mut entity) in query.iter_mut(world) {
+            entity.position.y -= 0.25;
+
+            if entity.ticks_existed == 20 {
+                let world = entity.world_mut();
+                let x = entity.position.x as i32;
+                let z = entity.position.z as i32;
+
+                world.chunk_grid.fill_blocks(
+                    Block::Air,
+                    ivec3(x, 69, z),
+                    ivec3(x + 2, 72, z + 2),
+                );
+                world.remove_entity(entity_id);
+            }
         }
     }
+}
 
-    fn destroy(&self, entity: &mut EntityBase<Dungeon>, packet: &mut DestroyEntites) {
-        packet.entities.extend((entity.id..entity.id + 72).map(VarInt))
+#[derive(Component)]
+pub(super) struct DoorEntity {
+    block: Block
+}
+
+impl DoorEntity {
+    pub fn spawn_into_world(
+        world: &mut World<Dungeon>,
+        position: DVec3,
+        block: Block
+    ) {
+        world.spawn_entity(position, 0.0, 0.0, DoorEntity { block }, DoorBehaviour);
+        for _ in 0..72 {
+            world.entities.next_entity_id();
+        }
     }
-    fn enter_player_view(&self, entity: &mut EntityBase<Dungeon>, player: &mut Player<DungeonPlayer>) {
-        // println!("player {}, entity pos {:?}", player.profile.username, entity.position);
+}
+
+impl EntityAppearance<Dungeon> for DoorEntity {
+    fn enter_player_view(&self, entity: &MinecraftEntity<Dungeon>, player: &mut Player<DungeonPlayer>) {
         let mut iter = 0;
         for x in 0..3 {
             for y in 0..4 {
@@ -85,14 +119,12 @@ impl EntityAppearance<Dungeon> for DoorEntityAppearance {
             }
         }
     }
-
-    fn leave_player_view(&self, entity: &mut EntityBase<Dungeon>, player: &mut Player<DungeonPlayer>) {
+    fn leave_player_view(&self, entity: &MinecraftEntity<Dungeon>, player: &mut Player<DungeonPlayer>) {
         player.write_packet(&DestroyEntites {
             entities: (entity.id..entity.id + 72).map(VarInt).collect(),
         })
     }
-
-    fn update_position(&self, entity: &mut EntityBase<Dungeon>, packet_buffer: &mut PacketBuffer) {
+    fn update_position(&self, entity: &MinecraftEntity<Dungeon>, packet_buffer: &mut PacketBuffer) {
         // only y can be updated
         let difference = entity.position.y - entity.last_position.y;
 
@@ -106,28 +138,7 @@ impl EntityAppearance<Dungeon> for DoorEntityAppearance {
             });
         }
     }
-
-    fn update_rotation(&self, _: &mut EntityBase<Dungeon>, _: &mut PacketBuffer) {}
-}
-
-pub(super) struct DoorEntityExtension;
-
-impl EntityExtension<Dungeon> for DoorEntityExtension {
-
-    fn tick(&mut self, entity: &mut EntityBase<Dungeon>, _: &mut PacketBuffer) {
-        entity.position.y -= 0.25;
-
-        if entity.ticks_existed == 20 {
-            let world = entity.world_mut();
-            let x = entity.position.x as i32;
-            let z = entity.position.z as i32;
-
-            world.chunk_grid.fill_blocks(
-                Block::Air,
-                ivec3(x, 69, z),
-                ivec3(x + 2, 72, z + 2),
-            );
-            world.remove_entity(entity.id);
-        }
+    fn destroy(&self, entity: &MinecraftEntity<Dungeon>, packet: &mut DestroyEntites) {
+        packet.entities.extend((entity.id..entity.id + 72).map(VarInt))
     }
 }

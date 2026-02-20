@@ -122,6 +122,15 @@ packet_serializable! {
     }
 }
 
+impl Chat {
+    pub fn new(str: &str) -> Self {
+        Self {
+            component: ChatComponent::new(str),
+            chat_type: 0,
+        }
+    }
+}
+
 packet_serializable! {
     pub struct UpdateTime {
         pub world_age: i64,

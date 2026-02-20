@@ -1,23 +1,24 @@
 use crate::dungeon::dungeon::Dungeon;
 use crate::dungeon::dungeon_player::DungeonPlayer;
-use crate::dungeon::entities::npc::InteractableNPC;
+use crate::dungeon::entities::npc::NPCBehaviour;
 use crate::dungeon::room::room::{Room, RoomStatus};
 use crate::dungeon::room::room_implementation::RoomImplementation;
 use crate::dungeon::seeded_rng::seeded_rng;
+use bevy_ecs::prelude::Component;
 use glam::{ivec3, IVec3};
 use rand::prelude::{IndexedRandom, SliceRandom};
+use rand::rng;
 use server::block::rotatable::Rotate;
-use server::entity::entity::{EntityBase, EntityExtension};
-use server::entity::entity_appearance::PlayerAppearance;
-use server::network::packets::packet_buffer::PacketBuffer;
+use server::block::Block;
+use server::constants::Sound;
+use server::entity::components::entity_appearance::PlayerAppearance;
+use server::entity::components::Interactable;
+use server::entity::entity::MinecraftEntity;
 use server::network::protocol::play::clientbound::{BlockAction, Chat};
-use server::network::protocol::play::serverbound::EntityInteractionType;
-use server::types::chat_component::ChatComponent;
 use server::{ClientId, Player, World};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
-
 
 const CHEST_POSITIONS: [IVec3; 3] = [
     ivec3(18, 69, 24),
@@ -88,11 +89,42 @@ const DIALOGUE: [[&str; 3]; 6] = [
     ],
 ];
 
+const SKINS: [(&str, &str); 3] = [
+    (
+        "eyJ0aW1lc3RhbXAiOjE1ODIxNDYwNjAxMDYsInByb2ZpbGVJZCI6ImEyZjgzNDU5NWM4OTRhMjdhZGQzMDQ5NzE2Y2E5MTBjIiwicHJvZmlsZU5hbWUiOiJiUHVuY2giLCJzaWduYXR1cmVSZXF1aXJlZCI6dHJ1ZSwidGV4dHVyZXMiOnsiU0tJTiI6eyJ1cmwiOiJodHRwOi8vdGV4dHVyZXMubWluZWNyYWZ0Lm5ldC90ZXh0dXJlLzdiNGM2ZjVkZjMxMzRhZGY0YTdlYWUxMmZlMjJlYjZhYTEwMmI2NzM1MjIxZTdmNTQ3NWM3YmJlYzQyMzdiYjgifX19",
+        "rDW4GM5nUP2hvfh9it3pfXgGeaDoa+JEHoOefy5Rwruz2clabGqda1lXt527QWTAWieS4lFcNWnqwJUtzLow83i/kbFZ72MkUTo3c0LC3nFDTtABGijY8KfcIVRp0XHzWdQwG7PXWYt5RvX+RgEdOmd+yhDoq16Cf4d3MhWhuFrSpKJohzvQ3ad/FFXdpSiWmklnsQ2n7ZP1ZRzuWWg4kRdtYEEjE2oodVkQoN8xqtddK+eT/3kz9n/aqPfokAHjWMJDbkqPBLweLVK2+WYkI9c6unHcG/uWKwhw8lwG7oEXLNhtDnipoWqA+TNcP//m8DAF9kA2MeBjO72U2v+UkNIGXZPamy5wSqhoNhyTAmG0MsammQprwfzL/K3PVW5QZxIldAIDMFNn/T6tYH2PtT345A+0gC0xtZUXHjscjlok/dcvYyleHyxK15fPyYtxcmGE59AUjj0Xllv90aEECRHrzC3t+2/gj+nWcDrLPvxX/qbjlTXKyxT/V0vJlMrzfoj8apPHgdj3S3mu3XDog18kfj7iPmoN0X1xllGzgR4SmOqnlCSWKFieYx7wrbN9J1y23itVteto9DiMWKbgc314m6nxGSaiSVSZriMX4lciNv1js7ADkyQ5LX3FuWUe7KRJuHYv/aRSzj70IEHq+/G6I5EHd3WbRJKmM6AMg4Q=",
+    ),
+    (
+        "eyJ0aW1lc3RhbXAiOjE1ODIxNDU3Njc3MDEsInByb2ZpbGVJZCI6ImEyZjgzNDU5NWM4OTRhMjdhZGQzMDQ5NzE2Y2E5MTBjIiwicHJvZmlsZU5hbWUiOiJiUHVuY2giLCJzaWduYXR1cmVSZXF1aXJlZCI6dHJ1ZSwidGV4dHVyZXMiOnsiU0tJTiI6eyJ1cmwiOiJodHRwOi8vdGV4dHVyZXMubWluZWNyYWZ0Lm5ldC90ZXh0dXJlLzE0Nzk0Yjc3N2Y5YmIzNDhjNTBiMTlhNTAwZDk2ODkwNGM1NzAwNTRlZGMxNzhhNTIwYzRlMWEyZGEwZDY1ODcifX19",
+        "k+o7OResg2zOWnG/s2kdEWgEytoj4sVcaFHU0oiLkhwZfxp9NpEeGdTC3A8PdiGiLGAMGJnmBjgXPY0iyJJbfpe+f8FLb/F0FpFPT8P6t7Et9t/jep8ZtAKRQF8kKkgTvDljycSSQQod/DXHOuX/9LCb0UytSc8FFeaTKStTqbGpAOA9Wgb3cF9Mg5DmKC3RJwOeMw3G1nnWrJuG8W+6Uf7oR8f4+M6DBxay3GDNRNBVRQfFxovd/3T0f9VBCenn5ednB+T4t5h8pEssUVmgGiHLwJONxfQolzQkgb7sVC8I9oi74JDwAg3k4rKFb64YTbVKsvbmqb+sqfrcbZUQhPLR9BgNKlWr/A3SokplfjraK7+m90B/vM4jZiFnexxpW1TwNGZkrDrkozNckYRtTK2j9PmOwUgscrRMl4pMNMe7bPDpb1w8PeAzXMSTYzcvVQDK4rFuGCviwWq5JhQnbI+sFTHCJtxixH1AQSWTnLIqUqcKNtQsVYgoN3AGpaj3v5cqoGHh2WPjo1vOMNQN1VjCpNGMiNEJhf9xxfigh4bdC4thH4NMBKavXeMedJ5M9azmBo30b9u0YT3nYbqrx82D4HxagmKeb2+j2O3StdGWk1VUUfxUpwQ4mR9nMKfN1k2JYewog3uxGcJ9FGAcOflvQqBwSIVrMnZgtHFpuQ0=",
+    ),
+    (
+        "eyJ0aW1lc3RhbXAiOjE1ODIwNTY1MjY1ODksInByb2ZpbGVJZCI6ImEyZjgzNDU5NWM4OTRhMjdhZGQzMDQ5NzE2Y2E5MTBjIiwicHJvZmlsZU5hbWUiOiJiUHVuY2giLCJzaWduYXR1cmVSZXF1aXJlZCI6dHJ1ZSwidGV4dHVyZXMiOnsiU0tJTiI6eyJ1cmwiOiJodHRwOi8vdGV4dHVyZXMubWluZWNyYWZ0Lm5ldC90ZXh0dXJlLzYxOTBhN2IyYmIxM2FlNTgyM2Y2YTE4NDZmODQyYzM0ODllMjYyMGEzNjY1NTc0YTBmYmE5NzVjMzk0MTA5MjIifX19",
+        "D/AAFPkwp3dqEx8OktDtqX0PSwJfu6PS+u67e8mq+0FMz+yqvDhD4FmzlvJlz6dwVa+UWGBCX6CMPXbPja9eeR90GFEYU+AYInam8IvyrmDzw7q0Fx3jzP9aRmHSn4229Y8GXhkOJ37k3pWf5zrcIJmT9npIq4lwEc3B0OxEZtQadanWX0/qIr/bpbrB+en2zIWzzwQWIAXPJUwQgiVj7mRwfMCyajoOqGs0AApzTi5IPresYF2BZZ9pLWyLv96YFhm96ncMHVJlSl3h8mt0R1pGi2BwOROYIfFq6HDONpSfD3R7aaty0fyPeV9kcrswndCS5/ubZxvv1bLp2wqhR0A5NzWr2GM3GK7o2EQgM5o9gsKS65SGPaWF0h3dUzsrpCOSMKzxzj29eAP4TLsLxWNAyaR/Q4NQt8cluiisLSk2yKUDovzUiSqrdLToD+5DPFqNYxDRraCc2gQQlsHpp3aXHNpqoBYcczTXwUHgjqh71HodzXGo4pxOcJNo5kOjV+uyfgvR9zCIuoN3j7UK6E2F3LQrLDTTRb8W4KGkMDnEESv8jGrXwQs4WzqUdP4HHXOFHbp2cx0Pi7xc93MQW1ZmjNtDeLr+xvsqDbL2syI8D2mf2++vjLhPSzxqtx4hOcyWQFCMC9Sdzb/bDg8JAuXgQSAMgmp1E1Oz/msZJ1w="
+    ),
+];
+
 pub struct ThreeWeirdosPuzzle {
-    player_clicked_weirdos: Rc<RefCell<HashMap<ClientId, [bool; 3]>>>,
-    dialogues: [String; 3],
+    shared: Rc<RefCell<Shared>>,
+}
+
+#[derive(Component)]
+struct Weirdo {
+    index: usize,
+    puzzle: Rc<RefCell<Shared>>,
+}
+
+unsafe impl Send for Weirdo {}
+unsafe impl Sync for Weirdo {}
+
+#[derive(Default)]
+struct Shared {
+    clicked_weirdos: HashMap<ClientId, [bool; 3]>,
+    has_clicked_any_chest: bool,
+
     names: [&'static str; 3],
-    correct_chest: usize,
+    dialogues: [String; 3],
+    correct_index: usize,
 }
 
 impl Default for ThreeWeirdosPuzzle {
@@ -135,10 +167,13 @@ impl Default for ThreeWeirdosPuzzle {
         }
 
         Self {
-            player_clicked_weirdos: Rc::new(RefCell::new(Default::default())),
-            dialogues,
-            names,
-            correct_chest,
+            shared: Rc::new(RefCell::new(Shared {
+                clicked_weirdos: Default::default(),
+                has_clicked_any_chest: false,
+                names,
+                dialogues,
+                correct_index: correct_chest,
+            })),
         }
     }
 }
@@ -151,108 +186,119 @@ impl RoomImplementation for ThreeWeirdosPuzzle {
             position.z += 0.5;
             let yaw = 180.0.rotate(room.rotation);
 
-            // todo, get the skins of the weirdos
+            let (texture, signature) = SKINS[index];
+
             world.spawn_entity(
                 position,
                 yaw,
                 0.0,
                 PlayerAppearance::new(
-                    self.names[index],
+                    self.shared.borrow().names[index],
                     Default::default(),
-                    "ewogICJ0aW1lc3RhbXAiIDogMTYxODc4MTA4Mzk0NywKICAicHJvZmlsZUlkIiA6ICJhNzdkNmQ2YmFjOWE0NzY3YTFhNzU1NjYxOTllYmY5MiIsCiAgInByb2ZpbGVOYW1lIiA6ICIwOEJFRDUiLAogICJzaWduYXR1cmVSZXF1aXJlZCIgOiB0cnVlLAogICJ0ZXh0dXJlcyIgOiB7CiAgICAiU0tJTiIgOiB7CiAgICAgICJ1cmwiIDogImh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOWI1Njg5NWI5NjU5ODk2YWQ2NDdmNTg1OTkyMzhhZjUzMmQ0NmRiOWMxYjAzODliOGJiZWI3MDk5OWRhYjMzZCIsCiAgICAgICJtZXRhZGF0YSIgOiB7CiAgICAgICAgIm1vZGVsIiA6ICJzbGltIgogICAgICB9CiAgICB9CiAgfQp9",
-                    "aNIhT2Tj20v1lONBOK3fIwBqJwWnjErq20h663Gb+PVmR9Iweh1h2ZEJ2pwDDnM4Af1XFDA5hS1Z9yOc8EdVTKyyi1yj9EIvMwQz/Q4N2sBsjWGZtCe8/Zy+X82iv0APB4cumE2gkgDbPjxCFNbpVKmV3U1WzwY/GKOMHofhWS1ULedQ1TszuMmDuHPLEzWaXigZ+xt5zChXvE8QoLTfBvgb8wtqVpyxAKf/o8xQduKiNE7t+de1CwOhLqbVTGh7DU0vLC5stDuqN+nC9dS7c2CG0ori6gFoGMvP4oIss6zm1nb0laMrZidJTgmuXk2Pv4NGDBXdYcAzhfWcSWGsBVMWrJfccgFheG+YcGYaYj6V2nBp0YTqqhN4wDt3ltyTNEMOr/JKyBTLzq/F7IL6rrdyMw+MbAgCa1FhfXxtzdQE2KsL55pbr2DZ8J4DYf+/OC1pWCJ4vvA/A1qGHyi3Zwtj9lCl1Jq5Qm2P9BgWxpk0ikJefRPMg4qWOEcYnjqwXuEp+IgTJi1xr+j/+g28aS1TsF8ijaJjSbEN4urrf3RYL+PZBcggzX9VaPB0NPdioOXznIotY+S6ZW7FnSh6UnrGAKadQBVLey5zmVWMfXlBUq9JMh0csuNd4dDQCLNK8oGORhMgksOMHhVaBie4otUgJ7ThR/WPjOAKiG2TNU0=",
+                    texture,
+                    signature
                 ),
-                Weirdo {
-                    player_clicked_weirdos: self.player_clicked_weirdos.clone(),
-                    index,
-                    dialogue: self.dialogues[index].clone(),
-                    base: InteractableNPC {
-                        default_yaw: yaw,
-                        default_pitch: 0.0,
-                        interact_callback: |_| {}
+                (
+                    Weirdo {
+                        index,
+                        puzzle: self.shared.clone(),
                     },
-                }
+                    NPCBehaviour {
+                        default_yaw: yaw,
+                        default_pitch: 0.0
+                    },
+                    Interactable::<Dungeon>::new(|entity, player| {
+                        let mc_entity = entity.get::<MinecraftEntity<Dungeon>>().unwrap();
+                        let weirdo = entity.get::<Weirdo>().unwrap();
+                        let mut puzzle = weirdo.puzzle.borrow_mut();
+                        let value = puzzle.clicked_weirdos.entry(player.client_id).or_insert([false; 3]);
+                        value[weirdo.index] = true;
+
+                        if !puzzle.has_clicked_any_chest {
+                            player.send_message(puzzle.dialogues[weirdo.index].as_str());
+                        } else {
+                            const FINISHED_DIALOGUE: [&str; 4] = [
+                                "§e[NPC] §cname§f: You're free to leave.§7",
+                                "§e[NPC] §cname§f: You can leave now! Bye!§7",
+                                "§e[NPC] §cname§f: Thanks for playing! Now get out!§7",
+                                "§e[NPC] §cname§f: Scram!§7",
+                            ];
+                            let chosen = FINISHED_DIALOGUE.choose(&mut rng()).unwrap();
+                            player.send_message(&chosen.replace("name", puzzle.names[weirdo.index]));
+                        }
+
+                        player.play_sound_at(
+                            Sound::DonkeyHit,
+                            1.0,
+                            0.5,
+                            mc_entity.position
+                        );
+                    })
+                )
             );
         }
     }
 
+
     fn interact(&mut self, room: &mut Room, player: &mut Player<DungeonPlayer>, position: IVec3) {
-        // todo: improve accuracy
-        // if matches!(room.status, RoomStatus::Failed) {
-        //     player.write_packet(&Chat {
-        //         component: ChatComponent::new("already failed"),
-        //         chat_type: 0,
-        //     });
-        //     return;
-        // }
-        // if matches!(room.status, RoomStatus::Complete) {
-        //     player.write_packet(&Chat {
-        //         component: ChatComponent::new("already complete"),
-        //         chat_type: 0,
-        //     });
-        //     return;
-        // }
-        for (index, relative_position) in CHEST_POSITIONS.into_iter().enumerate() {
-            if position == room.get_world_block_position(relative_position) {
-                if let Some([a, b, c]) = self.player_clicked_weirdos.borrow().get(&player.client_id) {
-                    if *a && *b && *c {
-                        if self.correct_chest == index {
-                            player.write_packet(&Chat {
-                                component: ChatComponent::new("correct"),
-                                chat_type: 0,
-                            });
-                            // simplify
-                            player.write_packet(&BlockAction {
-                                block_pos: position,
-                                event_id: 1,
-                                event_data: 1,
-                                block_id: 54,
-                            });
-                            room.status = RoomStatus::Complete
-                        } else {
-                            player.write_packet(&Chat {
-                                component: ChatComponent::new("incorrect"),
-                                chat_type: 0,
-                            });
-                            room.status = RoomStatus::Failed
-                        }
-                        player.world_mut().map.draw_checkmark(room)
-                    } else {
-                        player.write_packet(&Chat {
-                            component: ChatComponent::new("talk to us"),
-                            chat_type: 0,
-                        });
-                    }
-                }
-                return;
-            }
+        if matches!(room.status, RoomStatus::Complete | RoomStatus::Failed) {
+            return;
         }
-    }
-}
 
-struct Weirdo {
-    player_clicked_weirdos: Rc<RefCell<HashMap<ClientId, [bool; 3]>>>,
-    index: usize,
-    dialogue: String,
-    base: InteractableNPC,
-}
+        let mut data = self.shared.borrow_mut();
 
-impl EntityExtension<Dungeon> for Weirdo {
-    fn tick(&mut self, entity: &mut EntityBase<Dungeon>, chunk_buffer: &mut PacketBuffer) {
-        self.base.tick(entity, chunk_buffer)
-    }
-    fn interact(
-        &mut self,
-        _: &mut EntityBase<Dungeon>,
-        player: &mut Player<DungeonPlayer>,
-        _: EntityInteractionType,
-    ) {
-        player.write_packet(&Chat {
-            component: ChatComponent::new(self.dialogue.as_str()),
-            chat_type: 0,
-        });
-        let mut map = self.player_clicked_weirdos.borrow_mut();
-        let value = map.entry(player.client_id).or_insert([false; 3]);
-        value[self.index] = true
+        for (index, relative_position) in CHEST_POSITIONS.into_iter().enumerate() {
+            let real_position = room.get_world_block_position(relative_position);
+            if position != real_position {
+                continue
+            }
+            if let Some([a, b, c]) = data.clicked_weirdos.get(&player.client_id) {
+                if !*a || !*b || !*c {
+                    player.write_packet(&Chat::new("talk to us"));
+                    return;
+                }
+                if data.correct_index == index {
+                    player.world_mut().write_global_packet(&Chat::new(
+                        &format!("§aPUZZLE SOLVED! §7{} §ewasn't fooled by §c{}§e! §4G§co§6o§ed §2j§bo§3b§5!", player.profile.username, data.names[index]),
+                    ));
+
+                    // maybe some form of block entity system for chests.
+                    // to allow it being opened?
+                    player.write_packet(&BlockAction {
+                        block_pos: position,
+                        event_id: 1,
+                        event_data: 1,
+                        block_id: 54,
+                    });
+
+                    room.status = RoomStatus::Complete
+                } else {
+                    let world = player.world_mut();
+
+                    player.send_message(&format!("§e[NPC] §c{}§f: You fool!", data.names[index]));
+                    world.write_global_packet(&Chat::new(
+                        &format!("§cPUZZLE FAIL! §7{} §ewas fooled by §c{}§e! §4Y§ci§6k§ee§as§2!", player.profile.username, data.names[index]),
+                    ));
+                    player.play_sound_at(
+                        Sound::RandomExplode,
+                        1.0,
+                        1.0,
+                        real_position.as_dvec3()
+                    );
+
+                    // maybe
+                    for rel_pos in CHEST_POSITIONS {
+                        let IVec3 { x, y, z } = room.get_world_block_position(rel_pos);
+                        world.chunk_grid.set_block_at(Block::Air, x, y, z);
+                    }
+
+                    room.status = RoomStatus::Failed
+                }
+                data.has_clicked_any_chest = true;
+                player.world_mut().map.draw_checkmark(room)
+            }
+            return;
+        }
+
     }
 }

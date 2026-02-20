@@ -4,8 +4,10 @@ use bytes::BytesMut;
 #[derive(Debug, Copy, Clone)]
 pub enum Sound {
     EnderDragonHit,
+    RandomExplode,
     ZombieRemedy,
     FireIgnite,
+    DonkeyHit,
     NoteHat,
 }
 
@@ -13,8 +15,10 @@ impl Sound {
     fn get_sound(&self) -> &'static str {
         match self {
             Sound::EnderDragonHit => "mob.enderdragon.hit",
+            Sound::RandomExplode => "random.explode",
             Sound::ZombieRemedy => "mob.zombie.remedy",
             Sound::FireIgnite => "fire.ignite",
+            Sound::DonkeyHit => "mob.horse.donkey.hit",
             Sound::NoteHat => "note.hat",
         }
     }

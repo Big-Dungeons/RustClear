@@ -8,7 +8,7 @@ use std::cmp::{max, min};
 /// Chunk grid
 ///
 /// Stores a square grid of chunks, based on the provided size.
-pub struct ChunkGrid<W : WorldExtension> {
+pub struct ChunkGrid<W: WorldExtension> {
     pub chunks: Vec<Chunk<W>>,
     pub size: usize,
 
@@ -22,7 +22,7 @@ pub enum ChunkDiff {
     Old,
 }
 
-impl<W : WorldExtension> ChunkGrid<W> {
+impl<W: WorldExtension + 'static> ChunkGrid<W> {
 
     pub fn new(size: usize, offset_x: usize, offset_z: usize) -> Self {
         let mut chunks = Vec::with_capacity(size * size);

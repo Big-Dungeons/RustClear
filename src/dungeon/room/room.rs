@@ -8,9 +8,7 @@ use crate::dungeon::room::room_implementation::{MobRoom, RoomImplementation};
 use glam::{dvec3, ivec3, usize, IVec3};
 use server::block::rotatable::Rotate;
 use server::block::Block;
-use server::network::protocol::play::clientbound::Chat;
 use server::types::aabb::AABB;
-use server::types::chat_component::ChatComponent;
 use server::types::direction::Direction;
 use server::world::chunk::chunk_grid::ChunkGrid;
 use server::{ClientId, Player, World};
@@ -260,10 +258,10 @@ impl Room {
             }
             if !door.can_open(world) {
                 // todo: proper chat message and sound
-                player.write_packet(&Chat {
-                    component: ChatComponent::new("no key"),
-                    chat_type: 0,
-                });
+                // player.write_packet(&Chat {
+                //     component: ChatComponent::new("no key"),
+                //     chat_type: 0,
+                // });
                 continue;
             }
             door.open(world);

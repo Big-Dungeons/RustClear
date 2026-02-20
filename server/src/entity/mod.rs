@@ -1,6 +1,5 @@
-// pub mod old_entity;
-// pub mod old_entity_metadata;
+pub mod entities;
 pub mod entity;
-pub mod entity_appearance;
 pub mod entity_metadata;
-mod entity_metadata_serializable;
+pub mod entity_metadata_serializable;
+pub mod components;

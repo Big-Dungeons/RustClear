@@ -1,18 +1,22 @@
 #![allow(clippy::collapsible_if, clippy::too_many_arguments, clippy::new_without_default)]
 
 use crate::dungeon::door::door::DoorType;
+use crate::dungeon::door::door_entity::DoorBehaviour;
 use crate::dungeon::dungeon::{Dungeon, DungeonState};
-use crate::dungeon::entities::npc::InteractableNPC;
+use crate::dungeon::entities::npc::NPCBehaviour;
 use crate::dungeon::menus::MortMenu;
 use crate::dungeon::room::room_data::RoomData;
 use crate::dungeon::seeded_rng::{seeded_rng, SeededRng};
 use anyhow::bail;
+use bevy_ecs::component::Component;
 use glam::ivec3;
 use include_dir::include_dir;
 use rand::prelude::IndexedRandom;
 use server::block::rotatable::Rotate;
 use server::block::Block;
-use server::entity::entity_appearance::PlayerAppearance;
+use server::entity::components::entity_appearance::PlayerAppearance;
+use server::entity::components::{EntityBehaviour, Interactable};
+use server::entity::entity::MinecraftEntity;
 use server::inventory::menu::OpenContainer;
 use server::network::internal_packets::NetworkThreadMessage;
 use server::network::network::start_network;
@@ -28,7 +32,9 @@ mod dungeon;
 
 pub fn initialize_world(tx: Sender<NetworkThreadMessage>) -> anyhow::Result<World<Dungeon>> {
     let rng_seed: u64 = rand::random();
-    SeededRng::set_seed(rng_seed);
+    SeededRng::set_seed(16795237019042391353);
+
+    // println!("seed {rng_seed}");
 
     let dungeon_layouts = include_str!("../DungeonData/dungeon_layouts.txt")
         .split("\n")
@@ -57,6 +63,20 @@ pub fn initialize_world(tx: Sender<NetworkThreadMessage>) -> anyhow::Result<Worl
     Ok(world)
 }
 
+// test
+#[derive(Component)]
+struct JumpBehaviour;
+
+impl EntityBehaviour<Dungeon> for JumpBehaviour {
+    fn tick(entity: &mut MinecraftEntity<Dungeon>, _: &mut Self) {
+        if entity.ticks_existed % 10 >= 5 {
+            entity.position.y -= 0.25
+        } else {
+            entity.position.y += 0.25
+        }
+    }
+}
+
 pub fn spawn_mort(world: &mut World<Dungeon>) {
     let entrance = world.extension.entrance_room();
     let entrance = entrance.borrow();
@@ -77,16 +97,21 @@ pub fn spawn_mort(world: &mut World<Dungeon>) {
             "ewogICJ0aW1lc3RhbXAiIDogMTYxODc4MTA4Mzk0NywKICAicHJvZmlsZUlkIiA6ICJhNzdkNmQ2YmFjOWE0NzY3YTFhNzU1NjYxOTllYmY5MiIsCiAgInByb2ZpbGVOYW1lIiA6ICIwOEJFRDUiLAogICJzaWduYXR1cmVSZXF1aXJlZCIgOiB0cnVlLAogICJ0ZXh0dXJlcyIgOiB7CiAgICAiU0tJTiIgOiB7CiAgICAgICJ1cmwiIDogImh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvOWI1Njg5NWI5NjU5ODk2YWQ2NDdmNTg1OTkyMzhhZjUzMmQ0NmRiOWMxYjAzODliOGJiZWI3MDk5OWRhYjMzZCIsCiAgICAgICJtZXRhZGF0YSIgOiB7CiAgICAgICAgIm1vZGVsIiA6ICJzbGltIgogICAgICB9CiAgICB9CiAgfQp9",
             "aNIhT2Tj20v1lONBOK3fIwBqJwWnjErq20h663Gb+PVmR9Iweh1h2ZEJ2pwDDnM4Af1XFDA5hS1Z9yOc8EdVTKyyi1yj9EIvMwQz/Q4N2sBsjWGZtCe8/Zy+X82iv0APB4cumE2gkgDbPjxCFNbpVKmV3U1WzwY/GKOMHofhWS1ULedQ1TszuMmDuHPLEzWaXigZ+xt5zChXvE8QoLTfBvgb8wtqVpyxAKf/o8xQduKiNE7t+de1CwOhLqbVTGh7DU0vLC5stDuqN+nC9dS7c2CG0ori6gFoGMvP4oIss6zm1nb0laMrZidJTgmuXk2Pv4NGDBXdYcAzhfWcSWGsBVMWrJfccgFheG+YcGYaYj6V2nBp0YTqqhN4wDt3ltyTNEMOr/JKyBTLzq/F7IL6rrdyMw+MbAgCa1FhfXxtzdQE2KsL55pbr2DZ8J4DYf+/OC1pWCJ4vvA/A1qGHyi3Zwtj9lCl1Jq5Qm2P9BgWxpk0ikJefRPMg4qWOEcYnjqwXuEp+IgTJi1xr+j/+g28aS1TsF8ijaJjSbEN4urrf3RYL+PZBcggzX9VaPB0NPdioOXznIotY+S6ZW7FnSh6UnrGAKadQBVLey5zmVWMfXlBUq9JMh0csuNd4dDQCLNK8oGORhMgksOMHhVaBie4otUgJ7ThR/WPjOAKiG2TNU0=",
         ),
-        InteractableNPC {
-            default_yaw: yaw,
-            default_pitch: 0.0,
-            interact_callback: |player| {
-                if let DungeonState::Started { .. } = player.world().state {
-                    return;
-                }
-                player.open_container(OpenContainer::Menu(Box::new(MortMenu {})))
+        (
+            NPCBehaviour {
+                default_yaw: yaw,
+                default_pitch: 0.0,
             },
-        }
+            Interactable::<Dungeon> {
+                callback: |_, player| {
+                    if let DungeonState::Started { .. } = player.world().state {
+                        return;
+                    }
+                    player.open_container(OpenContainer::Menu(Box::new(MortMenu {})))
+                }
+            },
+            JumpBehaviour {}
+        ),
     );
 }
 
@@ -101,6 +126,50 @@ async fn main() -> anyhow::Result<()> {
 
     let mut world = initialize_world(tx)?;
     spawn_mort(&mut world);
+
+    world.entities.register_behaviour::<NPCBehaviour>();
+    world.entities.register_behaviour::<JumpBehaviour>();
+    world.entities.register_behaviour::<DoorBehaviour>();
+
+    // for x in -200..0 {
+    //     for z in -200..0 {
+    //         world.chunk_grid.set_block_at(Block::Stone, x, 68, z)
+    //     }
+    // }
+    //
+    // for x in -200..0 {
+    //     for z in -200..0 {
+    //         world.spawn_entity(
+    //             dvec3(x as f64 + 0.5, 69.0, z as f64 + 0.5),
+    //             0.0,
+    //             0.0,
+    //             MobAppearance {
+    //                 variant: EntityVariant::Zombie,
+    //                 metadata: EntityMetadata::Zombie(ZombieMetadata {
+    //                     is_baby: false,
+    //                     is_villager: false,
+    //                 })
+    //             },
+    //             (
+    //                 NPCBehaviour {
+    //                     default_yaw: 0.0,
+    //                     default_pitch: 0.0,
+    //                 },
+    //                 Interactable::<Dungeon> {
+    //                     callback: |_, player| {
+    //                         if let DungeonState::Started { .. } = player.world().state {
+    //                             return;
+    //                         }
+    //                         player.open_container(OpenContainer::Menu(Box::new(MortMenu {})))
+    //                     }
+    //                 },
+    //                 JumpBehaviour {}
+    //             ),
+    //         );
+    //     }
+    // }
+
+    // println!("{}", world.entities.next_entity_id());
 
     let mut tick_interval = tokio::time::interval(Duration::from_millis(50));
     loop {

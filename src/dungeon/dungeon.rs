@@ -5,6 +5,7 @@ use crate::dungeon::items::dungeon_items::DungeonItem;
 use crate::dungeon::map::DungeonMap;
 use crate::dungeon::room::room::{Room, RoomNeighbour, RoomSegment, RoomStatus};
 use crate::dungeon::room::room_data::{get_random_data_with_type, RoomData, RoomShape, RoomType};
+use crate::MortMenu;
 use anyhow::bail;
 use glam::{ivec3, DVec3, IVec2};
 use server::block::block_parameter::Axis;
@@ -68,13 +69,11 @@ impl WorldExtension for Dungeon {
                     let s = if seconds_remaining == 1 { "" } else { "s" };
                     let str = format!("§aStarting in {} second{}.", seconds_remaining, s);
 
-                    // todo: global packet buffer for these global stuff
-                    for player in world.players_mut() {
-                        player.write_packet(&Chat {
-                            component: ChatComponent::new(str.clone()),
-                            chat_type: 0,
-                        });
-                    }
+                    // either way sound needs to play locally for all players
+                    world.write_global_packet(&Chat {
+                        component: ChatComponent::new(str),
+                        chat_type: 0,
+                    });
                 }
             }
             DungeonState::Started { ticks } => {
@@ -114,8 +113,8 @@ impl WorldExtension for Dungeon {
                 // and for sections if it has a player, try to spawn its neighbours
 
                 // tick puzzles, etc
-                
-                // clear percent is based on segments and not 
+
+                // clear percent is based on segments and not
                 let mut total_segments = 0;
                 let mut complete_segments = 0;
 
@@ -128,7 +127,7 @@ impl WorldExtension for Dungeon {
                     }
 
                     room.tick(world);
-                    
+
                     total_segments += room.segments.len();
                     if matches!(room.status, RoomStatus::Complete) {
                         complete_segments += room.segments.len();
@@ -137,7 +136,7 @@ impl WorldExtension for Dungeon {
 
                 let p = complete_segments as f32 / total_segments as f32;
                 world.cleared_percent = ((p * 100.0).round() as i32).clamp(0, 100);
-                
+
                 if let Some(packet) = world.extension.map.get_packet() {
                     for player in world.players_mut() {
                         player.write_packet(&packet)
@@ -204,7 +203,7 @@ impl WorldExtension for Dungeon {
         player.inventory.set_slot(44, Some(DungeonItem::SkyblockMenu));
         player.sync_inventory();
 
-        let cmd = command!("tproom", |player: &mut Player<DungeonPlayer>, room_name: GreedyString| {
+        let cmd = command!("tpr", |player: &mut Player<DungeonPlayer>, room_name: GreedyString| {
             let name = room_name.str;
             for room_rc in player.world().rooms.iter() {
                 let room = room_rc.borrow();
@@ -226,6 +225,12 @@ impl WorldExtension for Dungeon {
             player.send_message(format!("no room with name containing {name}").as_str())
         });
         player.command_dispatcher_mut().register_command(cmd);
+
+        player.command_dispatcher_mut().register_command(
+            command!("mort", |player: &mut Player<DungeonPlayer>| {
+                player.open_container(OpenContainer::Menu(Box::new(MortMenu {})))
+            })
+        );
 
         player.flush_packets()
     }
@@ -271,14 +276,10 @@ impl Dungeon {
         let is_ready = player.extension.is_ready;
         let message = format!("§7{} {}!", player.profile.username, if is_ready { "§ais now ready" } else { "§cis no longer ready" });
 
-        let packet = Chat {
+        world.write_global_packet(&Chat {
             component: ChatComponent::new(message),
             chat_type: 0,
-        };
-
-        for player in world.players_mut() {
-            player.write_packet(&packet)
-        }
+        });
 
         if is_ready {
             let mut should_start = true;

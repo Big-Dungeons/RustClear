@@ -8,7 +8,6 @@ use server::inventory::item_stack::ItemStack;
 use server::network::binary::nbt::TAG_COMPOUND_ID;
 use server::network::binary::nbt::{NBTNode, NBT};
 use server::network::protocol::play::clientbound::Chat;
-use server::types::chat_component::ChatComponent;
 use server::Player;
 use std::collections::HashMap;
 
@@ -188,10 +187,7 @@ impl Item for DungeonItem {
     }
 
     fn can_move_in_inventory(&self) -> bool {
-        match self {
-            DungeonItem::SkyblockMenu | DungeonItem::MagicalMap => false,
-            _ => true
-        }
+        !matches!(self, DungeonItem::SkyblockMenu | DungeonItem::MagicalMap)
     }
 }
 
@@ -199,11 +195,9 @@ impl DungeonItem {
     pub fn on_right_click(&self, player: &mut Player<DungeonPlayer>) {
         if let Some(cooldown) = player.extension.item_cooldown(self) {
             if !cooldown.silent {
-                let string = format!("§cThis ability is on cooldown for {}s.", cooldown.ticks_remaining / 20);
-                player.write_packet(&Chat {
-                    component: ChatComponent::new(string),
-                    chat_type: 0,
-                })
+                player.write_packet(&Chat::new(
+                    &format!("§cThis ability is on cooldown for {}s.", cooldown.ticks_remaining / 20)
+                ));
             }
             return;
         }
