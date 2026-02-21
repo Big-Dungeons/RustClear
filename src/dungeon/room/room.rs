@@ -2,13 +2,16 @@ use crate::dungeon::door::door::Door;
 use crate::dungeon::dungeon::{Dungeon, DUNGEON_ORIGIN};
 use crate::dungeon::dungeon_player::DungeonPlayer;
 use crate::dungeon::room::puzzles::quiz::QuizPuzzle;
+use crate::dungeon::room::puzzles::teleport_maze::TeleportMaze;
 use crate::dungeon::room::puzzles::three_weirdos::ThreeWeirdosPuzzle;
 use crate::dungeon::room::room_data::RoomData;
 use crate::dungeon::room::room_implementation::{MobRoom, RoomImplementation};
 use glam::{dvec3, ivec3, usize, IVec3};
 use server::block::rotatable::Rotate;
 use server::block::Block;
+use server::network::protocol::play::clientbound::Chat;
 use server::types::aabb::AABB;
+use server::types::chat_component::ChatComponent;
 use server::types::direction::Direction;
 use server::world::chunk::chunk_grid::ChunkGrid;
 use server::{ClientId, Player, World};
@@ -99,6 +102,7 @@ impl Room {
         let implementation: UnsafeCell<Box<dyn RoomImplementation>> = match room_data.name.as_str() {
             "Three Weirdos" => UnsafeCell::new(Box::new(ThreeWeirdosPuzzle::default())),
             "Quiz" => UnsafeCell::new(Box::new(QuizPuzzle {})),
+            "Teleport Maze" => UnsafeCell::new(Box::new(TeleportMaze::default())),
             _ => UnsafeCell::new(Box::new(MobRoom {})),
         };
 
@@ -117,7 +121,7 @@ impl Room {
         self.segments.iter().flat_map(|seg| seg.neighbours.iter().flatten())
     }
 
-    pub fn players(&mut self) -> impl Iterator<Item = &mut Player<DungeonPlayer>> {
+    pub fn players(&self) -> impl Iterator<Item = &mut Player<DungeonPlayer>> {
         self.players.values().map(|it| unsafe { &mut *it.get() })
     }
 
@@ -176,8 +180,8 @@ impl Room {
     }
 
     pub fn get_world_block_position(&self, room_position: IVec3) -> IVec3 {
-        let corner = self.get_corner_pos();
         let mut position = room_position.rotate(self.rotation);
+        let corner = self.get_corner_pos();
         position.x += corner.x;
         position.z += corner.z;
         position
@@ -216,26 +220,26 @@ impl Room {
 
         drop(room);
 
-        // let room = room_rc.borrow();
-        // let relative = {
-        //     let corner = room.get_corner_pos();
-        //     let p = IVec3 {
-        //         x: position.x - corner.x,
-        //         y: position.y,
-        //         z: position.z - corner.z,
-        //     };
-        //     match room.rotation {
-        //         Direction::North => p,
-        //         Direction::East => IVec3 { x: p.z, y: p.y, z: -p.x },
-        //         Direction::South => IVec3 { x: -p.x, y: p.y, z: -p.z },
-        //         Direction::West => IVec3 { x: -p.z, y: p.y, z: p.x },
-        //     }
-        // };
+        let room = room_rc.borrow();
+        let relative = {
+            let corner = room.get_corner_pos();
+            let p = IVec3 {
+                x: position.x - corner.x,
+                y: position.y,
+                z: position.z - corner.z,
+            };
+            match room.rotation {
+                Direction::North => p,
+                Direction::East => IVec3 { x: p.z, y: p.y, z: -p.x },
+                Direction::South => IVec3 { x: -p.x, y: p.y, z: -p.z },
+                Direction::West => IVec3 { x: -p.z, y: p.y, z: p.x },
+            }
+        };
 
-        // player.write_packet(&Chat {
-        //     component: ChatComponent::new(format!("relative position {}", relative)),
-        //     chat_type: 0,
-        // })
+        player.write_packet(&Chat {
+            component: ChatComponent::new(format!("relative position {}", relative)),
+            chat_type: 0,
+        })
     }
 
     pub fn attack_block(room_rc: &Rc<RefCell<Room>>, player: &mut Player<DungeonPlayer>, position: IVec3) {

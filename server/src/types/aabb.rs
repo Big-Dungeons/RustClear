@@ -1,6 +1,6 @@
 use glam::DVec3;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct AABB {
     pub min: DVec3,
     pub max: DVec3,
@@ -40,7 +40,7 @@ impl AABB {
         dx * dy * dz
     }
 
-    pub const fn from_height_width(height: f64, width: f64) -> Self {
+    pub const fn from_width_height(width: f64, height: f64) -> Self {
         Self { 
             min: DVec3 { x: -width / 2.0, y: 0.0, z: -width / 2.0 },
             max: DVec3 { x: width / 2.0, y: height, z: width / 2.0 }

@@ -5,7 +5,9 @@ use crate::types::sized_string::SizedString;
 use std::convert::Into;
 use std::ops::Deref;
 
-const OBJECTIVE_NAME: SizedString<16> = unsafe { SizedString::slice_truncated(*b"sidebar") };
+// todo rework
+
+const OBJECTIVE_NAME: SizedString<16> = unsafe { SizedString::slice_truncated(*b"SBScoreboard") };
 
 pub struct Sidebar {
     lines: Vec<SizedString<64>>,

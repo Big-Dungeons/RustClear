@@ -32,9 +32,12 @@ mod dungeon;
 
 pub fn initialize_world(tx: Sender<NetworkThreadMessage>) -> anyhow::Result<World<Dungeon>> {
     let rng_seed: u64 = rand::random();
-    SeededRng::set_seed(16795237019042391353);
+    SeededRng::set_seed(rng_seed);
 
-    // println!("seed {rng_seed}");
+    // tp maze, ice fill, boulder seed 18158556563918935308
+    // three weirdo seed 16795237019042391353
+
+    println!("seed {rng_seed}");
 
     let dungeon_layouts = include_str!("../DungeonData/dungeon_layouts.txt")
         .split("\n")
