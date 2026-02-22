@@ -200,6 +200,7 @@ impl WorldExtension for Dungeon {
         player.inventory.set_slot(37, Some(DungeonItem::AspectOfTheVoid));
         player.inventory.set_slot(38, Some(DungeonItem::EnderPearl));
         player.inventory.set_slot(39, Some(DungeonItem::Pickaxe));
+        player.inventory.set_slot(41, Some(DungeonItem::SpiritSceptre));
         player.inventory.set_slot(42, Some(DungeonItem::TacticalInsertion));
         player.inventory.set_slot(44, Some(DungeonItem::SkyblockMenu));
         player.sync_inventory();

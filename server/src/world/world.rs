@@ -1,4 +1,4 @@
-use crate::constants::{Gamemode, Particle};
+use crate::constants::{Gamemode, Particle, Sound};
 use crate::entity::components::EntityAppearance;
 use crate::entity::entities::Entities;
 use crate::entity::entity::MinecraftEntity;
@@ -7,7 +7,7 @@ use crate::network::internal_packets::{MainThreadMessage, NetworkThreadMessage};
 use crate::network::packets::packet::{IdentifiedPacket, ProcessPacket};
 use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::packets::packet_serialize::PacketSerializable;
-use crate::network::protocol::play::clientbound::{DestroyEntites, JoinGame, Particles, PlayerData, PlayerListItem, PositionLook};
+use crate::network::protocol::play::clientbound::{DestroyEntites, JoinGame, Particles, PlayerData, PlayerListItem, PositionLook, SoundEffect};
 use crate::player::player::{ClientId, GameProfile, Player, PlayerExtension};
 use crate::types::status::StatusUpdate;
 use crate::world::chunk::chunk_grid::ChunkGrid;
@@ -60,6 +60,10 @@ impl<W: WorldExtension + 'static> World<W> {
             chunk_grid: ChunkGrid::new(16, 13, 13),
             extension,
         }
+    }
+
+    pub fn write_global_packet<P : IdentifiedPacket + PacketSerializable>(&mut self, packet: &P) {
+        self.global_packet_buffer.write_packet(packet)
     }
 
     pub fn spawn_player(
@@ -179,10 +183,6 @@ impl<W: WorldExtension + 'static> World<W> {
         entity_id
     }
 
-    pub fn write_global_packet<P : IdentifiedPacket + PacketSerializable>(&mut self, packet: &P) {
-        self.global_packet_buffer.write_packet(packet)
-    }
-
     pub fn spawn_particle(&mut self, particle: Particle, position: Vec3, offset: Vec3, count: i32) {
         let chunk_x = (position.x.floor() as i32) >> 4;
         let chunk_z = (position.z.floor() as i32) >> 4;
@@ -195,6 +195,22 @@ impl<W: WorldExtension + 'static> World<W> {
                 offset,
                 speed: 0.0,
                 count,
+            })
+        }
+    }
+    
+    pub fn play_sound_at(&mut self, sound: Sound, volume: f32, pitch: f32, position: DVec3) {
+        let chunk_x = (position.x.floor() as i32) >> 4;
+        let chunk_z = (position.z.floor() as i32) >> 4;
+
+        if let Some(chunk) = self.chunk_grid.get_chunk_mut(chunk_x, chunk_z) {
+            chunk.packet_buffer.write_packet(&SoundEffect {
+                sound,
+                pos_x: position.x,
+                pos_y: position.y,
+                pos_z: position.z,
+                volume,
+                pitch,
             })
         }
     }

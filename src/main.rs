@@ -5,6 +5,7 @@ use crate::dungeon::door::door_entity::DoorBehaviour;
 use crate::dungeon::dungeon::{Dungeon, DungeonState};
 use crate::dungeon::entities::npc::NPCBehaviour;
 use crate::dungeon::items::ender_pearl::EnderPearlBehaviour;
+use crate::dungeon::items::spirit_sceptre::SceptreBatBehaviour;
 use crate::dungeon::menus::MortMenu;
 use crate::dungeon::room::room_data::RoomData;
 use crate::dungeon::seeded_rng::{seeded_rng, SeededRng};
@@ -135,6 +136,7 @@ async fn main() -> anyhow::Result<()> {
     world.entities.register_behaviour::<JumpBehaviour>();
     world.entities.register_behaviour::<DoorBehaviour>();
     world.entities.register_behaviour::<EnderPearlBehaviour>();
+    world.entities.register_behaviour::<SceptreBatBehaviour>();
 
     // for x in -200..0 {
     //     for z in -200..0 {

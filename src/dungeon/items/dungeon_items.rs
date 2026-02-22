@@ -3,6 +3,7 @@ use crate::dungeon::items::ability::{Ability, Cooldown};
 use crate::dungeon::items::ender_pearl::throw_pearl;
 use crate::dungeon::items::etherwarp::etherwarp;
 use crate::dungeon::items::instant_transmission::instant_transmission;
+use crate::dungeon::items::spirit_sceptre::use_spirit_sceptre;
 use indoc::indoc;
 use server::inventory::item::Item;
 use server::inventory::item_stack::ItemStack;
@@ -16,6 +17,7 @@ use std::collections::HashMap;
 pub enum DungeonItem {
     TacticalInsertion,
     AspectOfTheVoid,
+    SpiritSceptre,
     SkyblockMenu,
     EnderPearl,
     MagicalMap,
@@ -73,6 +75,12 @@ impl Item for DungeonItem {
                     NBT::byte("Unbreakable", 1),
                     NBT::byte("HideFlags", 127),
                 ])),
+            },
+            DungeonItem::SpiritSceptre => ItemStack {
+                item: 38,
+                stack_size: 1,
+                metadata: 2,
+                tag_compound: None,
             },
             DungeonItem::SkyblockMenu => ItemStack {
                 item: 399,
@@ -225,6 +233,9 @@ impl DungeonItem {
                 } else {
                     instant_transmission(player, 12.0);
                 }
+            }
+            DungeonItem::SpiritSceptre => {
+                use_spirit_sceptre(player)
             }
             DungeonItem::EnderPearl => {
                 // todo: block interaction on blocks.

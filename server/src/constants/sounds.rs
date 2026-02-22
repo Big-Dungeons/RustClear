@@ -5,6 +5,7 @@ use bytes::BytesMut;
 pub enum Sound {
     EnderDragonHit,
     RandomExplode,
+    GhastFireball,
     ZombieRemedy,
     FireIgnite,
     DonkeyHit,
@@ -16,6 +17,7 @@ impl Sound {
         match self {
             Sound::EnderDragonHit => "mob.enderdragon.hit",
             Sound::RandomExplode => "random.explode",
+            Sound::GhastFireball => "mob.ghast.fireball",
             Sound::ZombieRemedy => "mob.zombie.remedy",
             Sound::FireIgnite => "fire.ignite",
             Sound::DonkeyHit => "mob.horse.donkey.hit",
