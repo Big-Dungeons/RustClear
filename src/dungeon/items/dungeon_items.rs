@@ -1,5 +1,6 @@
 use crate::dungeon::dungeon_player::DungeonPlayer;
 use crate::dungeon::items::ability::{Ability, Cooldown};
+use crate::dungeon::items::ender_pearl::throw_pearl;
 use crate::dungeon::items::etherwarp::etherwarp;
 use crate::dungeon::items::instant_transmission::instant_transmission;
 use indoc::indoc;
@@ -16,6 +17,7 @@ pub enum DungeonItem {
     TacticalInsertion,
     AspectOfTheVoid,
     SkyblockMenu,
+    EnderPearl,
     MagicalMap,
     Hyperion,
     Pickaxe,
@@ -86,6 +88,13 @@ impl Item for DungeonItem {
                         "#})
                     ]),
                 ])),
+            },
+            // todo: requires inventory to handle stacked items properly
+            DungeonItem::EnderPearl => ItemStack {
+                item: 351,
+                stack_size: 1,
+                metadata: 6,
+                tag_compound: None,
             },
             DungeonItem::MagicalMap => ItemStack {
                 item: 358,
@@ -216,6 +225,10 @@ impl DungeonItem {
                 } else {
                     instant_transmission(player, 12.0);
                 }
+            }
+            DungeonItem::EnderPearl => {
+                // todo: block interaction on blocks.
+                throw_pearl(player)
             }
             DungeonItem::Hyperion => {
                 // todo: sounds, particles

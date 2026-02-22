@@ -1,8 +1,6 @@
 use crate::dungeon::dungeon::Dungeon;
 use crate::dungeon::dungeon_player::DungeonPlayer;
-use bevy_ecs::entity::Entity;
 use bevy_ecs::prelude::Component;
-use bevy_ecs::query::With;
 use glam::{ivec3, DVec3};
 use server::block::Block;
 use server::constants::{EntityVariant, ObjectVariant};
@@ -18,28 +16,20 @@ use server::{Player, World};
 pub struct DoorBehaviour;
 
 impl EntityBehaviour<Dungeon> for DoorBehaviour {
+    fn tick(entity: &mut MinecraftEntity<Dungeon>, _: &mut Self) {
+        entity.position.y -= 0.25;
 
-    fn tick(_: &mut MinecraftEntity<Dungeon>, _: &mut Self) {}
+        if entity.ticks_existed == 20 {
+            let world = entity.world_mut();
+            let x = entity.position.x as i32;
+            let z = entity.position.z as i32;
 
-    fn query(world: &mut bevy_ecs::prelude::World) {
-        // need entity(id) from query,
-        // without using macro IDK if there's a good way to define a nicer query with traits ,
-        let mut query = world.query_filtered::<(Entity, &mut MinecraftEntity<Dungeon>), With<DoorBehaviour>>();
-        for (entity_id, mut entity) in query.iter_mut(world) {
-            entity.position.y -= 0.25;
-
-            if entity.ticks_existed == 20 {
-                let world = entity.world_mut();
-                let x = entity.position.x as i32;
-                let z = entity.position.z as i32;
-
-                world.chunk_grid.fill_blocks(
-                    Block::Air,
-                    ivec3(x, 69, z),
-                    ivec3(x + 2, 72, z + 2),
-                );
-                world.remove_entity(entity_id);
-            }
+            world.chunk_grid.fill_blocks(
+                Block::Air,
+                ivec3(x, 69, z),
+                ivec3(x + 2, 72, z + 2),
+            );
+            entity.destroy()
         }
     }
 }

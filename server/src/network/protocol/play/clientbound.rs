@@ -225,10 +225,10 @@ packet_serializable! {
 
 packet_serializable! {
     pub struct EntityVelocity {
-        pub entity_id: VarInt,
-        pub velocity_x: i16,
-        pub velocity_y: i16,
-        pub velocity_z: i16,
+        pub entity_id: i32 => &VarInt(self.entity_id),
+        pub velocity_x: f64 => &((self.velocity_x.clamp(-MOTION_CLAMP, MOTION_CLAMP) * 8000.0) as i16),
+        pub velocity_y: f64 => &((self.velocity_y.clamp(-MOTION_CLAMP, MOTION_CLAMP) * 8000.0) as i16),
+        pub velocity_z: f64 => &((self.velocity_z.clamp(-MOTION_CLAMP, MOTION_CLAMP) * 8000.0) as i16),
     }
 }
 

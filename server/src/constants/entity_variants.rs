@@ -11,6 +11,7 @@ pub enum EntityVariant {
 #[repr(i8)]
 #[derive(Copy, Clone)]
 pub enum ObjectVariant {
+    EnderPearl = 65,
     FallingBlock = 70
 }
 

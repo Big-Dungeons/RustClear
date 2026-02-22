@@ -196,10 +196,11 @@ impl WorldExtension for Dungeon {
 
         player.extension.sidebar.write_init_packets(&mut player.packet_buffer);
         
-        player.inventory.set_slot(37, Some(DungeonItem::Hyperion));
+        player.inventory.set_slot(36, Some(DungeonItem::Hyperion));
+        player.inventory.set_slot(37, Some(DungeonItem::AspectOfTheVoid));
+        player.inventory.set_slot(38, Some(DungeonItem::EnderPearl));
         player.inventory.set_slot(39, Some(DungeonItem::Pickaxe));
         player.inventory.set_slot(42, Some(DungeonItem::TacticalInsertion));
-        player.inventory.set_slot(43, Some(DungeonItem::AspectOfTheVoid));
         player.inventory.set_slot(44, Some(DungeonItem::SkyblockMenu));
         player.sync_inventory();
 

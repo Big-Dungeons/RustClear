@@ -59,9 +59,9 @@ impl<W: WorldExtension + 'static> Entities<W> {
     // maybe rename, since this is what also ticks mc entity
     pub(crate) fn register_appearance_update<T: EntityAppearance<W>>(&mut self) {
         self.tick_systems.post.insert(|world| {
-            let mut query = world.query::<(&mut MinecraftEntity<W>, &T)>();
-            for (mut entity, appearance) in query.iter_mut(world) {
-                entity.update(appearance);
+            let mut query = world.query::<(&mut MinecraftEntity<W>, Entity, &T)>();
+            for (mut entity, entity_id, appearance) in query.iter_mut(world) {
+                entity.update(appearance, entity_id);
             }
         });
     }

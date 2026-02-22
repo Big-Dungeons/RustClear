@@ -5,6 +5,7 @@ use crate::network::protocol::play::clientbound::DestroyEntites;
 use crate::world::chunk::get_chunk_position;
 use crate::{Player, World, WorldExtension};
 use bevy_ecs::component::Component;
+use bevy_ecs::entity::Entity;
 use bevy_ecs::world::{EntityMut, EntityRef};
 use glam::DVec3;
 use std::ptr::NonNull;
@@ -16,7 +17,7 @@ pub struct MinecraftEntity<W: WorldExtension> {
     pub id: MCEntityId,
 
     pub position: DVec3,
-    pub velocity: DVec3, // maybe seperate?
+    pub velocity: DVec3,
     pub yaw: f32,
     pub pitch: f32,
 
@@ -80,20 +81,33 @@ impl<W: WorldExtension + 'static> MinecraftEntity<W> {
         unsafe { self.world.as_mut() }
     }
 
-    pub(crate) fn update<T : EntityAppearance<W>>(&mut self, appearance: &T) {
+    pub(crate) fn update<T : EntityAppearance<W>>(&mut self, appearance: &T, entity_id: Entity) {
         if self.position != self.last_position || self.yaw != self.last_yaw || self.pitch != self.last_pitch {
             let (chunk_x, chunk_z) = get_chunk_position(self.position);
             let Some(chunk) = self.world_mut().chunk_grid.get_chunk_mut(chunk_x, chunk_z) else {
                 return;
             };
 
+            let (old_cx, old_cz) = get_chunk_position(self.last_position);
+            if old_cx != chunk_x || old_cz != chunk_z {
+                if let Some(chunk) = self.world_mut().chunk_grid.get_chunk_mut(old_cx, old_cz) {
+                    chunk.remove_entity(entity_id)
+                }
+                chunk.insert_entity(entity_id)
+            }
+
             appearance.update_position(self, &mut chunk.packet_buffer);
             self.last_position = self.position;
             self.last_yaw = self.yaw;
             self.last_pitch = self.pitch;
         }
-
         self.ticks_existed += 1;
+    }
+
+    pub fn destroy(&mut self) {
+        let world = self.world_mut();
+        let entity = world.entities.mc_id_to_entity(self.id).unwrap();
+        world.remove_entity(*entity)
     }
 }
 

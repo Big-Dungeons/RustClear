@@ -46,4 +46,8 @@ impl AABB {
             max: DVec3 { x: width / 2.0, y: height, z: width / 2.0 }
         }
     }
+
+    pub fn offset(self, dvec3: DVec3) -> AABB {
+        AABB::new(self.min + dvec3, self.max + dvec3)
+    }
 }

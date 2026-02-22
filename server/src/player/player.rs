@@ -341,6 +341,12 @@ impl<E : PlayerExtension> Player<E> {
         let container = unsafe { self.open_container.get().as_mut().unwrap() };
         container.sync_container(self);
     }
+
+    pub fn player_eye_position(&self) -> DVec3 {
+        let mut position = self.position;
+        position.y += 1.62;
+        position
+    }
     
     pub fn rotation_vec(&self) -> Vec3 {
         let (yaw_sin, yaw_cos) = (-self.yaw.to_radians() - PI).sin_cos();
