@@ -1,6 +1,6 @@
 use crate::dungeon::dungeon::{Dungeon, DungeonState};
 use crate::dungeon::items::ability::{Ability, ActiveAbility, Cooldown};
-use crate::dungeon::items::dungeon_items::DungeonItem;
+use crate::dungeon::items::dungeon_items::{DungeonItem, DungeonItems};
 use crate::dungeon::room::room::Room;
 use chrono::Local;
 use glam::IVec3;
@@ -28,13 +28,13 @@ pub struct DungeonPlayer {
     // maybe disallow multiple of the same,
     // however if you pair with cooldowns it should be fine
     pub active_abilities: Cell<Vec<ActiveAbility>>,
-    pub cooldowns: HashMap<DungeonItem, Cooldown>,
+    pub cooldowns: HashMap<DungeonItems, Cooldown>,
 
 }
 
 impl PlayerExtension for DungeonPlayer {
     type World = Dungeon;
-    type Item = DungeonItem;
+    type Item = DungeonItems;
 
     fn tick(player: &mut Player<Self>) {
         if player.ticks_existed.is_multiple_of(60) {
@@ -77,7 +77,7 @@ impl PlayerExtension for DungeonPlayer {
         match action {
             PlayerDiggingAction::StartDestroyBlock => {
                 if let Some(item) = *player.inventory.get_hotbar_slot(player.held_slot as usize) {
-                    if matches!(item, DungeonItem::Pickaxe) {
+                    if matches!(item, DungeonItems::Pickaxe(_)) {
                         restore_block = true;
                     }
                 }
@@ -101,7 +101,7 @@ impl PlayerExtension for DungeonPlayer {
     }
 
     fn interact(player: &mut Player<Self>, item: Option<ItemStack>, block: Option<BlockInteractResult>) {
-        if let Some(block) = block {
+        if let Some(block) = &block {
             {
                 let mut pos = block.position;
                 match block.direction {
@@ -130,18 +130,18 @@ impl PlayerExtension for DungeonPlayer {
             player.sync_inventory();
         }
         if let Some(held_item) = held_item {
-            held_item.on_right_click(player)
+            DungeonItem::on_interact(&held_item, player, block);
         }
     }
 }
 
 impl DungeonPlayer {
 
-    pub fn item_cooldown(&self, item: &DungeonItem) -> Option<&Cooldown> {
+    pub fn item_cooldown(&self, item: &DungeonItems) -> Option<&Cooldown> {
         self.cooldowns.get(item)
     }
 
-    pub fn add_item_cooldown(&mut self, item: &DungeonItem, cooldown: Cooldown) {
+    pub fn add_item_cooldown(&mut self, item: &DungeonItems, cooldown: Cooldown) {
         self.cooldowns.insert(*item, cooldown);
     }
 

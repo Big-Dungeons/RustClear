@@ -1,6 +1,10 @@
 pub mod dungeon_items;
 pub mod ability;
-mod etherwarp;
-mod instant_transmission;
+pub mod pickaxe;
+pub mod aspect_of_the_void;
 pub mod ender_pearl;
+pub mod hyperion;
+pub mod skyblock_menu;
+pub mod magical_map;
 pub mod spirit_sceptre;
+pub mod tactical_insertion;

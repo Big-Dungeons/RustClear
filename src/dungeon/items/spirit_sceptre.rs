@@ -1,34 +1,53 @@
 use crate::dungeon::dungeon::Dungeon;
 use crate::dungeon::dungeon_player::DungeonPlayer;
+use crate::dungeon::items::dungeon_items::DungeonItem;
 use bevy_ecs::prelude::Component;
 use server::block::block_collision::check_block_collisions;
 use server::constants::{EntityVariant, Sound};
 use server::entity::components::{EntityBehaviour, MobAppearance};
 use server::entity::entity::MinecraftEntity;
 use server::entity::entity_metadata::{BatMetadata, EntityMetadata};
+use server::inventory::item_stack::ItemStack;
+use server::player::packet_processing::BlockInteractResult;
 use server::types::aabb::AABB;
 use server::{ClientId, Player};
 
-pub fn use_spirit_sceptre(player: &mut Player<DungeonPlayer>) {
-    // todo add cd
-    let world = player.world_mut();
-    world.spawn_entity(
-        player.player_eye_position(),
-        player.yaw,
-        player.pitch,
-        MobAppearance {
-            variant: EntityVariant::Bat,
-            metadata: EntityMetadata::Bat(BatMetadata { hanging: false, })
-        },
-        SceptreBatBehaviour { player_id: player.client_id }
-    );
+#[derive(Copy, Clone, Hash, Eq, PartialEq)]
+pub struct SpiritSceptre;
 
-    player.play_sound(Sound::GhastFireball, 0.3, 1.0)
+impl DungeonItem for SpiritSceptre {
+    fn on_interact(&self, player: &mut Player<DungeonPlayer>, block: Option<BlockInteractResult>) {
+        if block.is_some() {
+            player.sync_inventory();
+        }
+
+        player.play_sound(Sound::GhastFireball, 0.3, 1.0);
+
+        player.world_mut().spawn_entity(
+            player.player_eye_position(),
+            player.yaw,
+            player.pitch,
+            MobAppearance {
+                variant: EntityVariant::Bat,
+                metadata: EntityMetadata::Bat(BatMetadata { hanging: false, })
+            },
+            SceptreBatBehaviour { player_id: player.client_id }
+        );
+    }
+
+    fn item_stack(&self) -> ItemStack {
+        ItemStack {
+            item: 38,
+            stack_size: 1,
+            metadata: 2,
+            tag_compound: None,
+        }
+    }
 }
 
 #[derive(Component)]
 pub struct SceptreBatBehaviour {
-    player_id: ClientId // since player is behind rc<>, maybe store weak instead
+    player_id: ClientId
 }
 
 impl EntityBehaviour<Dungeon> for SceptreBatBehaviour {

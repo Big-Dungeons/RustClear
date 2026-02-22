@@ -25,6 +25,7 @@ enumset = "1.1.10"
 fstr = { path = "crates/fstr" }
 include_dir = "0.7.4"
 bevy_ecs = "0.18.0"
+enum_dispatch = "0.3.13"
 
 [profile.dev.package."*"]
 opt-level = 3

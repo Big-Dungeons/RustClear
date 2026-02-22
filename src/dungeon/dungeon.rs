@@ -1,7 +1,14 @@
 use crate::dungeon::door::door::{Door, DoorType};
 use crate::dungeon::door::door_positions::DOOR_POSITIONS;
 use crate::dungeon::dungeon_player::DungeonPlayer;
-use crate::dungeon::items::dungeon_items::DungeonItem;
+use crate::dungeon::items::aspect_of_the_void::AspectOfTheVoid;
+use crate::dungeon::items::ender_pearl::EnderPearl;
+use crate::dungeon::items::hyperion::Hyperion;
+use crate::dungeon::items::magical_map::MagicalMap;
+use crate::dungeon::items::pickaxe::Pickaxe;
+use crate::dungeon::items::skyblock_menu::SkyblockMenu;
+use crate::dungeon::items::spirit_sceptre::SpiritSceptre;
+use crate::dungeon::items::tactical_insertion::TacticalInsertion;
 use crate::dungeon::map::DungeonMap;
 use crate::dungeon::room::room::{Room, RoomNeighbour, RoomSegment, RoomStatus};
 use crate::dungeon::room::room_data::{get_random_data_with_type, RoomData, RoomShape, RoomType};
@@ -196,13 +203,13 @@ impl WorldExtension for Dungeon {
 
         player.extension.sidebar.write_init_packets(&mut player.packet_buffer);
         
-        player.inventory.set_slot(36, Some(DungeonItem::Hyperion));
-        player.inventory.set_slot(37, Some(DungeonItem::AspectOfTheVoid));
-        player.inventory.set_slot(38, Some(DungeonItem::EnderPearl));
-        player.inventory.set_slot(39, Some(DungeonItem::Pickaxe));
-        player.inventory.set_slot(41, Some(DungeonItem::SpiritSceptre));
-        player.inventory.set_slot(42, Some(DungeonItem::TacticalInsertion));
-        player.inventory.set_slot(44, Some(DungeonItem::SkyblockMenu));
+        player.inventory.set_slot(36, Some(Hyperion.into()));
+        player.inventory.set_slot(37, Some(AspectOfTheVoid.into()));
+        player.inventory.set_slot(38, Some(EnderPearl.into()));
+        player.inventory.set_slot(39, Some(Pickaxe.into()));
+        player.inventory.set_slot(41, Some(SpiritSceptre.into()));
+        player.inventory.set_slot(42, Some(TacticalInsertion.into()));
+        player.inventory.set_slot(44, Some(SkyblockMenu.into()));
         player.sync_inventory();
 
         let cmd = command!("tpr", |player: &mut Player<DungeonPlayer>, room_name: GreedyString| {
@@ -256,7 +263,7 @@ impl Dungeon {
             if let OpenContainer::Menu(_) = player.get_container() {
                 player.open_container(OpenContainer::None)
             }
-            player.inventory.set_slot(44, Some(DungeonItem::MagicalMap));
+            player.inventory.set_slot(44, Some(MagicalMap.into()));
             player.sync_inventory();
         }
 

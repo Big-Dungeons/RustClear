@@ -1,33 +1,58 @@
 use crate::dungeon::dungeon::Dungeon;
 use crate::dungeon::dungeon_player::DungeonPlayer;
-use bevy_ecs::component::Component;
+use crate::dungeon::items::dungeon_items::DungeonItem;
+use bevy_ecs::prelude::Component;
 use glam::dvec3;
 use server::block::block_collision::check_block_collisions;
-use server::constants::ObjectVariant;
+use server::constants::{ObjectVariant, Sound};
 use server::entity::components::{EntityAppearance, EntityBehaviour};
 use server::entity::entity::MinecraftEntity;
+use server::inventory::item_stack::ItemStack;
 use server::network::binary::var_int::VarInt;
 use server::network::packets::packet_buffer::PacketBuffer;
 use server::network::protocol::play::clientbound::{DestroyEntites, EntityTeleport, EntityVelocity, PositionLook, Relative, SpawnObject};
+use server::player::packet_processing::BlockInteractResult;
 use server::types::aabb::AABB;
 use server::{ClientId, Player};
 
-pub fn throw_pearl(player: &mut Player<DungeonPlayer>) {
-    let world = player.world_mut();
+#[derive(Copy, Clone, Hash, Eq, PartialEq)]
+pub struct EnderPearl;
 
-    let entity = world.spawn_entity(
-        player.player_eye_position(),
-        player.yaw,
-        player.pitch,
-        EnderPearlAppearance,
-        EnderPearlBehaviour { player_id: player.client_id },
-    );
+impl DungeonItem for EnderPearl {
+    
+    fn on_interact(&self, player: &mut Player<DungeonPlayer>, block: Option<BlockInteractResult>) {
+        player.sync_inventory();
+        if block.is_some() { 
+            return;
+        }
 
-    let mut entity = world.entities.get_entity_mut(entity);
-    let entity = entity.get_mut::<MinecraftEntity<Dungeon>>();
-    entity.unwrap().velocity = player.rotation_vec().as_dvec3() * 1.5;
+        let world = player.world_mut();
+
+        let entity = world.spawn_entity(
+            player.player_eye_position(),
+            player.yaw,
+            player.pitch,
+            EnderPearlAppearance,
+            EnderPearlBehaviour { player_id: player.client_id },
+        );
+
+        player.play_sound(Sound::GhastFireball, 0.2, 1.0);
+
+        let mut entity = world.entities.get_entity_mut(entity);
+        let mut entity = entity.get_mut::<MinecraftEntity<Dungeon>>().unwrap();
+        entity.velocity = player.rotation_vec().as_dvec3() * 1.5;
+        
+    }
+    
+    fn item_stack(&self) -> ItemStack {
+        ItemStack {
+            item: 368,
+            stack_size: 16,
+            metadata: 0,
+            tag_compound: None,
+        }
+    }
 }
-
 
 #[derive(Component)]
 pub struct EnderPearlBehaviour {
@@ -46,7 +71,10 @@ impl EntityBehaviour<Dungeon> for EnderPearlBehaviour {
 
         let world = entity.world_mut();
         let aabb = AABB::from_width_height(0.25, 0.25).offset(entity.position);
-        if check_block_collisions(world, &aabb) {
+        // last position may have been inside a block if player was in a block
+        let last_aabb = AABB::from_width_height(0.25, 0.25).offset(entity.last_position);
+
+        if check_block_collisions(world, &aabb) || check_block_collisions(world, &last_aabb) {
             if let Some(index) = world.player_map.get(component.player_id) {
                 let player_rc = &mut world.players[*index];
                 let player = unsafe { &mut *player_rc.get() };
