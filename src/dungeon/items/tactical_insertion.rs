@@ -23,7 +23,7 @@ impl DungeonItem for TacticalInsertion {
             yaw: player.yaw,
             pitch: player.pitch,
         });
-        player.extension.add_item_cooldown(&TacticalInsertion.into(), Cooldown::from_seconds(20, false))
+        player.add_item_cooldown(&TacticalInsertion.into(), Cooldown::from_seconds(20, false))
     }
 
     fn item_stack(&self) -> ItemStack {

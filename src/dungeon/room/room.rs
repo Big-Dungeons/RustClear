@@ -242,7 +242,7 @@ impl Room {
         })
     }
 
-    pub fn attack_block(room_rc: &Rc<RefCell<Room>>, player: &mut Player<DungeonPlayer>, position: IVec3) {
+    pub fn on_start_dig(room_rc: &Rc<RefCell<Room>>, player: &mut Player<DungeonPlayer>, position: IVec3) {
         if Self::try_open_door(room_rc, player, position) {
             return;
         }

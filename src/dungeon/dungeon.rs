@@ -8,6 +8,7 @@ use crate::dungeon::items::magical_map::MagicalMap;
 use crate::dungeon::items::pickaxe::Pickaxe;
 use crate::dungeon::items::skyblock_menu::SkyblockMenu;
 use crate::dungeon::items::spirit_sceptre::SpiritSceptre;
+use crate::dungeon::items::superboom::SuperboomTNT;
 use crate::dungeon::items::tactical_insertion::TacticalInsertion;
 use crate::dungeon::map::DungeonMap;
 use crate::dungeon::room::room::{Room, RoomNeighbour, RoomSegment, RoomStatus};
@@ -207,6 +208,7 @@ impl WorldExtension for Dungeon {
         player.inventory.set_slot(37, Some(AspectOfTheVoid.into()));
         player.inventory.set_slot(38, Some(EnderPearl.into()));
         player.inventory.set_slot(39, Some(Pickaxe.into()));
+        player.inventory.set_slot(40, Some(SuperboomTNT.into()));
         player.inventory.set_slot(41, Some(SpiritSceptre.into()));
         player.inventory.set_slot(42, Some(TacticalInsertion.into()));
         player.inventory.set_slot(44, Some(SkyblockMenu.into()));

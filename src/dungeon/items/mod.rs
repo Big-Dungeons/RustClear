@@ -8,3 +8,4 @@ pub mod skyblock_menu;
 pub mod magical_map;
 pub mod spirit_sceptre;
 pub mod tactical_insertion;
+pub mod superboom;

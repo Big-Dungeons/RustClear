@@ -3,11 +3,13 @@ use crate::dungeon::dungeon_player::DungeonPlayer;
 use crate::dungeon::items::dungeon_items::DungeonItem;
 use bevy_ecs::prelude::Component;
 use glam::dvec3;
+use indoc::indoc;
 use server::block::block_collision::check_block_collisions;
 use server::constants::{ObjectVariant, Sound};
 use server::entity::components::{EntityAppearance, EntityBehaviour};
 use server::entity::entity::MinecraftEntity;
 use server::inventory::item_stack::ItemStack;
+use server::network::binary::nbt::NBT;
 use server::network::binary::var_int::VarInt;
 use server::network::packets::packet_buffer::PacketBuffer;
 use server::network::protocol::play::clientbound::{DestroyEntites, EntityTeleport, EntityVelocity, PositionLook, Relative, SpawnObject};
@@ -49,7 +51,16 @@ impl DungeonItem for EnderPearl {
             item: 368,
             stack_size: 16,
             metadata: 0,
-            tag_compound: None,
+            tag_compound: Some(NBT::with_nodes(vec![
+                NBT::compound("display", vec![
+                    NBT::list_from_string("Lore", indoc! {r#"
+                            §8Collection Item
+
+                            §f§lCOMMON
+                        "#}),
+                    NBT::string("Name", "§fEnder Pearl"),
+                ]),
+            ])),
         }
     }
 }

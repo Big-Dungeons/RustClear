@@ -76,14 +76,19 @@ impl PlayerExtension for DungeonPlayer {
         let mut restore_block = false;
         match action {
             PlayerDiggingAction::StartDestroyBlock => {
-                if let Some(item) = *player.inventory.get_hotbar_slot(player.held_slot as usize) {
+                let held_item = *player.inventory.get_hotbar_slot(player.held_slot as usize);
+
+                // todo: use block toughness/tool to figure out, since blocks like grass can be broken instantly without pickaxe etc
+                if let Some(item) = held_item {
                     if matches!(item, DungeonItems::Pickaxe(_)) {
                         restore_block = true;
                     }
+
+                    DungeonItem::on_start_dig(&item, player, position)
                 }
 
                 if let Some(room_rc) = player.get_current_room() && player.world().has_started() {
-                    Room::attack_block(&room_rc, player, position);
+                    Room::on_start_dig(&room_rc, player, position);
                 }
             }
             PlayerDiggingAction::FinishDestroyBlock => {
