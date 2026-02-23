@@ -1,7 +1,9 @@
+use crate::dungeon::door::sound_emitter::DoorSoundEmitter;
 use crate::dungeon::dungeon::Dungeon;
 use crate::dungeon::dungeon_player::DungeonPlayer;
-use crate::dungeon::entities::block_appearance::BlockAppearance;
-use crate::dungeon::entities::moving_block_behaviour::{DoorSoundEmitter, MovingBlockBehaviour};
+use crate::dungeon::entities::block_appearance::{BlockAppearance, FallingBlockAppearance};
+use crate::dungeon::entities::components::Lifetime;
+use crate::dungeon::entities::moving_block_behaviour::MovingBlockBehaviour;
 use crate::dungeon::room::room::{Room, RoomStatus};
 use crate::dungeon::room::room_implementation::RoomImplementation;
 use crate::dungeon::seeded_rng::seeded_rng;
@@ -142,6 +144,21 @@ impl RoomImplementation for IceFillPuzzle {
                         for position in obstacles.iter() {
                             let IVec3 { x, y, z } = *position;
                             world.chunk_grid.set_block_at(Block::Air, x, y, z);
+                            let mut position = position.as_dvec3();
+                            position.x += 0.5;
+                            position.z += 0.5;
+
+                            world.spawn_entity(
+                                position,
+                                0.0,
+                                0.0,
+                                FallingBlockAppearance {
+                                    block: Block::PolishedAndesite,
+                                },
+                                Lifetime {
+                                    ticks: 15,
+                                }
+                            );
                         }
                         self.layer = Layer::Respawning { in_ticks: 60 };
                     }
@@ -174,12 +191,16 @@ impl IceFillPuzzle {
             sound_emitter,
             0.0,
             0.0,
-            NoAppearance,
-            DoorSoundEmitter {
-                sound: Sound::RandomWoodClick,
-                volume: 2.0,
-                pitch: 0.5,
-            }
+            NoAppearance, (
+                DoorSoundEmitter {
+                    sound: Sound::RandomWoodClick,
+                    volume: 2.0,
+                    pitch: 0.5,
+                },
+                Lifetime {
+                    ticks: 50
+                }
+            )
         );
 
         for x in 13..=17 {
@@ -196,7 +217,7 @@ impl IceFillPuzzle {
                     },
                     MovingBlockBehaviour {
                         block,
-                        total_ticks: 40,
+                        remove_block_in_tick: 20,
                         difference: 0.2,
                     }
                 );

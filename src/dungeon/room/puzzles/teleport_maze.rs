@@ -126,6 +126,7 @@ impl Default for TeleportMazePuzzle {
 
         remaining.shuffle(rng);
 
+        // this broke bru
         let mut index = 0;
         while index + 1 < remaining.len() {
             if remaining[index].0 == remaining[index + 1].0 {

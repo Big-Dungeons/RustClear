@@ -3,7 +3,6 @@ use crate::dungeon::dungeon::{Dungeon, DUNGEON_ORIGIN};
 use crate::dungeon::dungeon_player::DungeonPlayer;
 use crate::dungeon::room::puzzles::ice_fill::IceFillPuzzle;
 use crate::dungeon::room::puzzles::quiz::QuizPuzzle;
-use crate::dungeon::room::puzzles::teleport_maze::TeleportMazePuzzle;
 use crate::dungeon::room::puzzles::three_weirdos::ThreeWeirdosPuzzle;
 use crate::dungeon::room::room_data::RoomData;
 use crate::dungeon::room::room_implementation::{MobRoom, RoomImplementation};
@@ -103,7 +102,7 @@ impl Room {
         let implementation: UnsafeCell<Box<dyn RoomImplementation>> = match room_data.name.as_str() {
             "Three Weirdos" => UnsafeCell::new(Box::new(ThreeWeirdosPuzzle::default())),
             "Quiz" => UnsafeCell::new(Box::new(QuizPuzzle {})),
-            "Teleport Maze" => UnsafeCell::new(Box::new(TeleportMazePuzzle::default())),
+            // "Teleport Maze" => UnsafeCell::new(Box::new(TeleportMazePuzzle::default())),
             "Ice Fill" => UnsafeCell::new(Box::new(IceFillPuzzle::default())),
             _ => UnsafeCell::new(Box::new(MobRoom {})),
         };

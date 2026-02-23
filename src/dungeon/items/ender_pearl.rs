@@ -1,5 +1,6 @@
 use crate::dungeon::dungeon::Dungeon;
 use crate::dungeon::dungeon_player::DungeonPlayer;
+use crate::dungeon::entities::components::Lifetime;
 use crate::dungeon::items::dungeon_items::DungeonItem;
 use bevy_ecs::prelude::Component;
 use glam::dvec3;
@@ -35,7 +36,14 @@ impl DungeonItem for EnderPearl {
             player.yaw,
             player.pitch,
             EnderPearlAppearance,
-            EnderPearlBehaviour { player_id: player.client_id },
+            (
+                EnderPearlBehaviour {
+                    player_id: player.client_id
+                },
+                Lifetime {
+                    ticks: 200
+                }
+            )
         );
 
         player.play_sound(Sound::GhastFireball, 0.2, 1.0);
@@ -105,11 +113,6 @@ impl EntityBehaviour<Dungeon> for EnderPearlBehaviour {
                     flags: Relative::Yaw | Relative::Pitch,
                 });
             }
-            entity.destroy()
-        }
-
-        // prevent falling into void infinitely or something
-        if entity.ticks_existed == 100 {
             entity.destroy()
         }
     }

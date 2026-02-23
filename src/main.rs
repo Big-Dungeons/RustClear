@@ -1,8 +1,10 @@
 #![allow(clippy::collapsible_if, clippy::too_many_arguments, clippy::new_without_default)]
 
 use crate::dungeon::door::door::DoorType;
+use crate::dungeon::door::sound_emitter::DoorSoundEmitter;
 use crate::dungeon::dungeon::{Dungeon, DungeonState};
-use crate::dungeon::entities::moving_block_behaviour::{DoorSoundEmitter, MovingBlockBehaviour};
+use crate::dungeon::entities::components::Lifetime;
+use crate::dungeon::entities::moving_block_behaviour::MovingBlockBehaviour;
 use crate::dungeon::entities::npc::NPCBehaviour;
 use crate::dungeon::items::ender_pearl::EnderPearlBehaviour;
 use crate::dungeon::items::spirit_sceptre::SceptreBatBehaviour;
@@ -34,7 +36,7 @@ mod dungeon;
 
 pub fn initialize_world(tx: Sender<NetworkThreadMessage>) -> anyhow::Result<World<Dungeon>> {
     let rng_seed: u64 = rand::random();
-    SeededRng::set_seed(rng_seed);
+    SeededRng::set_seed(18158556563918935308);
 
     // tp maze, ice fill, boulder seed 18158556563918935308
     // three weirdo seed 16795237019042391353
@@ -141,6 +143,7 @@ async fn main() -> anyhow::Result<()> {
     world.entities.register_behaviour::<DoorSoundEmitter>();
     world.entities.register_behaviour::<EnderPearlBehaviour>();
     world.entities.register_behaviour::<SceptreBatBehaviour>();
+    world.entities.register_behaviour::<Lifetime>();
 
     // for x in -200..0 {
     //     for z in -200..0 {

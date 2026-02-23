@@ -96,3 +96,59 @@ impl EntityAppearance<Dungeon> for BlockAppearance {
         packet.entities.push(VarInt(entity.id + 1));
     }
 }
+
+// doesn't prevent clientside gravity whatsoever, used for falling blocks and in ice fill
+#[derive(Component)]
+pub struct FallingBlockAppearance {
+    pub block: Block
+}
+
+impl EntityAppearance<Dungeon> for FallingBlockAppearance {
+
+    fn enter_player_view(&self, entity: &MinecraftEntity<Dungeon>, player: &mut Player<DungeonPlayer>) {
+        let DVec3 { x, y, z } = entity.position;
+
+        let object_data = {
+            let block_state_id = self.block.get_blockstate_id() as i32;
+            let block_id = block_state_id >> 4;
+            let metadata = block_state_id & 0b1111;
+            block_id | (metadata << 12)
+        };
+
+        player.write_packet(&SpawnObject {
+            entity_id: entity.id,
+            variant: ObjectVariant::FallingBlock,
+            x,
+            y,
+            z,
+            pitch: 0.0,
+            yaw: 0.0,
+            data: object_data,
+            velocity_x: 0.0,
+            velocity_y: 0.0,
+            velocity_z: 0.0,
+        });
+    }
+
+    fn leave_player_view(&self, entity: &MinecraftEntity<Dungeon>, player: &mut Player<DungeonPlayer>) {
+        player.write_packet(&DestroyEntites {
+            entities: vec![VarInt(entity.id)],
+        })
+    }
+
+    fn update_position(&self, entity: &MinecraftEntity<Dungeon>, packet_buffer: &mut PacketBuffer) {
+        packet_buffer.write_packet(&EntityTeleport {
+            entity_id: entity.id,
+            pos_x: entity.position.x,
+            pos_y: entity.position.y,
+            pos_z: entity.position.z,
+            yaw: 0.0,
+            pitch: 0.0,
+            on_ground: false,
+        });
+    }
+
+    fn destroy(&self, entity: &MinecraftEntity<Dungeon>, packet: &mut DestroyEntites) {
+        packet.entities.push(VarInt(entity.id));
+    }
+}

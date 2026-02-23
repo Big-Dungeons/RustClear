@@ -1,5 +1,6 @@
 use crate::dungeon::dungeon::Dungeon;
 use crate::dungeon::entities::block_appearance::BlockAppearance;
+use crate::dungeon::entities::components::Lifetime;
 use crate::dungeon::entities::moving_block_behaviour::MovingBlockBehaviour;
 use crate::dungeon::seeded_rng::seeded_rng;
 use glam::{dvec3, ivec3, IVec3};
@@ -158,11 +159,16 @@ impl Door {
                     BlockAppearance {
                         block: self.get_block(),
                     },
-                    MovingBlockBehaviour {
-                        block: ivec3(x, y, z),
-                        total_ticks: 20,
-                        difference: -0.25,
-                    }
+                    (
+                        MovingBlockBehaviour {
+                            block: ivec3(x, y, z),
+                            remove_block_in_tick: 20,
+                            difference: -0.25,
+                        },
+                        Lifetime {
+                            ticks: 20
+                        }
+                    )
                 );
                 world.chunk_grid.set_block_at(Block::Barrier, x, y, z);
             }
