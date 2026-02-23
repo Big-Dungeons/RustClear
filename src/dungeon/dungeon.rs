@@ -24,13 +24,11 @@ use server::inventory::menu::OpenContainer;
 use server::network::binary::var_int::VarInt;
 use server::network::protocol::play::clientbound::{Chat, EntityProperties, PlayerAbilities, PositionLook, Relative};
 use server::player::attribute::{Attribute, AttributeMap, AttributeModifier};
-use server::player::sidebar::Sidebar;
 use server::types::aabb::AABB;
 use server::types::chat_component::ChatComponent;
 use server::utils::hasher::deterministic_hasher::DeterministicHashMap;
 use server::{command, ClientId, GameProfile, Player, World, WorldExtension};
-use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
+use std::cell::RefCell;
 use std::rc::Rc;
 use uuid::Uuid;
 
@@ -170,13 +168,7 @@ impl WorldExtension for Dungeon {
             profile,
             client_id,
             Gamemode::Survival,
-            DungeonPlayer { 
-                is_ready: false,
-                sidebar: Sidebar::new(),
-                current_room: None,
-                cooldowns: HashMap::new(),
-                active_abilities: Cell::new(Vec::new()),
-            }
+            DungeonPlayer::default()
         );
 
         let speed: f32 = 500.0 * 0.001;
@@ -243,6 +235,16 @@ impl WorldExtension for Dungeon {
             })
         );
 
+        player.command_dispatcher_mut().register_command(
+            command!("roomdata", |player: &mut Player<DungeonPlayer>| {
+                if let Some(room) = player.get_current_room() {
+                    let room = room.borrow();
+                    // add more data when its needed
+                    player.send_message(&format!("rotation {:?}", room.rotation));
+                }
+            })
+        );
+
         player.flush_packets()
     }
 
@@ -301,7 +303,7 @@ impl Dungeon {
                 }
             }
             if should_start {
-                world.state = DungeonState::Starting { starts_in_ticks: 100 }
+                world.state = DungeonState::Starting { starts_in_ticks: 20 }
             }
         } else {
             world.state = DungeonState::NotStarted

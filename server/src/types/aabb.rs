@@ -19,6 +19,13 @@ impl AABB {
             max,
         }
     }
+
+    pub fn new_safe(a: DVec3, b: DVec3) -> Self {
+        Self {
+            min: a.min(b),
+            max: a.max(b),
+        }
+    }
     
     pub const fn intersects(&self, other: &AABB) -> bool {
         self.min.x <= other.max.x && self.max.x >= other.min.x &&

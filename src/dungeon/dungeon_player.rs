@@ -5,7 +5,7 @@ use crate::dungeon::room::room::Room;
 use chrono::Local;
 use glam::IVec3;
 use indoc::{formatdoc, indoc};
-use server::constants::PotionEffect;
+use server::constants::{PotionEffect, Sound};
 use server::inventory::item::get_item_stack;
 use server::inventory::item_stack::ItemStack;
 use server::network::protocol::play::clientbound::{AddEffect, BlockChange};
@@ -15,7 +15,7 @@ use server::player::sidebar::Sidebar;
 use server::types::direction::Direction3D;
 use server::{Player, PlayerExtension};
 use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -30,6 +30,20 @@ pub struct DungeonPlayer {
     pub active_abilities: Cell<Vec<ActiveAbility>>,
     pub cooldowns: HashMap<DungeonItems, Cooldown>,
 
+    queued_sounds: VecDeque<(u32, (Sound, f32, f32))>
+}
+
+impl Default for DungeonPlayer {
+    fn default() -> Self {
+        Self {
+            sidebar: Sidebar::new(),
+            is_ready: false,
+            current_room: None,
+            active_abilities: Cell::new(Vec::new()),
+            cooldowns: Default::default(),
+            queued_sounds: Default::default(),
+        }
+    }
 }
 
 impl PlayerExtension for DungeonPlayer {
@@ -66,10 +80,20 @@ impl PlayerExtension for DungeonPlayer {
         });
         player.active_abilities.set(abilities);
 
+        // re-do
         player.cooldowns.retain(|_, cooldown| {
             cooldown.ticks_remaining -= 1;
             cooldown.ticks_remaining != 0
         });
+
+        while let Some(&(tick, _)) = player.queued_sounds.front() {
+            if tick > player.ticks_existed {
+                break;
+            }
+
+            let (_, (sound, volume, pitch)) = player.queued_sounds.pop_front().unwrap();
+            player.play_sound(sound, volume, pitch);
+        }
     }
 
     fn dig(player: &mut Player<Self>, position: IVec3, action: &PlayerDiggingAction) {
@@ -141,6 +165,17 @@ impl PlayerExtension for DungeonPlayer {
 }
 
 impl DungeonPlayer {
+
+    pub fn queue_sound(
+        player: &mut Player<Self>,
+        sound: Sound,
+        volume: f32,
+        pitch: f32,
+        in_ticks: u32
+    ) {
+        let ticks = player.ticks_existed + in_ticks;
+        player.queued_sounds.push_back((ticks, (sound, volume, pitch)));
+    }
 
     pub fn item_cooldown(&self, item: &DungeonItems) -> Option<&Cooldown> {
         self.cooldowns.get(item)

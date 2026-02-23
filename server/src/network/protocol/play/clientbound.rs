@@ -61,9 +61,9 @@ register_packets! {
     // BlockBreakAnimation = 0x25;
     // ChunkDataBulk = 0x26;
     // Explosion = 0x27;
-    // Effect = 0x28;
+    Effect = 0x28;
     SoundEffect = 0x29;
-    Particles = 0x2a;
+    Particles<'_> = 0x2a;
     // ChangeGameState = 0x2b;
     // SpawnGlobalEntity = 0x2c;
     OpenWindow = 0x2d;
@@ -368,6 +368,15 @@ packet_serializable! {
 }
 
 packet_serializable! {
+    pub struct Effect {
+        pub effect_id: i32,
+        pub position: IVec3 => &BlockPosition(self.position),
+        pub data: i32,
+        pub disable_relative_volume: bool,
+    }
+}
+
+packet_serializable! {
     pub struct SoundEffect {
         pub sound: Sound,
         pub pos_x: f64 => &((self.pos_x * 8.0) as i32),
@@ -379,15 +388,14 @@ packet_serializable! {
 }
 
 packet_serializable! {
-    pub struct Particles {
+    pub struct Particles<'a> {
         pub particle: Particle,
         pub long_distance: bool,
         pub position: Vec3,
         pub offset: Vec3,
         pub speed: f32,
         pub count: i32,
-        // maybe figure out args,
-        // not sure if we'll ever need them
+        pub arguments: &'a [VarInt]
     }
 }
 

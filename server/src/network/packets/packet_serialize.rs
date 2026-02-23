@@ -118,12 +118,18 @@ impl PacketSerializable for f64 {
     }
 }
 
-impl PacketSerializable for &[u8] {
+impl<T: PacketSerializable> PacketSerializable for &[T] {
     fn write_size(&self) -> usize {
-        self.len()
+        let mut write_size = 0;
+        for entry in self.iter() {
+            write_size += entry.write_size()
+        }
+        write_size
     }
     fn write(&self, buf: &mut BytesMut) {
-        buf.put_slice(self)
+        for entry in self.iter() {
+            entry.write(buf)
+        }
     }
 }
 

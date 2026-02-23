@@ -10,7 +10,7 @@ use server::network::protocol::play::clientbound::PositionLook;
 use server::types::aabb::AABB;
 use server::World;
 
-pub struct TeleportMaze {
+pub struct TeleportMazePuzzle {
     teleport_pads: Vec<TeleportPad>,
     target: IVec3,
 }
@@ -33,7 +33,7 @@ impl TeleportPad {
     }
 }
 
-impl Default for TeleportMaze {
+impl Default for TeleportMazePuzzle {
     fn default() -> Self {
         let mut teleport_pads: Vec<TeleportPad> = Vec::new();
 
@@ -160,7 +160,7 @@ impl Default for TeleportMaze {
     }
 }
 
-impl RoomImplementation for TeleportMaze {
+impl RoomImplementation for TeleportMazePuzzle {
     fn discover(&mut self, room: &mut Room, _world: &mut World<Dungeon>) {
         // convert teleport pad data to absolute position
         for pad in self.teleport_pads.iter_mut() {
@@ -168,19 +168,6 @@ impl RoomImplementation for TeleportMaze {
             pad.teleports_to = room.get_world_block_position(pad.teleports_to);
         }
         self.target = room.get_world_block_position(self.target);
-
-        // for pad in self.teleport_pads.iter() {
-        //     _world.spawn_entity(
-        //         pad.position.as_dvec3(),
-        //         0.0,
-        //         0.0,
-        //         MobAppearance {
-        //             variant: EntityVariant::Zombie,
-        //             metadata: EntityMetadata::Zombie(Default::default()),
-        //         },
-        //         ()
-        //     );
-        // }
     }
 
     fn tick(&mut self, room: &mut Room, world: &mut World<Dungeon>) {

@@ -6,7 +6,7 @@ use server::block::block_collision::check_block_collisions;
 use server::constants::{EntityVariant, Sound};
 use server::entity::components::{EntityBehaviour, MobAppearance};
 use server::entity::entity::MinecraftEntity;
-use server::entity::entity_metadata::{BatMetadata, EntityMetadata};
+use server::entity::entity_metadata::EntityMetadata;
 use server::inventory::item_stack::ItemStack;
 use server::player::packet_processing::BlockInteractResult;
 use server::types::aabb::AABB;
@@ -29,7 +29,7 @@ impl DungeonItem for SpiritSceptre {
             player.pitch,
             MobAppearance {
                 variant: EntityVariant::Bat,
-                metadata: EntityMetadata::Bat(BatMetadata { hanging: false, })
+                metadata: EntityMetadata::Bat(Default::default())
             },
             SceptreBatBehaviour { player_id: player.client_id }
         );

@@ -1,13 +1,14 @@
-use crate::dungeon::door::door_entity::DoorEntity;
 use crate::dungeon::dungeon::Dungeon;
+use crate::dungeon::entities::block_appearance::BlockAppearance;
+use crate::dungeon::entities::moving_block_behaviour::MovingBlockBehaviour;
 use crate::dungeon::seeded_rng::seeded_rng;
-use glam::{ivec3, DVec3, IVec3};
+use glam::{dvec3, ivec3, IVec3};
 use rand::prelude::IndexedRandom;
 use server::block::block_parameter::{Axis, BlockColor};
 use server::block::rotatable::Rotate;
 use server::block::Block;
 use server::utils::hasher::deterministic_hasher::DeterministicHashMap;
-use server::world::chunk::chunk_grid::ChunkGrid;
+use server::world::chunk::chunk_grid::{iterate_blocks, ChunkGrid};
 use server::World;
 
 #[derive(Hash, Eq, PartialEq)]
@@ -145,18 +146,27 @@ impl Door {
         }
         
         self.is_open = true;
-        
-        world.chunk_grid.fill_blocks(
-            Block::Barrier,
+
+        iterate_blocks(
             ivec3(self.x - 1, 69, self.z - 1),
             ivec3(self.x + 1, 72, self.z + 1),
+            |x, y, z| {
+                world.spawn_entity(
+                    dvec3(x as f64 + 0.5, y as f64, z as f64 + 0.5),
+                    0.0,
+                    0.0,
+                    BlockAppearance {
+                        block: self.get_block(),
+                    },
+                    MovingBlockBehaviour {
+                        block: ivec3(x, y, z),
+                        total_ticks: 20,
+                        difference: -0.25,
+                    }
+                );
+                world.chunk_grid.set_block_at(Block::Barrier, x, y, z);
+            }
         );
-
-        DoorEntity::spawn_into_world(
-            world,
-            DVec3::new(self.x as f64 - 1.0, 69.0, self.z as f64 - 1.0),
-            self.get_block()
-        )
     }
 
     // inner bit of door, blocks abilities

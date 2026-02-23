@@ -1,8 +1,8 @@
 #![allow(clippy::collapsible_if, clippy::too_many_arguments, clippy::new_without_default)]
 
 use crate::dungeon::door::door::DoorType;
-use crate::dungeon::door::door_entity::DoorBehaviour;
 use crate::dungeon::dungeon::{Dungeon, DungeonState};
+use crate::dungeon::entities::moving_block_behaviour::{DoorSoundEmitter, MovingBlockBehaviour};
 use crate::dungeon::entities::npc::NPCBehaviour;
 use crate::dungeon::items::ender_pearl::EnderPearlBehaviour;
 use crate::dungeon::items::spirit_sceptre::SceptreBatBehaviour;
@@ -59,6 +59,9 @@ pub fn initialize_world(tx: Sender<NetworkThreadMessage>) -> anyhow::Result<Worl
     let mut world = World::new(tx, dungeon);
 
     for room in world.extension.rooms.iter() {
+        if room.borrow().data.name.to_lowercase().contains("ice fill") {
+            println!("has ice fill")
+        }
         room.borrow().load_into_world(&mut world.chunk_grid);
     }
     for door in world.extension.doors.iter() {
@@ -134,7 +137,8 @@ async fn main() -> anyhow::Result<()> {
 
     world.entities.register_behaviour::<NPCBehaviour>();
     world.entities.register_behaviour::<JumpBehaviour>();
-    world.entities.register_behaviour::<DoorBehaviour>();
+    world.entities.register_behaviour::<MovingBlockBehaviour>();
+    world.entities.register_behaviour::<DoorSoundEmitter>();
     world.entities.register_behaviour::<EnderPearlBehaviour>();
     world.entities.register_behaviour::<SceptreBatBehaviour>();
 

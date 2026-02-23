@@ -29,16 +29,8 @@ entity_metadata_serializable! {
             13 => pub is_villager: bool = false,
         },
         Bat {
+            0 => pub flags: u8 = 0,
             16 => pub hanging: bool = false,
         }
     }
 }
-
-
-// entity_metadata_serializable! {
-//     pub enum ObjectMetadata {
-//         FallingBlock {
-//
-//         }
-//     }
-// }

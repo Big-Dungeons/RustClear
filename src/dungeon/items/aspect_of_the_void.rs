@@ -1,7 +1,6 @@
 use crate::dungeon::dungeon::Dungeon;
 use crate::dungeon::dungeon_player::DungeonPlayer;
 use crate::dungeon::items::dungeon_items::DungeonItem;
-use crate::dungeon::room::room_data::RoomType;
 use glam::{dvec3, vec3, DVec3, IVec3};
 use indoc::indoc;
 use server::constants::{Particle, Sound};
@@ -72,12 +71,12 @@ enum EtherResult {
 pub fn etherwarp(player: &mut Player<DungeonPlayer>) {
     // temporary, but just to test,
     // since some puzzles let you teleport in them, and others don't
-    if let Some(room_rc) = player.extension.get_current_room() {
-        match room_rc.borrow().data.room_type {
-            RoomType::Trap | RoomType::Puzzle => return,
-            _ => {}
-        }
-    };
+    // if let Some(room_rc) = player.extension.get_current_room() {
+    //     match room_rc.borrow().data.room_type {
+    //         RoomType::Trap | RoomType::Puzzle => return,
+    //         _ => {}
+    //     }
+    // };
 
     let mut start_pos = player.position;
     start_pos.y += 1.54; // assume always sneaking
@@ -87,13 +86,14 @@ pub fn etherwarp(player: &mut Player<DungeonPlayer>) {
     if let EtherResult::Valid(x, y, z) = traverse_voxels(&player.world().chunk_grid, start_pos, end_pos) {
 
         let position = dvec3(x as f64 + 0.5, y as f64 + 1.05, z as f64 + 0.5);
-        let dungeon = &player.world().extension;
+        // let dungeon = &player.world().extension;
 
-        if let Some((room_rc, _)) = dungeon.get_room(&position, player.collision_aabb_at(&position)) {
-            if room_rc.borrow().data.room_type == RoomType::Puzzle {
-                return;
-            }
-        }
+        // if let Some((room_rc, _)) = dungeon.get_room(&position, player.collision_aabb_at(&position)) {
+        //     if room_rc.borrow().data.room_type == RoomType::Puzzle {
+        //         return;
+        //     }
+        // }
+
         player.world_mut().spawn_particle(
             Particle::SpellWitch,
             player.position.as_vec3(),
@@ -182,12 +182,12 @@ pub fn instant_transmission(
     player: &mut Player<DungeonPlayer>,
     distance: f64,
 ) {
-    if let Some(room_rc) = player.extension.get_current_room() {
-        match room_rc.borrow().data.room_type {
-            RoomType::Trap | RoomType::Puzzle => return,
-            _ => {}
-        }
-    };
+    // if let Some(room_rc) = player.extension.get_current_room() {
+    //     match room_rc.borrow().data.room_type {
+    //         RoomType::Trap | RoomType::Puzzle => return,
+    //         _ => {}
+    //     }
+    // };
 
     let chunk_grid = &player.world().chunk_grid;
 
@@ -232,13 +232,13 @@ pub fn instant_transmission(
     // todo: sounds
     if let Some(position) = current_block {
         let position = dvec3(position.x as f64 + 0.5, position.y as f64, position.z as f64 + 0.5);
-        let dungeon = &player.world().extension;
-
-        if let Some((room_rc, _)) = dungeon.get_room(&position, player.collision_aabb_at(&position)) {
-            if room_rc.borrow().data.room_type == RoomType::Puzzle {
-                return;
-            }
-        }
+        // let dungeon = &player.world().extension;
+        //
+        // if let Some((room_rc, _)) = dungeon.get_room(&position, player.collision_aabb_at(&position)) {
+        //     if room_rc.borrow().data.room_type == RoomType::Puzzle {
+        //         return;
+        //     }
+        // }
         player.write_packet(&PositionLook {
             x: position.x,
             y: position.y,

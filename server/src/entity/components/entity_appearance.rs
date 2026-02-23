@@ -4,7 +4,7 @@ use crate::entity::entity_metadata::{EntityMetadata, PlayerMetadata};
 use crate::network::binary::var_int::VarInt;
 use crate::network::packets::packet_buffer::PacketBuffer;
 use crate::network::protocol::play::clientbound::{DestroyEntites, EntityRotate, EntityTeleport, EntityYawRotate, PlayerData, PlayerListItem, SpawnMob, SpawnPlayer};
-use crate::{GameProfile, GameProfileProperty, Player, WorldExtension};
+use crate::{GameProfile, GameProfileProperty, Player, World, WorldExtension};
 use bevy_ecs::component::Mutable;
 use bevy_ecs::prelude::Component;
 use fstr::FString;
@@ -12,6 +12,8 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 pub trait EntityAppearance<W: WorldExtension + 'static>: Component<Mutability = Mutable> + Sized {
+
+    fn init(&self, _world: &mut World<W>) {}
 
     fn enter_player_view(&self, entity: &MinecraftEntity<W>, player: &mut Player<W::Player>);
 
@@ -162,4 +164,17 @@ fn update_position<W : WorldExtension>(entity: &MinecraftEntity<W>, buffer: &mut
         entity_id: entity.id,
         yaw: entity.yaw,
     });
+}
+
+#[derive(Component)]
+pub struct NoAppearance;
+
+impl<W: WorldExtension + 'static> EntityAppearance<W> for NoAppearance {
+    fn enter_player_view(&self, _: &MinecraftEntity<W>, _: &mut Player<W::Player>) {}
+
+    fn leave_player_view(&self, _: &MinecraftEntity<W>, _: &mut Player<W::Player>) {}
+
+    fn update_position(&self, _: &MinecraftEntity<W>, _: &mut PacketBuffer) {}
+
+    fn destroy(&self, _: &MinecraftEntity<W>, _: &mut DestroyEntites) {}
 }

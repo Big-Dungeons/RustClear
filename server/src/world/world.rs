@@ -65,6 +65,19 @@ impl<W: WorldExtension + 'static> World<W> {
     pub fn write_global_packet<P : IdentifiedPacket + PacketSerializable>(&mut self, packet: &P) {
         self.global_packet_buffer.write_packet(packet)
     }
+    
+    pub fn write_local_packet<P : IdentifiedPacket + PacketSerializable>(
+        &mut self,
+        position: DVec3,
+        packet: &P,
+    ) {
+        let chunk_x = (position.x.floor() as i32) >> 4;
+        let chunk_z = (position.z.floor() as i32) >> 4;
+
+        if let Some(chunk) = self.chunk_grid.get_chunk_mut(chunk_x, chunk_z) {
+            chunk.packet_buffer.write_packet(packet)
+        }
+    }
 
     pub fn spawn_player(
         &mut self,
@@ -158,7 +171,9 @@ impl<W: WorldExtension + 'static> World<W> {
             yaw,
             pitch
         );
-        
+
+        appearance.init(self);
+
         // kinda scuffed ngl
         self.entities.register_appearance_update::<T>();
         
@@ -184,6 +199,17 @@ impl<W: WorldExtension + 'static> World<W> {
     }
 
     pub fn spawn_particle(&mut self, particle: Particle, position: Vec3, offset: Vec3, count: i32) {
+        self.spawn_particle_with_args(particle, position, offset, count, Vec::new());
+    }
+
+    pub fn spawn_particle_with_args(
+        &mut self,
+        particle: Particle,
+        position: Vec3, 
+        offset: Vec3,
+        count: i32,
+        arguments: Vec<VarInt>
+    ) {
         let chunk_x = (position.x.floor() as i32) >> 4;
         let chunk_z = (position.z.floor() as i32) >> 4;
 
@@ -195,24 +221,20 @@ impl<W: WorldExtension + 'static> World<W> {
                 offset,
                 speed: 0.0,
                 count,
+                arguments: &arguments
             })
         }
     }
     
     pub fn play_sound_at(&mut self, sound: Sound, volume: f32, pitch: f32, position: DVec3) {
-        let chunk_x = (position.x.floor() as i32) >> 4;
-        let chunk_z = (position.z.floor() as i32) >> 4;
-
-        if let Some(chunk) = self.chunk_grid.get_chunk_mut(chunk_x, chunk_z) {
-            chunk.packet_buffer.write_packet(&SoundEffect {
-                sound,
-                pos_x: position.x,
-                pos_y: position.y,
-                pos_z: position.z,
-                volume,
-                pitch,
-            })
-        }
+        self.write_local_packet(position, &SoundEffect {
+            sound,
+            pos_x: position.x,
+            pos_y: position.y,
+            pos_z: position.z,
+            volume,
+            pitch,
+        });
     }
 
     pub fn remove_player(&mut self, client_id: ClientId) {
