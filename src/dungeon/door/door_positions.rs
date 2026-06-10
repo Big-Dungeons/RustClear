@@ -1,4 +1,4 @@
-use crate::dungeon::dungeon::DUNGEON_ORIGIN;
+use crate::dungeon::DUNGEON_ORIGIN;
 use glam::IVec2;
 
 pub const DOOR_POSITIONS: [IVec2; 60] = [
