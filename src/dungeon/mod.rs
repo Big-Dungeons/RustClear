@@ -1,5 +1,6 @@
 use crate::dungeon::door::DoorLookup;
 use crate::dungeon::dungeon_player::DungeonPlayerPlugin;
+use crate::dungeon::entities::DungeonEntityPlugin;
 use crate::dungeon::rooms::room_data::RoomDataLookup;
 use crate::dungeon::rooms::RoomGridLookup;
 use crate::TEST_WORLD;
@@ -8,6 +9,7 @@ use bevy::prelude::{Entity, Plugin, Resource, };
 use glam::IVec2;
 
 mod door;
+mod entities;
 mod dungeon_player;
 pub mod items;
 pub mod rooms;
@@ -24,11 +26,10 @@ impl Plugin for DungeonPlugin {
         }
 
         app
-            .add_plugins(
-                (
-                    DungeonPlayerPlugin,
-                )
-            )
+            .add_plugins((
+                DungeonPlayerPlugin,
+                DungeonEntityPlugin,
+            ))
             .insert_resource(RoomDataLookup::default())
             .insert_resource(RoomGridLookup::default())
             .insert_resource(DoorLookup::default());

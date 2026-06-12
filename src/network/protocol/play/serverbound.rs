@@ -13,11 +13,15 @@ use crate::player::inventory::item_stack::ItemStack;
 use crate::register_serverbound_packets;
 use crate::App;
 use anyhow::bail;
+use glam::Vec3;
 use macros::{identified_packet, PacketDeserializable};
 
 register_serverbound_packets! {
     PlayPacket;
+    
+    KeepAlive,
     ChatMessage,
+    UseEntity,
     PlayerUpdate,
     PlayerPosition,
     PlayerLook,
@@ -27,12 +31,55 @@ register_serverbound_packets! {
     ArmSwing,
     PlayerAction,
     ClickWindow,
+    ConfirmTransaction,
+}
+
+#[identified_packet(id=0x00)]
+#[derive(Debug, Clone, PacketDeserializable)]
+pub struct KeepAlive {
+    pub id: i32
 }
 
 #[identified_packet(id=0x01)]
 #[derive(Debug, Clone, PacketDeserializable)]
 pub struct ChatMessage {
     pub string: SizedString<256>
+}
+
+#[derive(Debug, PartialEq, Copy, Clone, PacketDeserializable)]
+pub enum EntityInteractionType {
+    Interact,
+    Attack,
+    InteractAt, // used in armor stands
+}
+
+#[identified_packet(id=0x02)]
+#[derive(Debug)]
+pub struct UseEntity {
+    pub entity_id: VarInt,
+    pub action: EntityInteractionType,
+    pub hit_vec: Option<Vec3>
+}
+
+impl PacketDeserializable for UseEntity {
+    fn read(buffer: &mut Bytes) -> anyhow::Result<Self> {
+        let entity_id: VarInt = VarInt::read(buffer)?;
+        let action: EntityInteractionType = EntityInteractionType::read(buffer)?;
+        let hit_vec = if action == EntityInteractionType::InteractAt {
+            Some(Vec3::new(
+                f32::read(buffer)?,
+                f32::read(buffer)?,
+                f32::read(buffer)?,
+            ))
+        } else {
+            None
+        };
+        Ok(Self {
+            entity_id,
+            action,
+            hit_vec,
+        })
+    }
 }
 
 #[identified_packet(id=0x03)]
@@ -91,6 +138,7 @@ pub struct HeldItemChange {
 #[derive(Debug, Copy, Clone, PacketDeserializable)]
 pub struct ArmSwing;
 
+#[derive(Debug)]
 pub enum PlayerActionType {
     StartSneaking,
     StopSneaking,
@@ -120,14 +168,14 @@ impl PacketDeserializable for PlayerActionType {
 }
 
 #[identified_packet(id=0x0b)]
-#[derive(PacketDeserializable)]
+#[derive(Debug, PacketDeserializable)]
 pub struct PlayerAction {
     pub entity_id: VarInt,
     pub action: PlayerActionType,
     pub data: VarInt,
 }
 
-#[derive(PacketDeserializable)]
+#[derive(Debug, PacketDeserializable)]
 pub enum ClickMode {
     NormalClick,
     ShiftClick,
@@ -139,7 +187,7 @@ pub enum ClickMode {
 }
 
 #[identified_packet(id=0x0e)]
-#[derive(PacketDeserializable)]
+#[derive(Debug, PacketDeserializable)]
 pub struct ClickWindow {
     pub window_id: i8,
     pub slot_id: i16,
@@ -147,4 +195,12 @@ pub struct ClickWindow {
     pub action_number: i16,
     pub mode: ClickMode,
     pub clicked_item: Option<ItemStack>,
+}
+
+#[identified_packet(id=0x0f)]
+#[derive(Debug, PacketDeserializable)]
+pub struct ConfirmTransaction {
+    pub window_id: i8,
+    pub action_number: i16,
+    pub accepted: bool,
 }

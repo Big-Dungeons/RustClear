@@ -1,17 +1,19 @@
 use crate::block::Block;
+use crate::entity::entity_metadata::EntityMetadata;
 use crate::network::packets::packet_serializable::PacketSerializable;
 use crate::network::packets::IdentifiedPacket;
 use crate::network::protocol::block_position::BlockPosition;
-use crate::network::protocol::var_int::VarInt;
+use crate::network::protocol::var_int::{var_int_size, write_var_int, VarInt};
 use crate::player::inventory::item_stack::ItemStack;
 use crate::types::chat_component::ChatComponent;
+use crate::types::entity_variant::EntityVariant;
 use bytes::BytesMut;
 use enumset::{EnumSet, EnumSetType};
-use glam::IVec3;
+use glam::{I16Vec3, IVec3};
 use macros::{identified_packet, PacketSerializable};
 
 #[identified_packet(id=0x01)]
-#[derive(PacketSerializable)]
+#[derive(Debug, PacketSerializable)]
 pub struct JoinGame<'a> {
     pub entity_id: i32,
     pub gamemode: u8,
@@ -23,7 +25,7 @@ pub struct JoinGame<'a> {
 }
 
 #[identified_packet(id=0x02)]
-#[derive(PacketSerializable)]
+#[derive(Debug, PacketSerializable)]
 pub struct Chat {
     pub component: ChatComponent,
     pub chat_type: i8,
@@ -38,7 +40,7 @@ impl Chat {
     }
 }
 
-#[derive(EnumSetType)]
+#[derive(Debug, EnumSetType)]
 pub enum Relative {
     X,
     Y,
@@ -48,7 +50,7 @@ pub enum Relative {
 }
 
 #[identified_packet(id=0x08)]
-#[derive(PacketSerializable)]
+#[derive(Debug, PacketSerializable)]
 pub struct PositionLook {
     pub x: f64,
     pub y: f64,
@@ -58,8 +60,55 @@ pub struct PositionLook {
     pub flags: EnumSet<Relative>,
 }
 
+#[identified_packet(id=0x0f)]
+#[derive(Debug, PacketSerializable)]
+pub struct SpawnMob {
+    pub entity_id: VarInt,
+    pub entity_variant: EntityVariant,
+    pub position: IVec3,
+    pub yaw: i8,
+    pub pitch: i8,
+    pub head_yaw: i8,
+    pub velocity: I16Vec3,
+    pub metadata: EntityMetadata,
+}
+
+#[identified_packet(id=0x13)]
+#[derive(Debug)]
+pub struct DestroyEntity {
+    pub entity_id: VarInt,
+}
+
+impl PacketSerializable for DestroyEntity {
+    fn write_size(&self) -> usize {
+        var_int_size(1) + self.entity_id.write_size()
+    }
+
+    fn write(&self, buf: &mut BytesMut) {
+        write_var_int(buf, 1);
+        self.entity_id.write(buf);
+    }
+}
+
+#[identified_packet(id=0x18)]
+#[derive(Debug, PacketSerializable)]
+pub struct EntityTeleport {
+    pub entity_id: VarInt,
+    pub position: IVec3,
+    pub yaw: i8,
+    pub pitch: i8,
+    pub on_ground: bool
+}
+
+#[identified_packet(id=0x19)]
+#[derive(Debug, PacketSerializable)]
+pub struct EntityYawRotate {
+    pub entity_id: VarInt,
+    pub yaw: i8,
+}
+
 #[identified_packet(id=0x21)]
-#[derive(PacketSerializable)]
+#[derive(Debug, PacketSerializable)]
 pub struct ChunkData {
     pub chunk_x: i32,
     pub chunk_z: i32,
@@ -69,7 +118,7 @@ pub struct ChunkData {
 }
 
 #[identified_packet(id=0x23)]
-#[derive(PacketSerializable)]
+#[derive(Debug, PacketSerializable)]
 pub struct BlockChange {
     pub position: BlockPosition,
     pub block_state: VarInt,
@@ -86,7 +135,7 @@ impl BlockChange {
 
 
 #[identified_packet(id=0x2f)]
-#[derive(PacketSerializable)]
+#[derive(Debug, PacketSerializable)]
 pub struct SetSlot {
     pub window_id: i8,
     pub slot: i16,
@@ -94,6 +143,7 @@ pub struct SetSlot {
 }
 
 #[identified_packet(id=0x30)]
+#[derive(Debug)]
 pub struct WindowItems {
     pub window_id: i8,
     pub items: Vec<Option<ItemStack>>,
@@ -118,7 +168,7 @@ impl PacketSerializable for WindowItems {
 }
 
 #[identified_packet(id=0x32)]
-#[derive(PacketSerializable)]
+#[derive(Debug, PacketSerializable)]
 pub struct ConfirmTransaction {
     pub window_id: i8,
     pub action_number: i16,

@@ -7,6 +7,7 @@ use crate::network::protocol::var_int::{var_int_size, write_var_int};
 use crate::network::NetworkMessage;
 use bevy::prelude::{Entity, Message};
 use bytes::BytesMut;
+use std::fmt::Debug;
 
 pub trait IdentifiedPacket {
     const PACKET_ID: i32;
@@ -42,8 +43,8 @@ macro_rules! register_serverbound_packets {
                                 self.[< $packet_type:snake >].write(PacketEvent { client: entity, packet });
                             }
                         )*
-                        _id => {
-                            // eprintln!("invalid packet: 0x{:02x}", id);
+                        _ => {
+                            eprintln!("invalid packet: 0x{:02x}", packet_id.0);
                         }
                     }
                     Ok(())
@@ -58,12 +59,13 @@ macro_rules! register_serverbound_packets {
 }
 
 pub trait BytesMutExt {
-    fn write_packet<P: IdentifiedPacket + PacketSerializable>(&mut self, packet: &P);
+    fn write_packet<P: IdentifiedPacket + PacketSerializable + Debug>(&mut self, packet: &P);
     fn get_packet_message(&mut self, client_id: ClientId) -> NetworkMessage;
 }
 
 impl BytesMutExt for BytesMut {
-    fn write_packet<P: IdentifiedPacket + PacketSerializable>(&mut self, packet: &P) {
+    fn write_packet<P: IdentifiedPacket + PacketSerializable + Debug>(&mut self, packet: &P) {
+        // println!("packet written {:?}", packet);
         let write_size = (var_int_size(P::PACKET_ID) + packet.write_size()) as i32;
         self.reserve(write_size as usize + var_int_size(write_size));
 

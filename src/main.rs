@@ -1,6 +1,7 @@
-use crate::chunk::chunk_grid::ChunkGrid;
+use crate::chunk::ChunkPlugin;
 use crate::debug_world::DebugWorld;
 use crate::dungeon::DungeonPlugin;
+use crate::entity::MobPlugin;
 use crate::network::packets::PacketEvent;
 use crate::network::protocol::play::serverbound::ChatMessage;
 use crate::network::NetworkPlugin;
@@ -11,24 +12,30 @@ use bevy::prelude::{Commands, MessageReader};
 use glam::IVec2;
 use std::time::Duration;
 
-mod network;
-mod player;
-mod entity;
 mod block;
 mod chunk;
-mod dungeon;
-mod types;
 mod debug_world;
+mod dungeon;
+mod entity;
+mod network;
+mod player;
+mod types;
 
 // temp
 const TEST_WORLD: bool = false;
 
 fn main() {
     App::new()
-        .insert_resource(ChunkGrid::new(16, IVec2::splat(13)))
         .add_plugins((
             ScheduleRunnerPlugin::run_loop(Duration::from_millis(50)),
-            NetworkPlugin { addr: "127.0.0.1:8080" },
+            NetworkPlugin {
+                addr: "127.0.0.1:8080",
+            },
+            ChunkPlugin {
+                size: 16,
+                offset: IVec2::splat(13),
+            },
+            MobPlugin,
             PlayerPlugin,
             DungeonPlugin,
             DebugWorld,
@@ -37,10 +44,7 @@ fn main() {
         .run();
 }
 
-fn chat_test(
-    mut chat_messages: MessageReader<PacketEvent<ChatMessage>>,
-    mut commands: Commands,
-) {
+fn chat_test(mut chat_messages: MessageReader<PacketEvent<ChatMessage>>, mut commands: Commands) {
     for PacketEvent { packet, client } in chat_messages.read() {
         println!("chat message: {}", packet.string);
         commands.trigger(SyncInventory { entity: *client })

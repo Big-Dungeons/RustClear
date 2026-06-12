@@ -1,11 +1,16 @@
+use crate::block::block_rotation::Rotate;
 use crate::dungeon::door::door_positions::DOOR_POSITIONS;
 use crate::dungeon::door::{Door, DoorAxis, DoorLookup, DoorType};
+use crate::dungeon::entities::npc::NPCBehaviour;
 use crate::dungeon::rooms::room_data::{random_room_data, RoomData, RoomDataLookup, RoomShape, RoomType};
 use crate::dungeon::rooms::{Room, RoomGridLookup, RoomSegment};
 use crate::dungeon::{door, rooms, EntranceRoom, DUNGEON_ORIGIN};
+use crate::entity::components::transform::Transform;
+use crate::entity::entity_metadata::ZombieMetadata;
+use crate::entity::Mob;
 use bevy::app::App;
 use bevy::prelude::{default, ChildOf, Children, Commands, Deref, Entity, IntoScheduleConfigs, Plugin, PostStartup, Query, Res, ResMut, Resource, Startup};
-use glam::ivec2;
+use glam::{ivec2, ivec3};
 use rand::prelude::IndexedRandom;
 use rand::rng;
 use std::collections::{HashMap, HashSet};
@@ -180,16 +185,40 @@ fn populate_room_grid(
 }
 
 fn set_entrance_room_resource(
-    query: Query<(Entity, &RoomData, &Children)>,
+    query: Query<(Entity, &Room, &RoomData, &Children)>,
     mut commands: Commands,
 ) {
-    for (entity, room_data, children) in query.iter() {
+    for (entity, room, room_data, children) in query.iter() {
         if let RoomType::Entrance = room_data.room_type {
-            // should only be one entrance per map
             commands.insert_resource(EntranceRoom {
                 entity,
                 _segment_entity: *children.first().unwrap(),
-            })
+            });
+
+            // mort
+            let mut position = room.relative_to_world(ivec3(15, 69, 4)).as_dvec3();
+            position.x += 0.5;
+            position.z += 0.5;
+            let yaw = 0.0.rotate(room.rotation);
+
+            commands.spawn((
+                Mob::new(ZombieMetadata { 
+                    is_baby: false,
+                    is_villager: false,
+                }),
+                Transform {
+                    position,
+                    yaw,
+                    pitch: 0.0,
+                },
+                NPCBehaviour {
+                    default_yaw: yaw,
+                    default_pitch: 0.0,
+                }
+            ));
+
+            // should only be one entrance per map
+            break;
         }
     }
 }

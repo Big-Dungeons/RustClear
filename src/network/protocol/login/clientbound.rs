@@ -8,7 +8,7 @@ use macros::{identified_packet, PacketSerializable};
 // EnableCompression = 0x03;
 
 #[identified_packet(id=0x02)]
-#[derive(PacketSerializable)]
+#[derive(Debug, PacketSerializable)]
 pub struct LoginSuccess {
     pub uuid: String,
     pub name: String,

@@ -1,10 +1,11 @@
 use crate::chunk::chunk_grid::{ChunkDiff, ChunkGrid};
 use crate::chunk::{get_chunk_position, Chunk};
-use crate::entity::{OldTransform, Transform};
+use crate::entity::components::transform::{OldTransform, Transform};
+use crate::entity::Mob;
 use crate::network::packets::{BytesMutExt, PacketEvent};
 use crate::network::protocol::play::clientbound::{PositionLook, Relative};
 use crate::network::protocol::play::serverbound::{PlayerLook, PlayerPosition, PlayerPositionLook};
-use crate::player::{PacketReader, Player, PlayerPacketBuffer};
+use crate::player::{Initialized, PacketReader, PlayerPacketBuffer};
 use bevy::prelude::{Changed, DetectChangesMut, Entity, Message, MessageReader, Query, ResMut, With};
 use enumset::EnumSet;
 
@@ -72,34 +73,50 @@ pub(super) fn handle_incoming_movement_packets(
 }
 
 pub(super) fn transform_change(
-    mut query: Query<
-        (&Transform, &mut OldTransform, &mut PlayerPacketBuffer),
-        (Changed<Transform>, With<Player>)
+    mut player_query: Query<
+        (Entity, &Transform, &OldTransform, &mut PlayerPacketBuffer),
+        (Changed<Transform>, With<Initialized>)
     >,
     mut chunks: ResMut<ChunkGrid>,
+    mob_query: Query<(&Transform, &Mob)>
 ) {
-    for (transform, mut old_transform, mut packet_buffer) in query.iter_mut() {
+    for (entity, transform, old_transform, mut packet_buffer) in player_query.iter_mut() {
         let old = get_chunk_position(old_transform.position);
         let new = get_chunk_position(transform.position);
 
         if old != new {
+            if let Some(old_chunk) = chunks.get_mut(old) {
+                old_chunk.remove_player(entity)
+            }
+
+            if let Some(new_chunk) = chunks.get_mut(new) {
+                new_chunk.insert_player(entity)
+            }
+
             ChunkGrid::for_each_diff(
                 chunks.bounds,
                 new,
                 old,
                 6,
                 |x, z, diff| {
-                    if let Some(chunk) = chunks.get_mut((x, z)) {
-                        if diff == ChunkDiff::New {
-                            chunk.write_chunk_data(x, z, true, &mut packet_buffer);
-                        } else {
-                            packet_buffer.write_packet(&Chunk::unload_packet(x, z));
+                    let Some(chunk) = chunks.get_mut((x, z)) else {
+                        return;
+                    };
+                    if diff == ChunkDiff::New {
+                        chunk.write_chunk_data(x, z, true, &mut packet_buffer);
+                        for entity in &chunk.entities {
+                            let (transform, mob) = mob_query.get(*entity).unwrap();
+                            mob.write_spawn_packet(*entity, transform, &mut packet_buffer);
+                        }
+                    } else {
+                        packet_buffer.write_packet(&Chunk::unload_packet(x, z));
+                        for entity in &chunk.entities {
+                            let (_, mob) = mob_query.get(*entity).unwrap();
+                            mob.write_despawn_packet(*entity, &mut packet_buffer);
                         }
                     }
                 }
             );
         }
-
-        *old_transform = OldTransform(*transform)
     }
 }

@@ -1,10 +1,23 @@
 pub mod chunk_grid;
 
-use crate::block::Block;
 use crate::network::packets::BytesMutExt;
 use crate::network::protocol::play::clientbound::ChunkData;
+use crate::{block::Block, chunk::chunk_grid::ChunkGrid};
+use bevy::{app::{App, Plugin}, prelude::Entity};
 use bytes::BytesMut;
 use glam::{DVec3, IVec2};
+use std::collections::HashSet;
+
+pub struct ChunkPlugin {
+    pub size: i32,
+    pub offset: IVec2,
+}
+
+impl Plugin for ChunkPlugin {
+    fn build(&self, app: &mut App) {
+        app.insert_resource(ChunkGrid::new(self.size, self.offset));
+    }
+}
 
 pub struct ChunkSection {
     solid_block_amount: u16,
@@ -17,6 +30,9 @@ pub struct Chunk {
 
     cached_packet: BytesMut,
     dirty: bool,
+
+    pub players: HashSet<Entity>,
+    pub entities: HashSet<Entity>,
 }
 
 impl Default for Chunk {
@@ -26,6 +42,9 @@ impl Default for Chunk {
             packet_buffer: BytesMut::new(),
             cached_packet: BytesMut::new(),
             dirty: true,
+
+            players: HashSet::new(),
+            entities: HashSet::new(),
         }
     }
 }
@@ -131,6 +150,26 @@ impl Chunk {
             section_bitmask: 0,
             data: vec![],
         }
+    }
+
+    pub fn insert_player(&mut self, entity: Entity) {
+        debug_assert!(!self.players.contains(&entity), "player already in chunk");
+        self.players.insert(entity);
+    }
+
+    pub fn remove_player(&mut self, entity: Entity) {
+        debug_assert!(self.players.contains(&entity), "player was never in this chunk");
+        self.players.remove(&entity);
+    }
+    
+    pub fn insert_entity(&mut self, entity: Entity) {
+        debug_assert!(!self.entities.contains(&entity), "entity already in chunk");
+        self.entities.insert(entity);
+    }
+
+    pub fn remove_entity(&mut self, entity: Entity) {
+        debug_assert!(self.entities.contains(&entity), "entity was never in this chunk");
+        self.entities.remove(&entity);
     }
 }
 

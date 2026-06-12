@@ -1,4 +1,5 @@
-use crate::entity::{EntityExt, OldTransform, Transform};
+use crate::entity::components::transform::Transform;
+use crate::entity::BevyEntityExt;
 use crate::network::client::{run_client, ClientId, ConnectionState};
 use crate::network::packets::BytesMutExt;
 use crate::network::protocol::play::clientbound::JoinGame;
@@ -70,14 +71,13 @@ impl Plugin for NetworkPlugin {
 
         let addr = self.addr.to_string();
         
-        app.insert_resource(NetworkSender(network_tx.clone()));
-        app.insert_resource(NetworkReceiver(main_rx));
-        app.insert_resource(EntityLookup(SecondaryMap::new()));
-
-        app.add_message::<PlayerJoinEvent>();
-        app.add_systems(First, recv_network_messages);
-        // deferred, to not crash when unwrapping packet events for example
-        app.add_systems(Last, despawn_clients);
+        app
+            .insert_resource(NetworkSender(network_tx.clone()))
+            .insert_resource(NetworkReceiver(main_rx))
+            .insert_resource(EntityLookup(SecondaryMap::new()))
+            .add_message::<PlayerJoinEvent>()
+            .add_systems(First, recv_network_messages)
+            .add_systems(Last, despawn_clients);
 
 
         register_play_packet(app);
@@ -131,7 +131,7 @@ impl Plugin for NetworkPlugin {
     }
 }
 
-fn recv_network_messages(
+pub fn recv_network_messages(
     mut rx: ResMut<NetworkReceiver>,
     mut commands: Commands,
     mut lookup: ResMut<EntityLookup>,
@@ -170,7 +170,6 @@ fn recv_network_messages(
                             packet_buffer,
                             Username(username),
                             Transform::default(),
-                            OldTransform(Transform::default()),
                             Inventory::default(),
                             KnownState::default(),
                             SentInteract(false),
@@ -180,10 +179,10 @@ fn recv_network_messages(
                         events.write(PlayerJoinEvent(id));
                     }
                     MainMessage::PacketReceived { client_id, mut buffer } => {
-                        let Some(entity) = lookup.get(client_id) else {
+                        let Some(entity) = lookup.get(client_id).copied() else {
                             continue;
                         };
-                        if let Err(e) = packet_writers.dispatch(*entity, &mut buffer) {
+                        if let Err(e) = packet_writers.dispatch(entity, &mut buffer) {
                             eprintln!("err parsing: {e}")
                         };
                     }
@@ -195,6 +194,7 @@ fn recv_network_messages(
     }
 }
 
+// should maybe move
 #[derive(Component)]
 struct PendingDespawn;
 

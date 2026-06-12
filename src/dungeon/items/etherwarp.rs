@@ -1,6 +1,6 @@
 use crate::chunk::chunk_grid::ChunkGrid;
 use crate::dungeon::items::DungeonItem;
-use crate::entity::Transform;
+use crate::entity::components::transform::Transform;
 use crate::network::protocol::play::clientbound::Relative;
 use crate::player::inventory::item_stack::ItemStack;
 use crate::player::inventory::{Inventory, Item};

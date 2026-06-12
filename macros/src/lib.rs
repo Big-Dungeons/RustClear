@@ -1,10 +1,12 @@
 use crate::block_field_metadata::block_field_metadata;
 use crate::blocks::blocks_macro;
+use crate::entity_metadata::entity_metadata_serializable_macro;
 use crate::packets::{identified_packet_macro, packet_deserializable_macro, packet_serializable_macro};
 use proc_macro::TokenStream;
 
-mod blocks;
 mod block_field_metadata;
+mod blocks;
+mod entity_metadata;
 mod packets;
 
 #[proc_macro_derive(PacketSerializable)]
@@ -30,4 +32,9 @@ pub fn blocks(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(BlockFieldMetadata)]
 pub fn derive_block_field_metadata(input: TokenStream) -> TokenStream {
     block_field_metadata(input)
+}
+
+#[proc_macro]
+pub fn entity_metadata(input: TokenStream) -> TokenStream {
+    entity_metadata_serializable_macro(input)
 }

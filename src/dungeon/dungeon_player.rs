@@ -5,7 +5,7 @@ use crate::dungeon::items::skyblock_menu::SkyblockMenu;
 use crate::dungeon::items::DungeonItem;
 use crate::dungeon::rooms::Room;
 use crate::dungeon::EntranceRoom;
-use crate::entity::Transform;
+use crate::entity::components::transform::Transform;
 use crate::player::inventory::Inventory;
 use crate::player::Player;
 use crate::TEST_WORLD;

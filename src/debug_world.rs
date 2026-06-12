@@ -3,7 +3,7 @@ use crate::block::block_parameters::HorizontalDirection;
 use crate::block::block_rotation::{Rotate, Rotation};
 use crate::block::Block;
 use crate::chunk::chunk_grid::ChunkGrid;
-use crate::entity::Transform;
+use crate::entity::components::transform::Transform;
 use crate::player::Player;
 use crate::TEST_WORLD;
 use bevy::app::{App, Startup};
