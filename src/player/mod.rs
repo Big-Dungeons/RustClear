@@ -2,6 +2,7 @@ pub mod inventory;
 pub mod known_state;
 pub mod movement;
 pub mod interact;
+pub mod sidebar;
 
 use crate::chunk::chunk_grid::ChunkGrid;
 use crate::chunk::get_chunk_position;
@@ -151,6 +152,7 @@ impl Plugin for PlayerPlugin {
             .add_message::<PlayerRightClick>()
             .add_message::<PlayerInteractEntity>()
             .add_plugins(InventoryPlugin)
+            .add_observer(sidebar::init_sidebar_packets)
             .add_systems(First, process_player_join.after(recv_network_messages))
             .add_systems(
                 PreUpdate,
@@ -170,7 +172,7 @@ impl Plugin for PlayerPlugin {
                 (
                     movement::handle_set_position,
                     interact::clear_sent_interacts,
-
+                    sidebar::flush_sidebar_packets,
                 ),
             )
             .add_systems(Last, (

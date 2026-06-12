@@ -1,12 +1,13 @@
 use crate::network::packets::packet_deserializable::{get_vec, PacketDeserializable};
-use crate::network::protocol::var_int::VarInt;
+use crate::network::packets::packet_serializable::PacketSerializable;
+use crate::network::protocol::var_int::{var_int_size, write_var_int, VarInt};
 use anyhow::bail;
 use bevy::prelude::Deref;
-use bytes::{Buf, Bytes};
+use bytes::{Buf, BufMut, Bytes, BytesMut};
 use std::fmt::{Display, Formatter};
 
 // maybe use a cow string
-#[derive(Debug, Clone, Deref)]
+#[derive(Deref, Default, Debug, Clone, Eq, PartialEq)]
 pub struct SizedString<const S: usize>(String);
 
 impl<const S: usize> Display for SizedString<S> {
@@ -16,12 +17,23 @@ impl<const S: usize> Display for SizedString<S> {
 }
 
 impl<const S: usize> SizedString<S> {
-    pub fn new(s: impl Into<String>) -> anyhow::Result<Self> {
+    pub fn new(s: impl Into<String>) -> Self {
         let s = s.into();
         if s.len() > S {
-            bail!("string length {} exceeds maximum {S}", s.len());
+            return Self(s.chars().take(S).collect());
         }
-        Ok(Self(s))
+        Self(s)
+    }
+}
+
+impl<const S: usize> PacketSerializable for SizedString<S> {
+    fn write_size(&self) -> usize {
+        var_int_size(self.len() as i32) + self.len()
+    }
+
+    fn write(&self, buf: &mut BytesMut) {
+        write_var_int(buf, self.len() as i32);
+        buf.put_slice(self.as_bytes());
     }
 }
 
@@ -36,8 +48,14 @@ impl<const S: usize> PacketDeserializable for SizedString<S> {
         }
 
         match String::from_utf8(get_vec(buffer, length)) {
-            Ok(string) => Ok(SizedString::new(string)?),
+            Ok(string) => Ok(SizedString::new(string)),
             Err(err) => bail!("failed to read string: {err}")
         }
+    }
+}
+
+impl<const S: usize> From<String> for SizedString<S> {
+    fn from(value: String) -> Self {
+        SizedString::new(value)
     }
 }

@@ -3,6 +3,7 @@ use crate::entity::entity_metadata::EntityMetadata;
 use crate::network::packets::packet_serializable::PacketSerializable;
 use crate::network::packets::IdentifiedPacket;
 use crate::network::protocol::block_position::BlockPosition;
+use crate::network::protocol::sized_string::SizedString;
 use crate::network::protocol::var_int::{var_int_size, write_var_int, VarInt};
 use crate::player::inventory::item_stack::ItemStack;
 use crate::types::chat_component::ChatComponent;
@@ -173,4 +174,135 @@ pub struct ConfirmTransaction {
     pub window_id: i8,
     pub action_number: i16,
     pub accepted: bool,
+}
+
+#[identified_packet(id=0x3b)]
+#[derive(Debug)]
+pub struct ScoreboardObjective {
+    pub objective_name: SizedString<16>,
+    pub mode: i8,
+    pub objective_value: SizedString<32>,
+    pub render_type: SizedString<16>,
+}
+
+impl PacketSerializable for ScoreboardObjective {
+    fn write_size(&self) -> usize {
+        let mut size = self.objective_name.write_size() + self.mode.write_size();
+        if self.mode == 0 /* add */ || self.mode == 2 /* update */ {
+            size += self.objective_value.write_size() + self.render_type.write_size();
+        }
+        size
+    }
+    fn write(&self, buf: &mut BytesMut) {
+        self.objective_name.write(buf);
+        self.mode.write(buf);
+        if self.mode == 0 /* add */ || self.mode == 2 /* update */ {
+            self.objective_value.write(buf);
+            self.render_type.write(buf);
+        }
+    }
+}
+
+#[identified_packet(id=0x3c)]
+#[derive(Debug)]
+pub struct UpdateScore {
+    pub name: SizedString<40>,
+    pub objective_value: SizedString<16>,
+    pub value: VarInt,
+    pub action: VarInt,
+}
+
+impl PacketSerializable for UpdateScore {
+    fn write_size(&self) -> usize {
+        let mut size = self.name.write_size() + self.action.write_size() + self.objective_value.write_size();
+        if self.action.0 == 0 {
+            size += self.value.write_size();
+        }
+        size
+    }
+    fn write(&self, buf: &mut BytesMut) {
+        self.name.write(buf);
+        self.action.write(buf);
+        self.objective_value.write(buf);
+
+        if self.action.0 == 0 {
+            self.value.write(buf);
+        }
+    }
+}
+
+#[identified_packet(id=0x3d)]
+#[derive(Debug, PacketSerializable)]
+pub struct DisplayScoreboard {
+    pub position: i8,
+    pub score_name: SizedString<16>,
+}
+
+#[repr(u8)]
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum TeamsAction {
+    Create,
+    Remove,
+    Update,
+    AddPlayer,
+    RemovePlayer,
+}
+
+impl PacketSerializable for TeamsAction {
+    fn write_size(&self) -> usize {
+        (*self as u8).write_size()
+    }
+    fn write(&self, buf: &mut BytesMut) {
+        (*self as u8).write(buf)
+    }
+}
+
+#[identified_packet(id=0x3e)]
+#[derive(Debug)]
+pub struct Teams {
+    pub name: SizedString<16>,
+    pub display_name: SizedString<32>,
+    pub prefix: SizedString<16>,
+    pub suffix: SizedString<16>,
+    pub name_tag_visibility: SizedString<32>,
+    pub color: i8,
+    pub players: Vec<SizedString<40>>,
+    pub action: TeamsAction,
+    pub friendly_flags: i8,
+}
+
+impl PacketSerializable for Teams {
+    fn write_size(&self) -> usize {
+        let mut size = self.name.write_size() + self.action.write_size();
+        if self.action == TeamsAction::Create || self.action == TeamsAction::Update {
+            size +=
+                self.display_name.write_size() +
+                self.prefix.write_size() +
+                self.suffix.write_size() +
+                self.friendly_flags.write_size() +
+                self.name_tag_visibility.write_size() +
+                self.color.write_size()
+        }
+        if self.action == TeamsAction::Create || self.action == TeamsAction::AddPlayer || self.action == TeamsAction::RemovePlayer {
+            size += self.players.write_size();
+        }
+        size
+    }
+    fn write(&self, buf: &mut BytesMut) {
+        self.name.write(buf);
+        self.action.write(buf);
+
+        if self.action == TeamsAction::Create || self.action == TeamsAction::Update {
+            self.display_name.write(buf);
+            self.prefix.write(buf);
+            self.suffix.write(buf);
+            self.friendly_flags.write(buf);
+            self.name_tag_visibility.write(buf);
+            self.color.write(buf);
+        }
+
+        if self.action == TeamsAction::Create || self.action == TeamsAction::AddPlayer || self.action == TeamsAction::RemovePlayer {
+            self.players.write(buf);
+        }
+    }
 }
