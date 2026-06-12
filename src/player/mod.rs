@@ -1,7 +1,7 @@
 pub mod inventory;
 pub mod known_state;
 pub mod movement;
-pub mod use_item;
+pub mod interact;
 
 use crate::chunk::chunk_grid::ChunkGrid;
 use crate::chunk::get_chunk_position;
@@ -14,7 +14,7 @@ use crate::network::protocol::play::serverbound;
 use crate::network::{recv_network_messages, NetworkSender};
 use crate::player::inventory::{InventoryPlugin, SyncInventory};
 use crate::player::movement::SetPosition;
-use crate::player::use_item::PlayerRightClick;
+use crate::player::interact::{PlayerInteractEntity, PlayerRightClick};
 use bevy::app::{App, First, PostUpdate, PreUpdate};
 use bevy::prelude::{
     Commands, Component, Deref, DerefMut, Entity, IntoScheduleConfigs, Last, Message,
@@ -149,6 +149,7 @@ impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<SetPosition>()
             .add_message::<PlayerRightClick>()
+            .add_message::<PlayerInteractEntity>()
             .add_plugins(InventoryPlugin)
             .add_systems(First, process_player_join.after(recv_network_messages))
             .add_systems(
@@ -157,7 +158,8 @@ impl Plugin for PlayerPlugin {
                     keep_alive,
                     recv_transaction,
                     movement::handle_incoming_movement_packets,
-                    use_item::handle_block_interact,
+                    interact::handle_block_interact,
+                    interact::handle_use_entity,
                     known_state::handle_player_action,
                     inventory::handle_click_window,
                 ),
@@ -167,7 +169,7 @@ impl Plugin for PlayerPlugin {
                 PostUpdate,
                 (
                     movement::handle_set_position,
-                    use_item::clear_sent_interacts,
+                    interact::clear_sent_interacts,
 
                 ),
             )

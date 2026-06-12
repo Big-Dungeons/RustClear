@@ -1,3 +1,8 @@
+#![allow(unused_imports)] // enum_dispatch changed or something, because it now needs these imports, but ide can't see 
+use crate::dungeon::items::skyblock_menu::SkyblockMenu;
+use crate::dungeon::items::pickaxe::Pickaxe;
+use crate::dungeon::items::etherwarp::AspectOfTheVoid;
+
 use crate::dungeon::items::{get_item_stack, DungeonItem};
 use crate::network::packets::{BytesMutExt, PacketEvent};
 use crate::network::protocol::play::clientbound::{SetSlot, WindowItems};

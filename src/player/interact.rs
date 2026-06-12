@@ -1,22 +1,30 @@
 use crate::block::block_parameters::Direction;
 use crate::chunk::chunk_grid::ChunkGrid;
 use crate::dungeon::items::get_item_stack;
+use crate::entity::BevyEntityExt;
 use crate::network::packets::{BytesMutExt, PacketEvent};
 use crate::network::protocol::block_position::BlockPosition;
 use crate::network::protocol::play::clientbound::BlockChange;
-use crate::network::protocol::play::serverbound::PlayerBlockPlacement;
+use crate::network::protocol::play::serverbound::{PlayerBlockPlacement, UseEntity};
 use crate::network::protocol::var_int::VarInt;
 use crate::player::inventory::{Inventory, SyncInventory};
 use crate::player::{PacketReader, PlayerPacketBuffer};
+use bevy::ecs::entity::Entities;
 use bevy::prelude::{Commands, Component, Entity, Message, MessageWriter, Query, Res};
 use glam::IVec3;
 
+#[derive(Message)]
+pub struct PlayerInteractEntity {
+    pub client: Entity,
+    pub entity: Entity,
+}
+
+// maybe give more clarifying name
 #[derive(Message)]
 pub struct PlayerRightClick {
     pub client: Entity,
     pub block_interact_result: Option<BlockInteractResult>,
 }
-
 #[derive(Copy, Clone)]
 pub struct BlockInteractResult {
     pub position: IVec3,
@@ -92,5 +100,22 @@ pub(super) fn handle_block_interact(
 pub(super) fn clear_sent_interacts(mut query: Query<&mut SentInteract>) {
     for mut sent_interact in query.iter_mut() {
         sent_interact.0 = false
+    }
+}
+
+pub(super) fn handle_use_entity(
+    mut packets: PacketReader<UseEntity>,
+    mut output: MessageWriter<PlayerInteractEntity>,
+    world: &Entities
+) {
+    for PacketEvent { client, packet } in packets.read() {
+        // packet gets sent twice, so for now just ignore the 2nd one
+        if packet.hit_vec.is_none() {
+            continue;
+        }
+        output.write(PlayerInteractEntity {
+            client: *client,
+            entity: Entity::from_mc_id(packet.entity_id.0, world),
+        });
     }
 }

@@ -5,6 +5,7 @@ use crate::dungeon::entities::npc::NPCBehaviour;
 use crate::dungeon::rooms::room_data::{random_room_data, RoomData, RoomDataLookup, RoomShape, RoomType};
 use crate::dungeon::rooms::{Room, RoomGridLookup, RoomSegment};
 use crate::dungeon::{door, rooms, EntranceRoom, DUNGEON_ORIGIN};
+use crate::entity::components::interactable::Interactable;
 use crate::entity::components::transform::Transform;
 use crate::entity::entity_metadata::ZombieMetadata;
 use crate::entity::Mob;
@@ -202,7 +203,7 @@ fn set_entrance_room_resource(
             let yaw = 0.0.rotate(room.rotation);
 
             commands.spawn((
-                Mob::new(ZombieMetadata { 
+                Mob::new(ZombieMetadata {
                     is_baby: false,
                     is_villager: false,
                 }),
@@ -214,7 +215,10 @@ fn set_entrance_room_resource(
                 NPCBehaviour {
                     default_yaw: yaw,
                     default_pitch: 0.0,
-                }
+                },
+                Interactable::new(|_, _| {
+                    println!("hi")
+                })
             ));
 
             // should only be one entrance per map

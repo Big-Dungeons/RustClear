@@ -10,6 +10,7 @@ use crate::network::protocol::packed::{packed_position, packed_rotation};
 use crate::network::protocol::play::clientbound::{DestroyEntity, EntityTeleport, EntityYawRotate, SpawnMob};
 use crate::network::protocol::var_int::VarInt;
 use crate::player::PlayerPacketBuffer;
+use bevy::ecs::entity::{Entities, EntityIndex};
 use bevy::prelude::*;
 use bytes::BytesMut;
 use components::transform;
@@ -19,11 +20,18 @@ use glam::I16Vec3;
 
 pub trait BevyEntityExt {
     fn mc_id(&self) -> i32;
+    fn from_mc_id(id: i32, entities: &Entities) -> Entity;
 }
 
 impl BevyEntityExt for Entity {
     fn mc_id(&self) -> i32 {
         self.index_u32() as i32
+    }
+    fn from_mc_id(id: i32, entities: &Entities) -> Entity {
+        // should maybe err if invalid?
+        entities
+            .resolve_from_index(EntityIndex::from_raw_u32(id as u32).unwrap())
+            .entity()
     }
 }
 
@@ -122,7 +130,7 @@ fn on_mob_move(
             if let Some(old_chunk) = chunks.get_mut(old_position) {
                 old_chunk.remove_entity(entity)
             }
-            
+
             ChunkGrid::for_each_diff(
                 chunks.bounds,
                 chunk_position,
@@ -132,7 +140,7 @@ fn on_mob_move(
                     let Some(chunk) = chunks.get_mut((x, z)) else {
                         return;
                     };
-                    
+
                     match diff {
                         ChunkDiff::New => {
                             for player in chunk.players.iter() {
@@ -159,7 +167,8 @@ impl Plugin for MobPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_observer(on_mob_add)
-            .add_systems(Update, on_mob_move)
+            .add_systems(Update, components::interactable::handle_entity_interactable)
+            .add_systems(PostUpdate, on_mob_move)
             .add_systems(Last, transform::set_old_transform);
     }
 }
