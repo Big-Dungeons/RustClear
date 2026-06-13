@@ -10,7 +10,7 @@ use crate::entity::components::transform::Transform;
 use crate::entity::entity_metadata::ZombieMetadata;
 use crate::entity::Mob;
 use bevy::app::App;
-use bevy::prelude::{default, ChildOf, Children, Commands, Deref, Entity, IntoScheduleConfigs, Plugin, PostStartup, Query, Res, ResMut, Resource, Startup};
+use bevy::prelude::{default, ChildOf, Commands, Deref, Entity, IntoScheduleConfigs, Plugin, PostStartup, Query, Res, ResMut, Resource, Startup};
 use glam::{ivec2, ivec3};
 use rand::prelude::IndexedRandom;
 use rand::rng;
@@ -186,15 +186,12 @@ fn populate_room_grid(
 }
 
 fn set_entrance_room_resource(
-    query: Query<(Entity, &Room, &RoomData, &Children)>,
+    query: Query<(Entity, &Room, &RoomData)>,
     mut commands: Commands,
 ) {
-    for (entity, room, room_data, children) in query.iter() {
+    for (entity, room, room_data) in query.iter() {
         if let RoomType::Entrance = room_data.room_type {
-            commands.insert_resource(EntranceRoom {
-                entity,
-                _segment_entity: *children.first().unwrap(),
-            });
+            commands.insert_resource(EntranceRoom { entity });
 
             // mort
             let mut position = room.relative_to_world(ivec3(15, 69, 4)).as_dvec3();

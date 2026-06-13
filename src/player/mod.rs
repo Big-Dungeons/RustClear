@@ -13,14 +13,11 @@ use crate::network::packets::{BytesMutExt, PacketEvent};
 use crate::network::protocol::play::clientbound::{ConfirmTransaction, PositionLook};
 use crate::network::protocol::play::serverbound;
 use crate::network::{recv_network_messages, NetworkSender};
+use crate::player::interact::{PlayerInteractEntity, PlayerRightClick};
 use crate::player::inventory::{InventoryPlugin, SyncInventory};
 use crate::player::movement::SetPosition;
-use crate::player::interact::{PlayerInteractEntity, PlayerRightClick};
 use bevy::app::{App, First, PostUpdate, PreUpdate};
-use bevy::prelude::{
-    Commands, Component, Deref, DerefMut, Entity, IntoScheduleConfigs, Last, Message,
-    MessageReader, Plugin, Query, Res, ResMut, Update, With, Without,
-};
+use bevy::prelude::{Commands, Component, Deref, DerefMut, Entity, IntoScheduleConfigs, Last, Message, MessageReader, Plugin, Query, Res, ResMut, Resource, Update, With, Without};
 use bytes::BytesMut;
 
 // marker
@@ -39,6 +36,9 @@ pub struct Uuid(pub uuid::Uuid);
 
 #[derive(Component, Deref, DerefMut)]
 pub struct PlayerPacketBuffer(pub BytesMut);
+
+#[derive(Resource, Deref, DerefMut)]
+pub struct GlobalPacketBuffer(pub BytesMut);
 
 #[derive(Message)]
 pub struct PlayerJoinEvent(pub Entity);
@@ -93,7 +93,7 @@ fn process_player_join(
 }
 
 fn copy_chunk_packet_buffers(
-    mut player_query: Query<(&Transform, &mut PlayerPacketBuffer), With<Player>>,
+    mut player_query: Query<(&Transform, &mut PlayerPacketBuffer)>,
     mut chunks: ResMut<ChunkGrid>,
 ) {
     for (transform, mut packet_buffer) in player_query.iter_mut() {
@@ -102,12 +102,19 @@ fn copy_chunk_packet_buffers(
             packet_buffer.extend_from_slice(&chunk.packet_buffer);
         });
     }
-}
-
-fn clear_chunk_packet_buffers(mut chunks: ResMut<ChunkGrid>) {
     for chunk in chunks.chunks.iter_mut() {
         chunk.packet_buffer.clear();
     }
+}
+
+fn copy_global_packet_buffer(
+    mut player_query: Query<&mut PlayerPacketBuffer>,
+    mut global_packet_buffer: ResMut<GlobalPacketBuffer>,
+) {
+    for mut packet_buffer in player_query.iter_mut() {
+        packet_buffer.extend_from_slice(&global_packet_buffer)
+    }
+    global_packet_buffer.clear()
 }
 
 fn flush_packets(mut query: Query<(&ClientId, &mut PlayerPacketBuffer)>, tx: Res<NetworkSender>) {
@@ -148,7 +155,9 @@ pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_message::<SetPosition>()
+        app
+            .insert_resource(GlobalPacketBuffer(BytesMut::new()))
+            .add_message::<SetPosition>()
             .add_message::<PlayerRightClick>()
             .add_message::<PlayerInteractEntity>()
             .add_plugins(InventoryPlugin)
@@ -177,7 +186,7 @@ impl Plugin for PlayerPlugin {
             )
             .add_systems(Last, (
                 copy_chunk_packet_buffers,
-                clear_chunk_packet_buffers,
+                copy_global_packet_buffer,
                 flush_packets,
             ).chain());
     }

@@ -94,7 +94,7 @@ impl Sidebar {
         for (index, line) in self.lines.iter().enumerate() {
             let previous = &self.previous_lines.get(index);
 
-            if is_size_diff && previous.is_some_and(|str| str == line) {
+            if !is_size_diff && previous.is_some_and(|str| str == line) {
                 continue;
             }
 
