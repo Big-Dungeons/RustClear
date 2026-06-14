@@ -7,6 +7,7 @@ use crate::network::protocol::status::clientbound::{StatusPong, StatusResponse};
 use crate::network::protocol::status::serverbound::StatusPing;
 use crate::network::protocol::var_int::{peek_var_int, VarInt};
 use crate::network::{MainMessage, NetworkMessage, UReceiver, USender};
+use crate::player::PlayerSkin;
 use anyhow::bail;
 use bevy::prelude::Component;
 use bytes::{Buf, Bytes, BytesMut};
@@ -196,11 +197,23 @@ fn handle_login(
                 uuid: uuid.hyphenated().to_string(),
                 name: username.clone(),
             });
+
+            const FLAME_OF_WAR: &str = "ewogICJ0aW1lc3RhbXAiIDogMTc1OTQzODI1MzM2OCwKICAicHJvZmlsZUlkIiA6ICI4YTdhZDkyMzc3MjI0ZjIyOGMwNDI4Y2I1YmQ5NzJkYSIsCiAgInByb2ZpbGVOYW1lIiA6ICJGbGFtZU9mV2FyIiwKICAic2lnbmF0dXJlUmVxdWlyZWQiIDogdHJ1ZSwKICAidGV4dHVyZXMiIDogewogICAgIlNLSU4iIDogewogICAgICAidXJsIiA6ICJodHRwOi8vdGV4dHVyZXMubWluZWNyYWZ0Lm5ldC90ZXh0dXJlL2JiNDg4Njc1YjMxYTQyZTc5MDI0ZGUzOGY1YmQ3ODZhMzlmNzVhMmE2ZGJhMDk0NDc5MmQ0NDNjNjA1ZDE4ZjkiCiAgICB9CiAgfQp9";
+            const FLAME_OF_WAR_SIG: &str = "UvRQflcS0w4KTJSN+fpqYxVBTwo6wb66JMp6seThrmSGwUmbPfs8WEK2TPBIcipG0kBjWWdDMUpXFZ5YMBshnb7kHh588oPeL0gja/m9yHGEgtfucyqudL3m4sq3iZnJbdO3yKnF/00WqelBI5fZ3zc9SDyAjLUL4QHIXPm4U/z3UH1ZnVjGc5bZbV7qXILw7pF00al8ks1kpOUeds8zjSpVMRMTF9WQww89jNjbpvzcKP97KOOBXPJB1cuTUi3DEe3/9omZhcfgDyZDDJkmF3hTVZx1ijKtknlKRJqFcUEmsL1XUgRxqLSYNt1D1XCjEJeWAyT5YDVtvuj3Oa/zEeWQa9WVSXaUTGpVpQBRJrTJmtLH4O4hDMz4j7M2T0lsbOg7sIqvWVRvmKptKlLWKSWk8tlYXrx+Ef4YN5iva8/xhnKZmfe/JmT8uIKtNiv8Zcrj1WXasJ4wz0JCEQBOJDJXnEU548Sk1nxAcmX/W8jHkMnXArE3LKkLdxD7e++Hw60pv3GcyvTou5Mlrmgo6rHk188Li4CU826i+z0OuodRtdY+vsQIoFWLnnHu4HdqKA3IevcV7+Gl3FDzbzPXiSbUmSAV4drpLELTTPMnhhvMK85zS8138LTuScBiFRKVaSuXZJS7UIJ6VtjYK+iEuVblN9BJihP2NiuubCeL484=";
+
+
+            // todo: in future, if using mojang auth
+            // get skin of player and await async
             
             network_tx.send(packet_buffer.get_packet_message(client_id))?;
             main_tx.send(MainMessage::AddPlayer {
                 client_id,
                 username,
+                uuid,
+                skin: PlayerSkin {
+                    texture: FLAME_OF_WAR.to_string(),
+                    signature: Some(FLAME_OF_WAR_SIG.to_string()),
+                },
             })?;
         }
         _ => bail!("Unknown packet id during login")

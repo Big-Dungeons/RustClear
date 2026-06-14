@@ -34,6 +34,12 @@ pub struct Username(pub String);
 #[derive(Component, Deref)]
 pub struct Uuid(pub uuid::Uuid);
 
+#[derive(Component)]
+pub struct PlayerSkin {
+    pub texture: String,
+    pub signature: Option<String>
+}
+
 #[derive(Component, Deref, DerefMut)]
 pub struct PlayerPacketBuffer(pub BytesMut);
 

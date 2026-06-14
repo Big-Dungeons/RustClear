@@ -1,9 +1,12 @@
-use bevy::app::{App, Plugin};
-use bevy::prelude::{Add, ChildOf, Commands, Component, On, Query, With};
 use crate::dungeon::dungeon_player::{PlayerReadyEvent, ReadyStatus};
+use crate::network::protocol::nbt::{NBTNode, TAG_COMPOUND_ID};
 use crate::player::inventory::item_stack::ItemStack;
 use crate::player::inventory::menu::{Menu, MenuClick, UpdateMenu};
 use crate::player::inventory::SyncInventory;
+use crate::player::{PlayerSkin, Username, Uuid};
+use bevy::app::{App, Plugin};
+use bevy::prelude::{ChildOf, Commands, Component, On, Query, With};
+use std::collections::HashMap;
 
 pub struct DungeonMenuPlugin;
 
@@ -22,14 +25,14 @@ pub struct MortMenu;
 pub fn on_menu_update(
     event: On<UpdateMenu>, // shame you can't filter here
     mut menu_query: Query<(&mut Menu, &ChildOf), With<MortMenu>>,
-    player_query: Query<&ReadyStatus>,
+    player_query: Query<(&ReadyStatus, &Username, &Uuid, &PlayerSkin)>,
     mut commands: Commands,
 ) {
     let Ok((mut menu, child_of)) = menu_query.get_mut(event.menu_entity) else {
         return;
     };
 
-    let status = player_query
+    let (status, username, uuid, skin) = player_query
         .get(child_of.parent())
         .unwrap();
 
@@ -41,7 +44,23 @@ pub fn on_menu_update(
         ("§cNot Ready", 14)
     };
 
+
+    let mut player_head = ItemStack::new()
+        .item_id(397)
+        .metadata(3)
+        .name(&format!("§7{}", username.0));
+
+    player_head.nbt_get_or_insert().nodes.insert("SkullOwner".to_string(), NBTNode::Compound({
+        let mut map = HashMap::new();
+        map.insert("Id".to_string(), NBTNode::String(uuid.hyphenated().to_string()));
+        let vec = vec![NBTNode::Compound(HashMap::from([("Value".to_string(), NBTNode::String(skin.texture.clone()))]))];
+        map.insert("textures".to_string(), NBTNode::List { type_id: TAG_COMPOUND_ID, children: vec });
+        map
+    }));
+
+    menu.items[4] = Some(player_head);
     menu.items[13] = Some(ItemStack::new().item_id(95).metadata(color).name(item_name));
+
     commands.trigger(SyncInventory { entity: child_of.parent() });
 }
 

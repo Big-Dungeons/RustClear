@@ -7,7 +7,7 @@ use crate::network::protocol::play::serverbound::{register_play_packet, PlayPack
 use crate::player::interact::SentInteract;
 use crate::player::inventory::{Inventory, InventoryState};
 use crate::player::known_state::KnownState;
-use crate::player::{Player, PlayerJoinEvent, PlayerPacketBuffer, Username};
+use crate::player::{Player, PlayerJoinEvent, PlayerPacketBuffer, PlayerSkin, Username, Uuid};
 use bevy::app::Last;
 use bevy::prelude::{App, Commands, Component, Deref, DerefMut, Entity, First, MessageWriter, Plugin, Query, ResMut, Resource, With};
 use bytes::{Bytes, BytesMut};
@@ -39,6 +39,8 @@ pub enum MainMessage {
     AddPlayer {
         client_id: ClientId,
         username: String,
+        uuid: uuid::Uuid,
+        skin: PlayerSkin,
     },
     PacketReceived {
         client_id: ClientId,
@@ -148,7 +150,7 @@ pub fn recv_network_messages(
                             commands.entity(player).insert(PendingDespawn);
                         }
                     }
-                    MainMessage::AddPlayer { client_id, username } => {
+                    MainMessage::AddPlayer { client_id, username, uuid, skin } => {
                         let mut entity = commands.spawn_empty();
                         let id = entity.id();
 
@@ -169,6 +171,8 @@ pub fn recv_network_messages(
                             client_id,
                             packet_buffer,
                             Username(username),
+                            Uuid(uuid),
+                            skin,
                             Transform::default(),
                             Inventory::default(),
                             InventoryState::default(),

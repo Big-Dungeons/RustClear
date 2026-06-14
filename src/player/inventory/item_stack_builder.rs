@@ -19,12 +19,12 @@ impl ItemStack {
         self
     }
 
-    fn nbt_get_or_add(&mut self) -> &mut NBT {
+    pub fn nbt_get_or_insert(&mut self) -> &mut NBT {
         self.tag_compound.get_or_insert(NBT::default())
     }
 
     pub fn name(mut self, name: &str) -> Self {
-        let nbt = self.nbt_get_or_add();
+        let nbt = self.nbt_get_or_insert();
         with_compound(&mut nbt.nodes, "display", |nodes| {
             nodes.insert("Name".into(), NBTNode::String(name.into()));
         });
@@ -32,7 +32,7 @@ impl ItemStack {
     }
 
     pub fn lore(mut self, lore: &str) -> Self {
-        let nbt = self.nbt_get_or_add();
+        let nbt = self.nbt_get_or_insert();
         with_compound(&mut nbt.nodes, "display", |nodes| {
             let list = lore
                 .lines()
@@ -51,7 +51,7 @@ impl ItemStack {
     }
 
     pub fn enchant(mut self, id: i16, lvl: i16) -> Self {
-        let nbt = self.nbt_get_or_add();
+        let nbt = self.nbt_get_or_insert();
         nbt.nodes
             .entry("ench".into())
             .or_insert(NBTNode::List { type_id: TAG_COMPOUND_ID, children: vec![] });
@@ -68,19 +68,19 @@ impl ItemStack {
     }
 
     pub fn unbreakable(mut self) -> Self {
-        let nbt = self.nbt_get_or_add();
+        let nbt = self.nbt_get_or_insert();
         nbt.nodes.insert("Unbreakable".into(), NBTNode::Byte(1));
         self
     }
 
     pub fn hide_all_flags(mut self) -> Self {
-        let nbt = self.nbt_get_or_add();
+        let nbt = self.nbt_get_or_insert();
         nbt.nodes.insert("HideFlags".into(), NBTNode::Byte(127));
         self
     }
 
     pub fn skyblock_id(mut self, id: &str) -> Self {
-        let nbt = self.nbt_get_or_add();
+        let nbt = self.nbt_get_or_insert();
         with_compound(&mut nbt.nodes, "ExtraAttributes", |nodes| {
             nodes.insert("id".into(), NBTNode::String(id.into()));
         });
