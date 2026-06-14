@@ -15,7 +15,7 @@ impl ItemStack {
     }
 
     pub fn metadata(mut self, metadata: usize) -> Self {
-        self.item = metadata as i16;
+        self.metadata = metadata as i16;
         self
     }
 

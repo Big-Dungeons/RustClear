@@ -1,6 +1,7 @@
 use crate::dungeon::door::DoorLookup;
 use crate::dungeon::dungeon_player::{DungeonPlayerPlugin, PlayerReadyEvent};
 use crate::dungeon::entities::DungeonEntityPlugin;
+use crate::dungeon::menus::DungeonMenuPlugin;
 use crate::dungeon::rooms::room_data::RoomDataLookup;
 use crate::dungeon::rooms::RoomGridLookup;
 use crate::network::packets::{BytesMutExt, PacketEvent};
@@ -20,6 +21,7 @@ mod dungeon_player;
 pub mod items;
 pub mod rooms;
 mod loading;
+mod menus;
 
 pub const DUNGEON_ORIGIN: IVec2 = IVec2::new(-200, -200);
 
@@ -93,6 +95,7 @@ impl Plugin for DungeonPlugin {
             .add_plugins((
                 DungeonPlayerPlugin,
                 DungeonEntityPlugin,
+                DungeonMenuPlugin,
             ))
             .insert_resource(DungeonState::NotStarted)
             .insert_resource(RoomDataLookup::default())

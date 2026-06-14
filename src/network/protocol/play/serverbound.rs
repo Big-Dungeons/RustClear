@@ -183,7 +183,7 @@ pub struct CloseWindow {
     pub window_id: i8
 }
 
-#[derive(Debug, PacketDeserializable)]
+#[derive(Debug, Copy, Clone, PacketDeserializable)]
 pub enum ClickMode {
     NormalClick,
     ShiftClick,

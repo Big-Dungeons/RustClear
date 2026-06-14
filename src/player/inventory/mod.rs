@@ -10,7 +10,7 @@ use crate::network::protocol::play::clientbound::{SetSlot, WindowItems};
 use crate::network::protocol::play::serverbound;
 use crate::network::protocol::play::serverbound::{ClickMode, ClickWindow, ClientStatus, HeldItemChange};
 use crate::player::inventory::item_stack::ItemStack;
-use crate::player::inventory::menu::Menu;
+use crate::player::inventory::menu::{Menu, MenuClick, UpdateMenu};
 use crate::player::{PacketReader, PlayerPacketBuffer};
 use bevy::app::{App, Plugin, PreUpdate};
 use bevy::prelude::{Commands, Component, Deref, Entity, EntityEvent, IntoScheduleConfigs, On, Query};
@@ -137,7 +137,6 @@ fn open_menu(
     state.open_inventory = OpenInventory::Menu(event.menu_entity);
     state.window_id += 1;
     menu.open_menu(state.window_id, &mut buffer);
-
 }
 
 #[derive(EntityEvent, Deref)]
@@ -221,10 +220,16 @@ pub(super) fn handle_click_window(
                     .get(menu_entity)
                     .expect("open inventory is a menu, but no menu found");
 
-                // shouldn't be invalid slot id, but maybe in future warn if outside
-                if let Some(func) = menu.callbacks.get(&(packet.slot_id as usize)) {
-                    func(packet.client())
+                if packet.slot_id as usize > menu.items.len() {
+                    continue;
                 }
+
+                commands.trigger(MenuClick {
+                    menu_entity,
+                    client: packet.client(),
+                    slot: packet.slot_id as usize,
+                    _click_mode: packet.mode,
+                });
             }
             _ => {}
         }
@@ -346,6 +351,7 @@ impl Plugin for InventoryPlugin  {
         app
             .add_observer(sync_player_inventory)
             .add_observer(open_menu)
+            .add_observer(menu::on_menu_init)
             .add_systems(PreUpdate, (
                 on_change_item, 
                 handle_click_window,

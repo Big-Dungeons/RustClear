@@ -1,16 +1,15 @@
-use crate::player::inventory::item_stack::ItemStack;
-use bevy::prelude::{Component, Entity};
-use std::collections::HashMap;
-use bytes::BytesMut;
 use crate::network::packets::BytesMutExt;
 use crate::network::protocol::play::clientbound::{OpenWindow, SetSlot, WindowItems};
+use crate::network::protocol::play::serverbound::ClickMode;
+use crate::player::inventory::item_stack::ItemStack;
 use crate::types::chat_component::ChatComponent;
+use bevy::prelude::{Add, Commands, Component, Entity, EntityEvent, On};
+use bytes::BytesMut;
 
 #[derive(Component)]
 pub struct Menu {
     pub title: String,
     pub items: Vec<Option<ItemStack>>,
-    pub callbacks: HashMap<usize, fn(Entity)>,
 }
 
 impl Menu {
@@ -38,4 +37,29 @@ impl Menu {
             item_stack: None,
         })
     }
+}
+
+
+#[derive(EntityEvent)]
+pub struct MenuClick {
+    #[event_target]
+    pub menu_entity: Entity,
+    pub client: Entity,
+    pub slot: usize,
+    pub _click_mode: ClickMode,
+}
+
+// kind of scuffed,
+// however there will only be a couple of very generic menus, so no point in overcomplicating it
+#[derive(EntityEvent)]
+pub struct UpdateMenu {
+    #[event_target]
+    pub menu_entity: Entity
+}
+
+pub(super) fn on_menu_init(
+    event: On<Add, Menu>,
+    mut commands: Commands
+) {
+    commands.trigger(UpdateMenu { menu_entity: event.entity });
 }

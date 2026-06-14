@@ -2,6 +2,7 @@ use crate::block::block_rotation::Rotate;
 use crate::dungeon::door::door_positions::DOOR_POSITIONS;
 use crate::dungeon::door::{Door, DoorAxis, DoorLookup, DoorType};
 use crate::dungeon::entities::npc::NPCBehaviour;
+use crate::dungeon::menus::MortMenu;
 use crate::dungeon::rooms::room_data::{random_room_data, RoomData, RoomDataLookup, RoomShape, RoomType};
 use crate::dungeon::rooms::{Room, RoomGridLookup, RoomSegment};
 use crate::dungeon::{door, rooms, EntranceRoom, DUNGEON_ORIGIN};
@@ -9,6 +10,8 @@ use crate::entity::components::interactable::Interactable;
 use crate::entity::components::transform::Transform;
 use crate::entity::entity_metadata::ZombieMetadata;
 use crate::entity::Mob;
+use crate::player::inventory::menu::Menu;
+use crate::player::inventory::OpenMenu;
 use bevy::app::App;
 use bevy::prelude::{default, ChildOf, Commands, Deref, Entity, IntoScheduleConfigs, Plugin, PostStartup, Query, Res, ResMut, Resource, Startup};
 use glam::{ivec2, ivec3};
@@ -213,8 +216,16 @@ fn set_entrance_room_resource(
                     default_yaw: yaw,
                     default_pitch: 0.0,
                 },
-                Interactable::new(|_, _| {
-                    println!("hi")
+                Interactable::new(|_, entity, commands| {
+                    let menu_entity = commands.spawn((
+                        Menu {
+                            title: "Ready Up".to_string(),
+                            items: vec![const { None }; 54],
+                        },
+                        MortMenu,
+                        ChildOf(entity),
+                    )).id();
+                    commands.trigger(OpenMenu { menu_entity, entity });
                 })
             ));
 
