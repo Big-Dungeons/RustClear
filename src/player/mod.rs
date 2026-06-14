@@ -172,7 +172,6 @@ impl Plugin for PlayerPlugin {
                     interact::handle_block_interact,
                     interact::handle_use_entity,
                     known_state::handle_player_action,
-                    inventory::handle_click_window,
                 ),
             )
             .add_systems(Update, movement::transform_change)

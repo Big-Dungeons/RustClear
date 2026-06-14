@@ -5,7 +5,7 @@ use crate::network::client::ClientId;
 use crate::network::packets::packet_serializable::PacketSerializable;
 use crate::network::protocol::var_int::{var_int_size, write_var_int};
 use crate::network::NetworkMessage;
-use bevy::prelude::{Entity, Message};
+use bevy::prelude::{Deref, Entity, Message};
 use bytes::BytesMut;
 use std::fmt::Debug;
 
@@ -13,10 +13,17 @@ pub trait IdentifiedPacket {
     const PACKET_ID: i32;
 }
 
-#[derive(Message)]
+#[derive(Message, Deref)]
 pub struct PacketEvent<P> {
     pub client: Entity,
+    #[deref]
     pub packet: P
+}
+
+impl<P> PacketEvent<P> {
+    pub fn client(&self) -> Entity {
+        self.client
+    }
 }
 
 #[macro_export]

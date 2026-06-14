@@ -134,6 +134,20 @@ impl BlockChange {
     }
 }
 
+#[identified_packet(id=0x2d)]
+#[derive(Debug, PacketSerializable)]
+pub struct OpenWindow {
+    pub window_id: i8,
+    pub inventory_type: &'static str,
+    pub window_title: ChatComponent,
+    pub slot_count: i8,
+}
+
+#[identified_packet(id=0x2e)]
+#[derive(Debug, PacketSerializable)]
+pub struct CloseWindow {
+    pub window_id: i8,
+}
 
 #[identified_packet(id=0x2f)]
 #[derive(Debug, PacketSerializable)]
@@ -145,13 +159,13 @@ pub struct SetSlot {
 
 #[identified_packet(id=0x30)]
 #[derive(Debug)]
-pub struct WindowItems {
+pub struct WindowItems<'a> {
     pub window_id: i8,
-    pub items: Vec<Option<ItemStack>>,
+    pub items: &'a [Option<ItemStack>],
 }
 
 // why couldnt mojang use var int for length :(
-impl PacketSerializable for WindowItems {
+impl<'a> PacketSerializable for WindowItems<'a> {
     fn write_size(&self) -> usize {
         let mut size = self.window_id.write_size() + (self.items.len() as i16).write_size();
         for item in self.items.iter() {

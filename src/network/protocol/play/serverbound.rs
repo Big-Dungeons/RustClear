@@ -30,8 +30,10 @@ register_serverbound_packets! {
     HeldItemChange,
     ArmSwing,
     PlayerAction,
+    CloseWindow,
     ClickWindow,
     ConfirmTransaction,
+    ClientStatus,
 }
 
 #[identified_packet(id=0x00)]
@@ -146,7 +148,7 @@ pub enum PlayerActionType {
     StartSprinting,
     StopSprinting,
     RidingJump,
-    OpenInventory,
+    OpenEntityInventory,
 }
 
 impl PacketDeserializable for PlayerActionType {
@@ -160,7 +162,7 @@ impl PacketDeserializable for PlayerActionType {
                 3 => PlayerActionType::StartSprinting,
                 4 => PlayerActionType::StopSprinting,
                 5 => PlayerActionType::RidingJump,
-                6 => PlayerActionType::OpenInventory,
+                6 => PlayerActionType::OpenEntityInventory,
                 _ => bail!("failed to read player digging action, invalid index: {}", var_int.0)
             }
         })
@@ -173,6 +175,12 @@ pub struct PlayerAction {
     pub entity_id: VarInt,
     pub action: PlayerActionType,
     pub data: VarInt,
+}
+
+#[identified_packet(id=0x0d)]
+#[derive(Debug, PacketDeserializable)]
+pub struct CloseWindow {
+    pub window_id: i8
 }
 
 #[derive(Debug, PacketDeserializable)]
@@ -203,4 +211,25 @@ pub struct ConfirmTransaction {
     pub window_id: i8,
     pub action_number: i16,
     pub accepted: bool,
+}
+
+#[identified_packet(id=0x16)]
+pub enum ClientStatus {
+    PerformRespawn,
+    RequestStats,
+    OpenInventory,
+}
+
+impl PacketDeserializable for ClientStatus {
+    fn read(buffer: &mut Bytes) -> anyhow::Result<Self> {
+        let var_int: VarInt = PacketDeserializable::read(buffer)?;
+        Ok({
+            match var_int.0 {
+                0 => Self::PerformRespawn,
+                1 => Self::RequestStats,
+                2 => Self::OpenInventory,
+                _ => bail!("failed to read client status, invalid index: {}", var_int.0)
+            }
+        })
+    }
 }

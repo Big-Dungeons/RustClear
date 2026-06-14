@@ -5,7 +5,7 @@ use crate::network::packets::BytesMutExt;
 use crate::network::protocol::play::clientbound::JoinGame;
 use crate::network::protocol::play::serverbound::{register_play_packet, PlayPacketWriters};
 use crate::player::interact::SentInteract;
-use crate::player::inventory::Inventory;
+use crate::player::inventory::{Inventory, InventoryState};
 use crate::player::known_state::KnownState;
 use crate::player::{Player, PlayerJoinEvent, PlayerPacketBuffer, Username};
 use bevy::app::Last;
@@ -171,6 +171,7 @@ pub fn recv_network_messages(
                             Username(username),
                             Transform::default(),
                             Inventory::default(),
+                            InventoryState::default(),
                             KnownState::default(),
                             SentInteract(false),
                         ));
