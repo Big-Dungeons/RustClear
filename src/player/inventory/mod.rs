@@ -7,13 +7,13 @@ use crate::dungeon::items::etherwarp::AspectOfTheVoid;
 use crate::dungeon::items::{get_item_stack, DungeonItem};
 use crate::network::packets::{BytesMutExt, PacketEvent};
 use crate::network::protocol::play::clientbound::{SetSlot, WindowItems};
-use crate::network::protocol::play::serverbound;
 use crate::network::protocol::play::serverbound::{ClickMode, ClickWindow, ClientStatus, HeldItemChange};
+use crate::network::protocol::play::{clientbound, serverbound};
 use crate::player::inventory::item_stack::ItemStack;
-use crate::player::inventory::menu::{Menu, MenuClick, UpdateMenu};
+use crate::player::inventory::menu::{Menu, MenuClick};
 use crate::player::{PacketReader, PlayerPacketBuffer};
 use bevy::app::{App, Plugin, PreUpdate};
-use bevy::prelude::{Commands, Component, Deref, Entity, EntityEvent, IntoScheduleConfigs, On, Query};
+use bevy::prelude::{Changed, Commands, Component, Deref, Entity, EntityEvent, IntoScheduleConfigs, On, Query};
 use bytes::BytesMut;
 use enum_dispatch::enum_dispatch;
 use std::ops::Deref;
@@ -27,24 +27,26 @@ pub trait Item {
     fn item_stack(&self) -> ItemStack;
 }
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum OpenInventory {
     None,
     Inventory,
     Menu(Entity),
 }
 
-#[derive(Component)]
+#[derive(Debug, PartialEq, Component)]
 pub struct InventoryState {
     pub window_id: i8,
-    pub open_inventory: OpenInventory
+    pub current_inventory: OpenInventory,
+    pub previous_inventory: OpenInventory,
 }
 
 impl Default for InventoryState {
     fn default() -> Self {
         Self {
-            window_id: 1,
-            open_inventory: OpenInventory::None,
+            window_id: 0,
+            current_inventory: OpenInventory::None,
+            previous_inventory: OpenInventory::None,
         }
     }
 }
@@ -95,7 +97,7 @@ fn on_player_open_inv(
                 .get_mut(packet.client())
                 .unwrap();
 
-            state.open_inventory = OpenInventory::Inventory
+            state.current_inventory = OpenInventory::Inventory
         }
     }
 }
@@ -110,33 +112,43 @@ fn on_player_close_inv(
             .unwrap();
 
         if packet.window_id == state.window_id {
-            state.open_inventory = OpenInventory::None
+            state.current_inventory = OpenInventory::None
+        }
+    }
+}
+
+fn on_change(
+    mut player_query: Query<&mut InventoryState, Changed<InventoryState>>,
+    mut commands: Commands,
+) {
+    for mut state in player_query.iter_mut() {
+        if let OpenInventory::None = state.current_inventory && let OpenInventory::Menu(menu_entity) = state.previous_inventory {
+            // no menus are shared so should be fine
+            commands.entity(menu_entity).despawn();
+        }
+        if state.current_inventory != state.previous_inventory {
+            state.previous_inventory = state.current_inventory
         }
     }
 }
 
 #[derive(EntityEvent)]
-pub struct OpenMenu {
-    pub menu_entity: Entity,
-    pub entity: Entity,
+pub struct CloseMenu {
+    pub entity: Entity
 }
 
-fn open_menu(
-    event: On<OpenMenu>,
-    menu_query: Query<&Menu>,
-    mut player_query: Query<(&mut PlayerPacketBuffer, &mut InventoryState)>,
+fn on_close_menu(
+    event: On<CloseMenu>,
+    mut player_query: Query<(&mut InventoryState, &mut PlayerPacketBuffer)>
 ) {
-    let menu = menu_query
-        .get(event.menu_entity)
-        .expect("used open menu event, but menu entity is invalid");
-
-    let (mut buffer, mut state) = player_query
+    let (mut state, mut packet_buffer) = player_query
         .get_mut(event.entity)
-        .expect("used open menu event on invalid player");
+        .unwrap();
 
-    state.open_inventory = OpenInventory::Menu(event.menu_entity);
-    state.window_id += 1;
-    menu.open_menu(state.window_id, &mut buffer);
+    packet_buffer.write_packet(&clientbound::CloseWindow {
+        window_id: state.window_id,
+    });
+    state.current_inventory = OpenInventory::None
 }
 
 #[derive(EntityEvent, Deref)]
@@ -149,7 +161,7 @@ fn sync_player_inventory(
     mut player_query: Query<(&Inventory, &InventoryState, &mut PlayerPacketBuffer)>,
     menu_query: Query<&Menu>,
 ) {
-    let (inventory, state, mut buffer) = player_query
+    let (inventory, state, mut packet_buffer) = player_query
         .get_mut(event.entity)
         .unwrap();
 
@@ -157,14 +169,14 @@ fn sync_player_inventory(
     for item in inventory.items.iter() {
         items.push(get_item_stack(item))
     }
-    buffer.write_packet(&WindowItems {
+    packet_buffer.write_packet(&WindowItems {
         window_id: 0,
         items: &items,
     });
 
-    match state.open_inventory {
+    match state.current_inventory {
         OpenInventory::Inventory => {
-            buffer.write_packet(&SetSlot {
+            packet_buffer.write_packet(&SetSlot {
                 window_id: -1,
                 slot: -1,
                 item_stack: get_item_stack(&inventory.dragged_item),
@@ -175,7 +187,7 @@ fn sync_player_inventory(
                 .get(menu_entity)
                 .expect("open inventory is a menu, but no menu found");
 
-            menu.sync_menu(state.window_id, &mut buffer);
+            menu.sync_menu(state.window_id, &mut packet_buffer);
         }
         _ => {}
     }
@@ -211,7 +223,7 @@ pub(super) fn handle_click_window(
 
         let mut should_resync = true;
 
-        match state.open_inventory {
+        match state.current_inventory {
             OpenInventory::Inventory => {
                 should_resync = handle_inventory_click(&mut inventory, &mut packet_buffer, packet);
             }
@@ -220,6 +232,9 @@ pub(super) fn handle_click_window(
                     .get(menu_entity)
                     .expect("open inventory is a menu, but no menu found");
 
+                if packet.window_id != state.window_id {
+                    continue;
+                }
                 if packet.slot_id as usize > menu.items.len() {
                     continue;
                 }
@@ -350,14 +365,16 @@ impl Plugin for InventoryPlugin  {
     fn build(&self, app: &mut App) {
         app
             .add_observer(sync_player_inventory)
-            .add_observer(open_menu)
+            .add_observer(menu::open_menu)
             .add_observer(menu::on_menu_init)
+            .add_observer(on_close_menu)
             .add_systems(PreUpdate, (
                 on_change_item, 
                 handle_click_window,
                 (
                     on_player_open_inv,
                     on_player_close_inv,
+                    on_change,
                 ).chain()
             ));
     }

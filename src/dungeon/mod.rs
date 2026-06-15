@@ -11,7 +11,7 @@ use crate::player::GlobalPacketBuffer;
 use crate::types::chat_component::ChatComponent;
 use crate::TEST_WORLD;
 use bevy::app::{App, PreUpdate, Update};
-use bevy::prelude::{Commands, Entity, MessageReader, Plugin, ResMut, Resource};
+use bevy::prelude::{Commands, Entity, Event, MessageReader, Plugin, ResMut, Resource};
 use glam::IVec2;
 use std::ops::DerefMut;
 
@@ -36,15 +36,20 @@ pub enum DungeonState {
     }
 }
 
+#[derive(Event)]
+pub struct DungeonStart;
+
 fn update_dungeon_state(
     mut state: ResMut<DungeonState>,
-    mut global_packet_buffer: ResMut<GlobalPacketBuffer>
+    mut global_packet_buffer: ResMut<GlobalPacketBuffer>,
+    mut commands: Commands,
 ) {
     match state.deref_mut() {
         DungeonState::Starting { starts_in_ticks: tick } => {
             *tick -= 1;
             if *tick == 0 {
-                *state = DungeonState::Started { ticks: 0 }
+                *state = DungeonState::Started { ticks: 0 };
+                commands.trigger(DungeonStart);
             } else if *tick % 20 == 0 {
                 let seconds_remaining = *tick / 20;
                 let s = if seconds_remaining == 1 { "" } else { "s" };

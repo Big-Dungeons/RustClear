@@ -2,17 +2,19 @@ use crate::dungeon::dungeon_player::{PlayerReadyEvent, ReadyStatus};
 use crate::network::protocol::nbt::{NBTNode, TAG_COMPOUND_ID};
 use crate::player::inventory::item_stack::ItemStack;
 use crate::player::inventory::menu::{Menu, MenuClick, UpdateMenu};
-use crate::player::inventory::SyncInventory;
+use crate::player::inventory::{CloseMenu, SyncInventory};
 use crate::player::{PlayerSkin, Username, Uuid};
 use bevy::app::{App, Plugin};
 use bevy::prelude::{ChildOf, Commands, Component, On, Query, With};
 use std::collections::HashMap;
+use crate::dungeon::DungeonStart;
 
 pub struct DungeonMenuPlugin;
 
 impl Plugin for DungeonMenuPlugin {
     fn build(&self, app: &mut App) {
         app
+            .add_observer(on_dungeon_start)
             .add_observer(on_menu_update)
             .add_observer(on_click);
     }
@@ -60,6 +62,7 @@ pub fn on_menu_update(
 
     menu.items[4] = Some(player_head);
     menu.items[13] = Some(ItemStack::new().item_id(95).metadata(color).name(item_name));
+    menu.items[49] = Some(ItemStack::new().item_id(166).name("§cClose"));
 
     commands.trigger(SyncInventory { entity: child_of.parent() });
 }
@@ -75,9 +78,28 @@ pub fn on_click(
 
     match event.slot {
         4 | 13 => {
-            commands.trigger(PlayerReadyEvent { entity: event.client });
-            commands.trigger(UpdateMenu { menu_entity: event.menu_entity });
+            commands.trigger(PlayerReadyEvent {
+                entity: event.client
+            });
+            commands.trigger(UpdateMenu {
+                menu_entity: event.menu_entity
+            });
+        }
+        49 => {
+            commands.trigger(CloseMenu {
+                entity: event.client,
+            });
         }
         _ => {}
+    }
+}
+
+fn on_dungeon_start(
+    _: On<DungeonStart>, 
+    query: Query<&ChildOf, (With<MortMenu>, With<Menu>)>,
+    mut commands: Commands,
+) {
+    for menu in query.iter() {
+        commands.trigger(CloseMenu { entity: menu.parent() })
     }
 }

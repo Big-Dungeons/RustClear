@@ -2,8 +2,10 @@ use crate::network::packets::BytesMutExt;
 use crate::network::protocol::play::clientbound::{OpenWindow, SetSlot, WindowItems};
 use crate::network::protocol::play::serverbound::ClickMode;
 use crate::player::inventory::item_stack::ItemStack;
+use crate::player::inventory::{InventoryState, OpenInventory};
+use crate::player::PlayerPacketBuffer;
 use crate::types::chat_component::ChatComponent;
-use bevy::prelude::{Add, Commands, Component, Entity, EntityEvent, On};
+use bevy::prelude::{Add, Commands, Component, Entity, EntityEvent, On, Query};
 use bytes::BytesMut;
 
 #[derive(Component)]
@@ -48,6 +50,31 @@ pub struct MenuClick {
     pub slot: usize,
     pub _click_mode: ClickMode,
 }
+
+#[derive(EntityEvent)]
+pub struct OpenMenu {
+    pub menu_entity: Entity,
+    pub entity: Entity,
+}
+
+pub(super) fn open_menu(
+    event: On<OpenMenu>,
+    menu_query: Query<&Menu>,
+    mut player_query: Query<(&mut PlayerPacketBuffer, &mut InventoryState)>,
+) {
+    let menu = menu_query
+        .get(event.menu_entity)
+        .expect("used open menu event, but menu entity is invalid");
+
+    let (mut buffer, mut state) = player_query
+        .get_mut(event.entity)
+        .expect("used open menu event on invalid player");
+
+    state.window_id += 1;
+    state.current_inventory = OpenInventory::Menu(event.menu_entity);
+    menu.open_menu(state.window_id, &mut buffer);
+}
+
 
 // kind of scuffed,
 // however there will only be a couple of very generic menus, so no point in overcomplicating it
