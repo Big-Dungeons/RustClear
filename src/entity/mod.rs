@@ -1,13 +1,15 @@
 pub mod entity_metadata;
+pub mod object_metadata;
 pub mod components;
 mod entity_metadata_serializable;
 
 use crate::chunk::chunk_grid::{ChunkDiff, ChunkGrid};
 use crate::chunk::get_chunk_position;
 use crate::entity::entity_metadata::EntityMetadata;
+use crate::entity::object_metadata::ObjectMetadata;
 use crate::network::packets::BytesMutExt;
 use crate::network::protocol::packed::{packed_position, packed_rotation};
-use crate::network::protocol::play::clientbound::{DestroyEntity, EntityTeleport, EntityYawRotate, SpawnMob};
+use crate::network::protocol::play::clientbound::{DestroyEntity, EntityTeleport, EntityYawRotate, SpawnMob, SpawnObject};
 use crate::network::protocol::var_int::VarInt;
 use crate::player::PlayerPacketBuffer;
 use bevy::ecs::entity::{Entities, EntityIndex};
@@ -35,33 +37,60 @@ impl BevyEntityExt for Entity {
     }
 }
 
+pub enum MobType {
+    Entity(EntityMetadata),
+    Object(ObjectMetadata),
+}
+
 #[derive(Component)]
 pub struct Mob {
-    pub metadata: EntityMetadata,
+    pub mob_type: MobType,
 }
 
 impl Mob {
     pub fn new(metadata: impl Into<EntityMetadata>) -> Self {
         Self {
-            metadata: metadata.into()
+            mob_type: MobType::Entity(metadata.into())
+        }
+    }
+
+    pub fn new_object(metadata: ObjectMetadata) -> Self {
+        Self {
+            mob_type: MobType::Object(metadata)
         }
     }
 
     pub fn write_spawn_packet(&self, entity: Entity, transform: &Transform, buffer: &mut BytesMut) {
-        buffer.write_packet(&SpawnMob {
-            entity_id: VarInt(entity.mc_id()),
-            entity_variant: self.metadata.get_variant(),
-            position: packed_position(transform.position),
-            yaw: packed_rotation(transform.yaw),
-            pitch: packed_rotation(transform.pitch),
-            head_yaw: packed_rotation(transform.yaw),
-            velocity: I16Vec3::ZERO,
-            metadata: self.metadata,
-        });
-        buffer.write_packet(&EntityYawRotate {
-            entity_id: VarInt(entity.mc_id()),
-            yaw: packed_rotation(transform.yaw),
-        });
+        match self.mob_type {
+            MobType::Entity(metadata) => {
+                buffer.write_packet(&SpawnMob {
+                    entity_id: VarInt(entity.mc_id()),
+                    entity_variant: metadata.get_variant(),
+                    position: packed_position(transform.position),
+                    yaw: packed_rotation(transform.yaw),
+                    pitch: packed_rotation(transform.pitch),
+                    head_yaw: packed_rotation(transform.yaw),
+                    velocity: I16Vec3::ZERO,
+                    metadata,
+                });
+                buffer.write_packet(&EntityYawRotate {
+                    entity_id: VarInt(entity.mc_id()),
+                    yaw: packed_rotation(transform.yaw),
+                });
+            }
+            MobType::Object(metadata) => {
+                buffer.write_packet(&SpawnObject {
+                    entity_id: VarInt(entity.mc_id()),
+                    variant: metadata.get_variant(),
+                    position: Default::default(),
+                    pitch: 0,
+                    yaw: 0,
+                    data: metadata.get_data(),
+                    velocity: Default::default(),
+                })
+            }
+        }
+
     }
 
     pub fn write_despawn_packet(&self, entity: Entity, buffer: &mut BytesMut) {
@@ -70,7 +99,7 @@ impl Mob {
         });
     }
 
-    pub fn write_update_position_packets(&self, entity: Entity, transform: &Transform, buffer: &mut BytesMut) {
+    pub fn write_update_packets(&self, entity: Entity, transform: &Transform, buffer: &mut BytesMut) {
         buffer.write_packet(&EntityTeleport {
             entity_id: VarInt(entity.mc_id()),
             position: packed_position(transform.position),
@@ -124,7 +153,7 @@ fn on_mob_move(
             if is_diff_chunk {
                 new_chunk.insert_entity(entity)
             }
-            mob.write_update_position_packets(entity, transform, &mut new_chunk.packet_buffer);
+            mob.write_update_packets(entity, transform, &mut new_chunk.packet_buffer);
         };
         if is_diff_chunk {
             if let Some(old_chunk) = chunks.get_mut(old_position) {

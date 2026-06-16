@@ -7,7 +7,7 @@ use crate::network::protocol::sized_string::SizedString;
 use crate::network::protocol::var_int::{var_int_size, write_var_int, VarInt};
 use crate::player::inventory::item_stack::ItemStack;
 use crate::types::chat_component::ChatComponent;
-use crate::types::entity_variant::EntityVariant;
+use crate::types::entity_variant::{EntityVariant, ObjectVariant};
 use bytes::BytesMut;
 use enumset::{EnumSet, EnumSetType};
 use glam::{I16Vec3, IVec3};
@@ -59,6 +59,47 @@ pub struct PositionLook {
     pub yaw: f32,
     pub pitch: f32,
     pub flags: EnumSet<Relative>,
+}
+
+#[identified_packet(id=0x0e)]
+#[derive(Debug)]
+pub struct SpawnObject {
+    pub entity_id: VarInt,
+    pub variant: ObjectVariant,
+    pub position: IVec3,
+    pub pitch: i8,
+    pub yaw: i8,
+    pub data: i32,
+    pub velocity: I16Vec3,
+}
+
+impl PacketSerializable for SpawnObject {
+    fn write_size(&self) -> usize {
+        let mut size = 
+            self.entity_id.write_size() +
+            self.variant.write_size() +
+            self.position.write_size() +
+            self.pitch.write_size() +
+            self.yaw.write_size() +
+            self.data.write_size();
+        
+        if self.data > 0 {
+            size += self.velocity.write_size()
+        }
+        size
+    }
+
+    fn write(&self, buf: &mut BytesMut) {
+        self.entity_id.write(buf);
+        self.variant.write(buf);
+        self.position.write(buf);
+        self.pitch.write(buf);
+        self.yaw.write(buf);
+        self.data.write(buf);
+        if self.data > 0 { 
+            self.velocity.write(buf)
+        }
+    }
 }
 
 #[identified_packet(id=0x0f)]
