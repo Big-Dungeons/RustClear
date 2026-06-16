@@ -1,20 +1,20 @@
 use crate::dungeon::dungeon_player::{PlayerReadyEvent, ReadyStatus};
+use crate::dungeon::DungeonState;
 use crate::network::protocol::nbt::{NBTNode, TAG_COMPOUND_ID};
 use crate::player::inventory::item_stack::ItemStack;
 use crate::player::inventory::menu::{Menu, MenuClick, UpdateMenu};
 use crate::player::inventory::{CloseMenu, SyncInventory};
 use crate::player::{PlayerSkin, Username, Uuid};
 use bevy::app::{App, Plugin};
-use bevy::prelude::{ChildOf, Commands, Component, On, Query, With};
+use bevy::prelude::{ChildOf, Commands, Component, On, OnEnter, Query, With};
 use std::collections::HashMap;
-use crate::dungeon::DungeonStart;
 
 pub struct DungeonMenuPlugin;
 
 impl Plugin for DungeonMenuPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_observer(on_dungeon_start)
+            .add_systems(OnEnter(DungeonState::Started { ticks: 0 }), on_dungeon_start)
             .add_observer(on_menu_update)
             .add_observer(on_click);
     }
@@ -95,7 +95,6 @@ pub fn on_click(
 }
 
 fn on_dungeon_start(
-    _: On<DungeonStart>, 
     query: Query<&ChildOf, (With<MortMenu>, With<Menu>)>,
     mut commands: Commands,
 ) {

@@ -13,7 +13,7 @@ use crate::player::sidebar::Sidebar;
 use crate::player::{GlobalPacketBuffer, Player, Username};
 use crate::TEST_WORLD;
 use bevy::app::{App, Update};
-use bevy::prelude::{Add, Commands, Component, Deref, Entity, EntityEvent, On, Plugin, Query, Res, ResMut};
+use bevy::prelude::{Add, Commands, Component, Deref, Entity, EntityEvent, NextState, On, Plugin, Query, Res, ResMut, State};
 use glam::ivec3;
 use indoc::{formatdoc, indoc};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -48,9 +48,10 @@ fn on_player_ready(
     event: On<PlayerReadyEvent>,
     mut player_query: Query<(Entity, &mut ReadyStatus, &Username)>,
     mut global: ResMut<GlobalPacketBuffer>,
-    mut state: ResMut<DungeonState>,
+    state: ResMut<State<DungeonState>>,
+    mut next_state: ResMut<NextState<DungeonState>>,
 ) {
-    assert!(!matches!(*state, DungeonState::Started { .. }), "tried to ready up when dungeon has already started");
+    assert!(!matches!(state.get(), DungeonState::Started { .. }), "tried to ready up when dungeon has already started");
     let mut should_start = true;
 
     for (entity, mut ready, username) in player_query.iter_mut() {
@@ -67,9 +68,9 @@ fn on_player_ready(
     }
 
     if should_start {
-        *state = DungeonState::Starting { starts_in_ticks: 100 }
+        next_state.set(DungeonState::Starting { starts_in_ticks: 100 });
     } else {
-        *state = DungeonState::NotStarted
+        next_state.set(DungeonState::NotStarted);
     }
 }
 
@@ -112,7 +113,7 @@ fn add_items(event: On<Add, Player>, mut query: Query<&mut Inventory>) {
 fn update_sidebar(
     mut sidebar_query: Query<(Entity, &mut Sidebar)>,
     player_query: Query<(Entity, &Username, &ReadyStatus)>,
-    state: Res<DungeonState>,
+    state: Res<State<DungeonState>>,
 ) {
     for (client, mut sidebar) in sidebar_query.iter_mut() {
         sidebar.push("§e§lSKYBLOCK");
@@ -134,14 +135,14 @@ fn update_sidebar(
 
         "#});
 
-        match *state {
+        match state.get() {
             DungeonState::NotStarted | DungeonState::Starting { .. } => {
                 for (_, username, ready) in player_query.iter() {
                     let color = if ready.0 { 'a' } else { 'c' };
                     sidebar.push(&format!("§{color}[M] §7{}", username.0));
                 }
                 sidebar.new_line();
-                if let DungeonState::Starting { starts_in_ticks } = *state {
+                if let DungeonState::Starting { starts_in_ticks } = state.get() {
                     sidebar.push(&format!("Starting in: §a0§a:0{}", (starts_in_ticks / 20) + 1));
                     sidebar.new_line();
                 }
@@ -184,7 +185,7 @@ fn update_sidebar(
 
                     "#});
                 } else {
-                    for (entity, username, ready) in player_query.iter() {
+                    for (entity, username, _) in player_query.iter() {
                         if entity != client {
                             sidebar.push(&format!("§e[M] §7{}", username.0));
                         }

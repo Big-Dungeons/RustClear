@@ -1,19 +1,17 @@
 use crate::dungeon::door::DoorLookup;
-use crate::dungeon::dungeon_player::{DungeonPlayerPlugin, PlayerReadyEvent};
+use crate::dungeon::dungeon_player::DungeonPlayerPlugin;
 use crate::dungeon::entities::DungeonEntityPlugin;
 use crate::dungeon::menus::DungeonMenuPlugin;
 use crate::dungeon::rooms::room_data::RoomDataLookup;
 use crate::dungeon::rooms::RoomGridLookup;
-use crate::network::packets::{BytesMutExt, PacketEvent};
+use crate::network::packets::BytesMutExt;
 use crate::network::protocol::play::clientbound::Chat;
-use crate::network::protocol::play::serverbound::ChatMessage;
 use crate::player::GlobalPacketBuffer;
 use crate::types::chat_component::ChatComponent;
 use crate::TEST_WORLD;
-use bevy::app::{App, PreUpdate, Update};
-use bevy::prelude::{Commands, Entity, Event, MessageReader, Plugin, ResMut, Resource};
+use bevy::app::{App, PreUpdate};
+use bevy::prelude::{AppExtStates, Entity, NextState, Plugin, ResMut, Resource, State, States};
 use glam::IVec2;
-use std::ops::DerefMut;
 
 mod door;
 mod entities;
@@ -25,8 +23,9 @@ mod menus;
 
 pub const DUNGEON_ORIGIN: IVec2 = IVec2::new(-200, -200);
 
-#[derive(Resource)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, States)]
 pub enum DungeonState {
+    #[default]
     NotStarted,
     Starting {
         starts_in_ticks: usize
@@ -36,22 +35,19 @@ pub enum DungeonState {
     }
 }
 
-#[derive(Event)]
-pub struct DungeonStart;
-
 fn update_dungeon_state(
-    mut state: ResMut<DungeonState>,
+    state: ResMut<State<DungeonState>>,
+    mut next_state: ResMut<NextState<DungeonState>>,
     mut global_packet_buffer: ResMut<GlobalPacketBuffer>,
-    mut commands: Commands,
 ) {
-    match state.deref_mut() {
+    match state.get() {
         DungeonState::Starting { starts_in_ticks: tick } => {
-            *tick -= 1;
-            if *tick == 0 {
-                *state = DungeonState::Started { ticks: 0 };
-                commands.trigger(DungeonStart);
-            } else if *tick % 20 == 0 {
-                let seconds_remaining = *tick / 20;
+            let tick = tick - 1;
+            next_state.set(DungeonState::Starting { starts_in_ticks: tick });
+            if tick == 0 {
+                next_state.set(DungeonState::Started { ticks: 0 });
+            } else if tick % 20 == 0 {
+                let seconds_remaining = tick / 20;
                 let s = if seconds_remaining == 1 { "" } else { "s" };
                 let str = format!("§aStarting in {} second{}.", seconds_remaining, s);
 
@@ -63,7 +59,7 @@ fn update_dungeon_state(
             }
         }
         DungeonState::Started { ticks } => {
-            *ticks += 1;
+            next_state.set(DungeonState::Started { ticks: ticks + 1 });
         }
         _ => {}
     }
@@ -85,24 +81,12 @@ impl Plugin for DungeonPlugin {
         }
 
         app
-            // temp, while container ui's arent implemented
-            .add_systems(Update, |
-                mut packets: MessageReader<PacketEvent<ChatMessage>>,
-                mut commands: Commands,
-            | {
-                for PacketEvent { packet, client } in packets.read() {
-                    if *packet.string == "/start" {
-                        commands.trigger(PlayerReadyEvent { entity: *client })
-                    }
-                }
-            })
-
+            .init_state::<DungeonState>()
             .add_plugins((
                 DungeonPlayerPlugin,
                 DungeonEntityPlugin,
                 DungeonMenuPlugin,
             ))
-            .insert_resource(DungeonState::NotStarted)
             .insert_resource(RoomDataLookup::default())
             .insert_resource(RoomGridLookup::default())
             .insert_resource(DoorLookup::default())

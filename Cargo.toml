@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.102"
-bevy = { version = "0.18.1", default-features = false, features = ["multi_threaded", "debug"] }
+bevy = { version = "0.18.1", default-features = false, features = ["multi_threaded", "bevy_state", "debug"] }
 bytes = "1.11.1"
 slotmap = "1.1.1"
 tokio = { version = "1.48.0", features = ["full"] }
