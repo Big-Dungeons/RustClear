@@ -5,14 +5,14 @@ use crate::dungeon::entities::npc::NPCBehaviour;
 use crate::dungeon::menus::MortMenu;
 use crate::dungeon::rooms::room_data::{random_room_data, RoomData, RoomDataLookup, RoomShape, RoomType};
 use crate::dungeon::rooms::{Room, RoomGridLookup, RoomSegment};
-use crate::dungeon::{door, rooms, EntranceRoom, DUNGEON_ORIGIN};
+use crate::dungeon::{door, rooms, DungeonState, EntranceRoom, DUNGEON_ORIGIN};
 use crate::entity::components::interactable::Interactable;
 use crate::entity::components::transform::Transform;
 use crate::entity::entity_metadata::ZombieMetadata;
 use crate::entity::Mob;
 use crate::player::inventory::menu::{Menu, OpenMenu};
 use bevy::app::App;
-use bevy::prelude::{default, ChildOf, Commands, Deref, Entity, IntoScheduleConfigs, Plugin, PostStartup, Query, Res, ResMut, Resource, Startup};
+use bevy::prelude::{default, ChildOf, Commands, Deref, Entity, IntoScheduleConfigs, Plugin, PostStartup, Query, Res, ResMut, Resource, Startup, State};
 use glam::{ivec2, ivec3};
 use rand::prelude::IndexedRandom;
 use rand::rng;
@@ -215,16 +215,19 @@ fn set_entrance_room_resource(
                     default_yaw: yaw,
                     default_pitch: 0.0,
                 },
-                Interactable::new(|_, entity, commands| {
-                    let menu_entity = commands.spawn((
+                Interactable::new(|world, player, _| {
+                    if let DungeonState::Started { .. } = world.resource::<State<DungeonState>>().get() {
+                        return;
+                    }
+                    let menu_entity = world.spawn((
                         Menu {
                             title: "Ready Up".to_string(),
                             items: vec![const { None }; 54],
                         },
                         MortMenu,
-                        ChildOf(entity),
+                        ChildOf(player),
                     )).id();
-                    commands.trigger(OpenMenu { menu_entity, entity });
+                    world.trigger(OpenMenu { menu_entity, entity: player });
                 })
             ));
 

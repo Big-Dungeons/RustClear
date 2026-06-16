@@ -2,15 +2,12 @@ use crate::chunk::ChunkPlugin;
 use crate::debug_world::DebugWorld;
 use crate::dungeon::DungeonPlugin;
 use crate::entity::MobPlugin;
-use crate::network::packets::PacketEvent;
-use crate::network::protocol::play::serverbound::ChatMessage;
 use crate::network::NetworkPlugin;
-use crate::player::inventory::SyncInventory;
 use crate::player::PlayerPlugin;
-use bevy::app::{App, ScheduleRunnerPlugin, Update};
-use bevy::prelude::{Commands, MessageReader};
+use bevy::app::{App, ScheduleRunnerPlugin};
 use glam::IVec2;
 use std::time::Duration;
+use bevy::state::app::StatesPlugin;
 
 mod block;
 mod chunk;
@@ -28,6 +25,7 @@ fn main() {
     App::new()
         .add_plugins((
             ScheduleRunnerPlugin::run_loop(Duration::from_millis(50)),
+            StatesPlugin,
             NetworkPlugin {
                 addr: "127.0.0.1:8080",
             },
@@ -40,13 +38,5 @@ fn main() {
             DungeonPlugin,
             DebugWorld,
         ))
-        .add_systems(Update, chat_test)
         .run();
-}
-
-fn chat_test(mut chat_messages: MessageReader<PacketEvent<ChatMessage>>, mut commands: Commands) {
-    for PacketEvent { packet, client } in chat_messages.read() {
-        println!("chat message: {}", packet.string);
-        commands.trigger(SyncInventory { entity: *client })
-    }
 }
