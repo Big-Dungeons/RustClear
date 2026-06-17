@@ -117,8 +117,8 @@ impl Mob {
 
 #[derive(SystemParam)]
 pub struct MobSpawnQueries<'w, 's> {
-    pub mob_query: Query<'w, 's, (&'static Mob, &'static Transform)>,
-    pub riding_query: Query<'w, 's, &'static Riding>
+    pub mob_query: Query<'w, 's, (Entity, &'static Mob, &'static Transform)>,
+    pub riding_query: Query<'w, 's, (Entity, &'static Riding)>
 }
 
 fn on_mob_add(

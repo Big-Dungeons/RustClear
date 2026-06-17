@@ -4,10 +4,10 @@ use crate::entity::{BevyEntityExt, MobSpawnQueries};
 use crate::network::packets::BytesMutExt;
 use crate::network::protocol::play::clientbound::{ChunkData, EntityAttach};
 use crate::{block::Block, chunk::chunk_grid::ChunkGrid};
+use bevy::ecs::entity::EntityHashSet;
 use bevy::{app::{App, Plugin}, prelude::Entity};
 use bytes::BytesMut;
 use glam::{DVec3, IVec2};
-use std::collections::HashSet;
 
 pub struct ChunkPlugin {
     pub size: i32,
@@ -32,8 +32,8 @@ pub struct Chunk {
     cached_packet: BytesMut,
     dirty: bool,
 
-    pub players: HashSet<Entity>,
-    pub entities: HashSet<Entity>,
+    pub players: EntityHashSet,
+    pub entities: EntityHashSet,
 }
 
 impl Default for Chunk {
@@ -44,8 +44,8 @@ impl Default for Chunk {
             cached_packet: BytesMut::new(),
             dirty: true,
 
-            players: HashSet::new(),
-            entities: HashSet::new(),
+            players: EntityHashSet::new(),
+            entities: EntityHashSet::new(),
         }
     }
 }
@@ -174,27 +174,23 @@ impl Chunk {
     }
 
     pub fn write_spawn_entities(&mut self, query: &MobSpawnQueries) {
-        for entity in &self.entities {
-            let (mob, transform) = query.mob_query.get(*entity).unwrap(); 
-            mob.write_spawn_packet(*entity, transform, &mut self.packet_buffer)
+        for (entity, mob, transform) in query.mob_query.iter_many(&self.entities) {
+            mob.write_spawn_packet(entity, transform, &mut self.packet_buffer)
         }
         // order might not be correct due to nature of systems,
         // so 2nd pass it is
-        for entity in &self.entities {
-            if let Ok(riding) = query.riding_query.get(*entity) {
-                self.packet_buffer.write_packet(&EntityAttach {
-                    entity_id: entity.mc_id(),
-                    vehicle_id: riding.mc_id(),
-                    leash: false,
-                })
-            }
+        for (entity, riding) in query.riding_query.iter_many(&self.entities) {
+            self.packet_buffer.write_packet(&EntityAttach {
+                entity_id: entity.mc_id(),
+                vehicle_id: riding.mc_id(),
+                leash: false,
+            })
         }
     }
 
     pub fn write_despawn_entities(&mut self, query: &MobSpawnQueries) {
-        for entity in &self.entities {
-            let (mob, _) = query.mob_query.get(*entity).unwrap();
-            mob.write_despawn_packet(*entity, &mut self.packet_buffer);
+        for (entity, mob, _) in query.mob_query.iter_many(&self.entities) {
+            mob.write_despawn_packet(entity, &mut self.packet_buffer);
         }
     }
 }
