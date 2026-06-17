@@ -164,6 +164,31 @@ fn on_mob_add(
     )
 }
 
+fn on_mob_remove(
+    event: On<Remove, Mob>,
+    mob_query: Query<(&Mob, &Transform)>,
+    mut player_query: Query<&mut PlayerPacketBuffer>,
+    mut chunks: ResMut<ChunkGrid>,
+) {
+    let (mob, transform) = mob_query.get(event.entity).unwrap();
+    let chunk_position = get_chunk_position(transform.position);
+
+    if let Some(chunk) = chunks.get_mut(chunk_position) {
+        chunk.remove_entity(event.entity)
+    }
+
+    chunks.for_each_in_view(
+        chunk_position,
+        6,
+        |chunk, _, _| {
+            for player in chunk.players.iter() {
+                let mut buffer = player_query.get_mut(*player).unwrap();
+                mob.write_despawn_packet(event.entity, &mut buffer);
+            }
+        }
+    )
+}
+
 fn on_mob_move(
     mob_query: Query<(Entity, &Mob, &Transform, &OldTransform, Option<&Riding>)>,
     mut player_query: Query<&mut PlayerPacketBuffer>,
@@ -236,6 +261,7 @@ impl Plugin for MobPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_observer(on_mob_add)
+            .add_observer(on_mob_remove)
             .add_systems(Update, (
                 components::interactable::handle_entity_interactable,
             ))

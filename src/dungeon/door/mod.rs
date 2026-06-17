@@ -7,7 +7,7 @@ use crate::entity::components::transform::Transform;
 use crate::entity::entity_metadata::BatMetadata;
 use crate::entity::object_metadata::ObjectMetadata;
 use crate::entity::Mob;
-use bevy::prelude::{Commands, Component, Deref, DerefMut, Entity, EntityEvent, Local, On, Query, ResMut, Resource};
+use bevy::prelude::*;
 use glam::{dvec3, ivec3, IVec2, IVec3};
 use rand::prelude::IndexedRandom;
 use rand::rng;
@@ -54,6 +54,40 @@ pub struct OpenDoorEvent {
     pub entity: Entity
 }
 
+#[derive(Component)]
+pub(super) struct OpeningDoor {
+    position: IVec2,
+    ticks_left: usize,
+}
+
+pub(super) fn handle_opening_door(
+    mut query: Query<(Entity, &mut OpeningDoor, &Children)>,
+    mut block_query: Query<&mut Transform>,
+    mut chunks: ResMut<ChunkGrid>,
+    mut commands: Commands,
+) {
+    for (entity, mut door, children) in query.iter_mut() {
+        door.ticks_left -= 1;
+
+        if door.ticks_left == 0 {
+            iterate_blocks(
+                ivec3(door.position.x - 1, 69, door.position.y - 1),
+                ivec3(door.position.x + 1, 72, door.position.y + 1),
+                |position| {
+                    chunks.set_block_at(Block::Air, position);
+                }
+            );
+            commands.entity(entity).despawn();
+        }
+
+        for entity in children.iter() {
+            let mut transform = block_query.get_mut(entity).unwrap();
+            transform.position.y -= 0.25;
+            transform.set_changed();
+        }
+    }
+}
+
 pub fn open_door(
     event: On<OpenDoorEvent>,
     door_query: Query<&Door>,
@@ -63,6 +97,11 @@ pub fn open_door(
     let door = door_query
         .get(event.entity)
         .unwrap();
+
+    let opening_door = commands.spawn(OpeningDoor {
+        position: door.position,
+        ticks_left: 20,
+    }).id();
 
     iterate_blocks(
         ivec3(door.position.x - 1, 69, door.position.y - 1),
@@ -77,7 +116,8 @@ pub fn open_door(
                     position: dvec3(x as f64 + 0.5, y as f64 - 0.655, z as f64 + 0.5),
                     yaw: 0.0,
                     pitch: 0.0,
-                }
+                },
+                ChildOf(opening_door),
             )).id();
 
             commands.spawn((
@@ -89,10 +129,11 @@ pub fn open_door(
                     yaw: 0.0,
                     pitch: 0.0,
                 },
-                Riding(bat)
+                Riding(bat),
+                ChildOf(opening_door),
             ));
 
-            chunks.set_block_at(Block::Air, (x, y, z))
+            chunks.set_block_at(Block::Barrier, (x, y, z))
         }
     );
 }

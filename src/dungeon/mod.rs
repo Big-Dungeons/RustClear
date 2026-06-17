@@ -10,7 +10,7 @@ use crate::player::GlobalPacketBuffer;
 use crate::types::chat_component::ChatComponent;
 use crate::TEST_WORLD;
 use bevy::app::{App, PreUpdate};
-use bevy::prelude::{AppExtStates, Entity, NextState, OnEnter, Plugin, ResMut, Resource, State, States};
+use bevy::prelude::{AppExtStates, Entity, NextState, OnEnter, Plugin, ResMut, Resource, State, States, Update};
 use glam::IVec2;
 
 mod door;
@@ -92,6 +92,7 @@ impl Plugin for DungeonPlugin {
             .insert_resource(DoorLookup::default())
             .add_observer(door::open_door)
             .add_systems(OnEnter(DungeonState::Started { ticks: 0 }), door::open_entrance_doors)
-            .add_systems(PreUpdate, update_dungeon_state);
+            .add_systems(PreUpdate, update_dungeon_state)
+            .add_systems(Update, door::handle_opening_door);
     }
 }
