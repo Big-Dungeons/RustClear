@@ -149,6 +149,14 @@ pub struct EntityYawRotate {
     pub yaw: i8,
 }
 
+#[identified_packet(id=0x1b)]
+#[derive(Debug, PacketSerializable)]
+pub struct EntityAttach {
+    pub entity_id: i32,
+    pub vehicle_id: i32,
+    pub leash: bool,
+}
+
 #[identified_packet(id=0x21)]
 #[derive(Debug, PacketSerializable)]
 pub struct ChunkData {

@@ -7,7 +7,7 @@ pub mod sidebar;
 use crate::chunk::chunk_grid::ChunkGrid;
 use crate::chunk::get_chunk_position;
 use crate::entity::components::transform::{OldTransform, Transform};
-use crate::entity::Mob;
+use crate::entity::MobSpawnQueries;
 use crate::network::client::ClientId;
 use crate::network::packets::{BytesMutExt, PacketEvent};
 use crate::network::protocol::play::clientbound::{ConfirmTransaction, PositionLook};
@@ -54,7 +54,7 @@ type PacketReader<'a, 'b, T> = MessageReader<'a, 'b, PacketEvent<T>>;
 fn process_player_join(
     mut events: MessageReader<'_, '_, PlayerJoinEvent>,
     mut player_query: Query<(&Transform, &mut PlayerPacketBuffer)>,
-    mob_query: Query<(&Transform, &Mob)>,
+    mob_spawn_queries: MobSpawnQueries,
     mut chunks: ResMut<ChunkGrid>,
     mut commands: Commands,
 ) {
@@ -72,10 +72,7 @@ fn process_player_join(
 
         chunks.for_each_in_view(position, 8, |chunk, x, z| {
             chunk.write_chunk_data(x, z, true, &mut packet_buffer);
-            for entity in &chunk.entities {
-                let (transform, mob) = mob_query.get(*entity).unwrap();
-                mob.write_spawn_packet(*entity, transform, &mut packet_buffer);
-            }
+            chunk.write_spawn_entities(&mob_spawn_queries);
         });
 
         packet_buffer.write_packet(&PositionLook {

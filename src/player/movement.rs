@@ -1,7 +1,7 @@
 use crate::chunk::chunk_grid::{ChunkDiff, ChunkGrid};
 use crate::chunk::{get_chunk_position, Chunk};
 use crate::entity::components::transform::{OldTransform, Transform};
-use crate::entity::Mob;
+use crate::entity::MobSpawnQueries;
 use crate::network::packets::{BytesMutExt, PacketEvent};
 use crate::network::protocol::play::clientbound::{PositionLook, Relative};
 use crate::network::protocol::play::serverbound::{PlayerLook, PlayerPosition, PlayerPositionLook};
@@ -78,7 +78,7 @@ pub(super) fn transform_change(
         (Changed<Transform>, With<Initialized>)
     >,
     mut chunks: ResMut<ChunkGrid>,
-    mob_query: Query<(&Transform, &Mob)>
+    mob_spawn_queries: MobSpawnQueries,
 ) {
     for (entity, transform, old_transform, mut packet_buffer) in player_query.iter_mut() {
         let old = get_chunk_position(old_transform.position);
@@ -104,16 +104,10 @@ pub(super) fn transform_change(
                     };
                     if diff == ChunkDiff::New {
                         chunk.write_chunk_data(x, z, true, &mut packet_buffer);
-                        for entity in &chunk.entities {
-                            let (transform, mob) = mob_query.get(*entity).unwrap();
-                            mob.write_spawn_packet(*entity, transform, &mut packet_buffer);
-                        }
+                        chunk.write_spawn_entities(&mob_spawn_queries);
                     } else {
                         packet_buffer.write_packet(&Chunk::unload_packet(x, z));
-                        for entity in &chunk.entities {
-                            let (_, mob) = mob_query.get(*entity).unwrap();
-                            mob.write_despawn_packet(*entity, &mut packet_buffer);
-                        }
+                        chunk.write_despawn_entities(&mob_spawn_queries);
                     }
                 }
             );

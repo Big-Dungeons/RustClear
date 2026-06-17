@@ -1,9 +1,14 @@
 use crate::block::block_parameters::BlockColor;
 use crate::block::block_rotation::{Rotate, Rotation};
 use crate::block::Block;
-use crate::chunk::chunk_grid::ChunkGrid;
-use bevy::prelude::{Component, Deref, DerefMut, Entity, Local, Query, ResMut, Resource};
-use glam::{ivec3, IVec2};
+use crate::chunk::chunk_grid::{iterate_blocks, ChunkGrid};
+use crate::entity::components::riding::Riding;
+use crate::entity::components::transform::Transform;
+use crate::entity::entity_metadata::BatMetadata;
+use crate::entity::object_metadata::ObjectMetadata;
+use crate::entity::Mob;
+use bevy::prelude::{Commands, Component, Deref, DerefMut, Entity, EntityEvent, Local, On, Query, ResMut, Resource};
+use glam::{dvec3, ivec3, IVec2, IVec3};
 use rand::prelude::IndexedRandom;
 use rand::rng;
 use std::collections::HashMap;
@@ -12,7 +17,6 @@ pub mod door_positions;
 
 #[derive(Default, Resource, Deref, DerefMut)]
 pub struct DoorLookup(HashMap<IVec2, Entity>);
-
 
 #[derive(Hash, Eq, PartialEq)]
 pub enum DoorType {
@@ -41,6 +45,65 @@ impl Door {
             DoorType::Entrance => Block::SilverfishChiseledStoneBrick,
             DoorType::Wither => Block::CoalBlock,
             DoorType::Blood => Block::StainedHardenedClay { color: BlockColor::Red }
+        }
+    }
+}
+
+#[derive(EntityEvent)]
+pub struct OpenDoorEvent {
+    pub entity: Entity
+}
+
+pub fn open_door(
+    event: On<OpenDoorEvent>,
+    door_query: Query<&Door>,
+    mut chunks: ResMut<ChunkGrid>,
+    mut commands: Commands,
+) {
+    let door = door_query
+        .get(event.entity)
+        .unwrap();
+
+    iterate_blocks(
+        ivec3(door.position.x - 1, 69, door.position.y - 1),
+        ivec3(door.position.x + 1, 72, door.position.y + 1),
+        |IVec3 { x, y, z}| {
+            let bat = commands.spawn((
+                Mob::new(BatMetadata {
+                    flags: 0,
+                    hanging: false,
+                }),
+                Transform {
+                    position: dvec3(x as f64 + 0.5, y as f64 - 0.655, z as f64 + 0.5),
+                    yaw: 0.0,
+                    pitch: 0.0,
+                }
+            )).id();
+
+            commands.spawn((
+                Mob::new_object(ObjectMetadata::FallingBlock {
+                    block: door.get_block(),
+                }),
+                Transform {
+                    position: dvec3(x as f64 + 0.5, y as f64, z as f64 + 0.5),
+                    yaw: 0.0,
+                    pitch: 0.0,
+                },
+                Riding(bat)
+            ));
+
+            chunks.set_block_at(Block::Air, (x, y, z))
+        }
+    );
+}
+
+pub fn open_entrance_doors(
+    door_query: Query<(Entity, &Door)>,
+    mut commands: Commands,
+) {
+    for (entity, door) in door_query.iter() {
+        if let DoorType::Entrance = door.door_type {
+            commands.trigger(OpenDoorEvent { entity })
         }
     }
 }

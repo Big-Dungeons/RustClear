@@ -1,7 +1,8 @@
 pub mod chunk_grid;
 
+use crate::entity::{BevyEntityExt, MobSpawnQueries};
 use crate::network::packets::BytesMutExt;
-use crate::network::protocol::play::clientbound::ChunkData;
+use crate::network::protocol::play::clientbound::{ChunkData, EntityAttach};
 use crate::{block::Block, chunk::chunk_grid::ChunkGrid};
 use bevy::{app::{App, Plugin}, prelude::Entity};
 use bytes::BytesMut;
@@ -170,6 +171,31 @@ impl Chunk {
     pub fn remove_entity(&mut self, entity: Entity) {
         debug_assert!(self.entities.contains(&entity), "entity was never in this chunk");
         self.entities.remove(&entity);
+    }
+
+    pub fn write_spawn_entities(&mut self, query: &MobSpawnQueries) {
+        for entity in &self.entities {
+            let (mob, transform) = query.mob_query.get(*entity).unwrap(); 
+            mob.write_spawn_packet(*entity, transform, &mut self.packet_buffer)
+        }
+        // order might not be correct due to nature of systems,
+        // so 2nd pass it is
+        for entity in &self.entities {
+            if let Ok(riding) = query.riding_query.get(*entity) {
+                self.packet_buffer.write_packet(&EntityAttach {
+                    entity_id: entity.mc_id(),
+                    vehicle_id: riding.mc_id(),
+                    leash: false,
+                })
+            }
+        }
+    }
+
+    pub fn write_despawn_entities(&mut self, query: &MobSpawnQueries) {
+        for entity in &self.entities {
+            let (mob, _) = query.mob_query.get(*entity).unwrap();
+            mob.write_despawn_packet(*entity, &mut self.packet_buffer);
+        }
     }
 }
 

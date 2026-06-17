@@ -25,6 +25,10 @@ entity_metadata! {
         Zombie {
             12 => pub is_baby: bool = false,
             13 => pub is_villager: bool = false,
+        },
+        Bat {
+            0 => pub flags: u8 = 0,
+            16 => pub hanging: bool = false,
         }
     }
 }
@@ -32,8 +36,9 @@ entity_metadata! {
 impl EntityMetadata {
     pub fn get_variant(&self) -> EntityVariant {
         match self {
-            EntityMetadata::Player(_) => EntityVariant::Zombie,
+            EntityMetadata::Player(_) => unreachable!(),
             EntityMetadata::Zombie(_) => EntityVariant::Zombie,
+            EntityMetadata::Bat(_) => EntityVariant::Bat,
         }
     }
 }
