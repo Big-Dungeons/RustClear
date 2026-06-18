@@ -4,33 +4,61 @@ use crate::core::chunk::chunk_grid::ChunkGrid;
 use crate::dungeon::rooms::room_data::RoomData;
 use crate::dungeon::DUNGEON_ORIGIN;
 use bevy::prelude::{Component, Entity, Query, ResMut, Resource};
-use glam::{ivec3, IVec3, USizeVec2};
+use glam::{ivec3, DVec3, IVec3, USizeVec2, Vec3Swizzles};
 use std::cmp::{max, min};
+use bevy::ecs::entity::EntityHashSet;
 
 pub mod room_data;
 
-// might have issue where rooms overlap, but im pretty sure its fixed
-pub fn load_rooms_into_world(
-    query: Query<(&Room, &RoomData)>,
-    mut chunks: ResMut<ChunkGrid>
-) {
-    for (room, data) in query.iter() {
-        for (index, block) in data.block_data.iter().enumerate() {
-            if *block == Block::Air {
-                continue;
-            }
+#[derive(Component)]
+pub struct Room {
+    pub rotation: Rotation,
+    pub corner: IVec3,
 
-            let index = index as i32;
-            let x = index % data.width;
-            let z = (index / data.width) % data.length;
-            let y = data.bottom + index / (data.width * data.length);
+    pub players: EntityHashSet,
+}
 
-            let bp = ivec3(x, y, z).rotate(room.rotation);
-            let block = block.rotate(room.rotation);
+impl Room {
 
-            chunks.set_block_at(block, (room.corner.x + bp.x, y, room.corner.z + bp.z));
+    pub fn new(segments: &[(RoomSegment, u8)], data: &RoomData) -> Self {
+        let rotation = rotation_from_segments(segments);
+        let segments: &[&RoomSegment] = &segments.iter().map(|(s, _)| s).collect::<Vec<_>>();
+        let corner = corner_position(segments, data, rotation);
+        Self {
+            rotation,
+            corner,
+            players: EntityHashSet::new(),
         }
     }
+
+    pub fn relative_to_world(&self, position: IVec3) -> IVec3 {
+        let mut position = position.rotate(self.rotation);
+        position.x += self.corner.x;
+        position.z += self.corner.z;
+        position
+    }
+
+    pub fn insert_player(&mut self, entity: Entity) {
+        debug_assert!(!self.players.contains(&entity), "player already in this room");
+        self.players.insert(entity);
+    }
+
+    pub fn remove_player(&mut self, entity: Entity) {
+        debug_assert!(self.players.contains(&entity), "player was never in this room");
+        self.players.remove(&entity);
+    }
+}
+
+#[derive(Component, Copy, Clone)]
+pub struct RoomSegment {
+    pub x: usize,
+    pub z: usize,
+}
+
+#[derive(Component)]
+pub struct RoomNeighbours {
+    pub room: Entity,
+    pub door: Entity,
 }
 
 #[derive(Resource)]
@@ -54,44 +82,19 @@ impl RoomGridLookup {
         if index >= 36 { return; }
         self.0[index] = Some(entity);
     }
-}
 
-#[derive(Component)]
-pub struct Room {
-    pub rotation: Rotation,
-    pub corner: IVec3,
-}
-
-impl Room {
-
-    pub fn new(segments: &[(RoomSegment, u8)], data: &RoomData) -> Self {
-        let rotation = rotation_from_segments(segments);
-        let segments: &[&RoomSegment] = &segments.iter().map(|(s, _)| s).collect::<Vec<_>>();
-        let corner = corner_position(segments, data, rotation);
-        Self {
-            rotation,
-            corner
+    // maybe make a custom system param,
+    // that has room grid lookup and room aabb query and gets rooms
+    // from world position given that it should be inside a room
+    pub fn get_from_world(&self, position: DVec3) -> Option<Entity> {
+        let position = position.as_ivec3();
+        if position.x < DUNGEON_ORIGIN.x || position.z < DUNGEON_ORIGIN.y {
+            return None;
         }
+
+        let grid_position = ((position.xz() - DUNGEON_ORIGIN) / 32).as_usizevec2();
+        self.get(grid_position)
     }
-
-    pub fn relative_to_world(&self, position: IVec3) -> IVec3 {
-        let mut position = position.rotate(self.rotation);
-        position.x += self.corner.x;
-        position.z += self.corner.z;
-        position
-    }
-}
-
-#[derive(Component, Copy, Clone)]
-pub struct RoomSegment {
-    pub x: usize,
-    pub z: usize,
-}
-
-#[derive(Component)]
-pub struct RoomNeighbours {
-    pub room: Entity,
-    pub door: Entity,
 }
 
 // since y-axis with room segment positions is flipped (y+ is south)
@@ -181,5 +184,29 @@ fn corner_position(segments: &[&RoomSegment], data: &RoomData, rotation: Rotatio
         Rotation::Clockwise90 => ivec3(x + data.length - 1, y, z),
         Rotation::Clockwise180 => ivec3(x + data.length - 1, y, z + data.width - 1),
         Rotation::CounterClockwise90 => ivec3(x, y, z + data.width - 1),
+    }
+}
+
+// might have issue where rooms overlap, but im pretty sure its fixed
+pub fn load_rooms_into_world(
+    query: Query<(&Room, &RoomData)>,
+    mut chunks: ResMut<ChunkGrid>
+) {
+    for (room, data) in query.iter() {
+        for (index, block) in data.block_data.iter().enumerate() {
+            if *block == Block::Air {
+                continue;
+            }
+
+            let index = index as i32;
+            let x = index % data.width;
+            let z = (index / data.width) % data.length;
+            let y = data.bottom + index / (data.width * data.length);
+
+            let bp = ivec3(x, y, z).rotate(room.rotation);
+            let block = block.rotate(room.rotation);
+
+            chunks.set_block_at(block, (room.corner.x + bp.x, y, room.corner.z + bp.z));
+        }
     }
 }

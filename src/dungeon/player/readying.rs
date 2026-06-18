@@ -4,7 +4,7 @@ use crate::core::network::protocol::play::clientbound::Chat;
 use crate::core::player::{GlobalPacketBuffer, Username};
 use crate::dungeon::DungeonState;
 
-#[derive(Component, Deref)]
+#[derive(Component, Deref, Default)]
 pub struct ReadyStatus(pub bool);
 
 #[derive(EntityEvent)]

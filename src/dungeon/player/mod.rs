@@ -1,5 +1,6 @@
 pub mod readying;
 pub mod sidebar;
+pub mod update_room;
 
 use crate::core::block::block_rotation::Rotate;
 use crate::core::entity::components::transform::Transform;
@@ -15,6 +16,7 @@ use crate::dungeon::rooms::Room;
 use crate::dungeon::EntranceRoom;
 use bevy::prelude::*;
 use glam::ivec3;
+use crate::dungeon::player::update_room::CurrentRoom;
 
 fn init_player(
     event: On<Add, Player>,
@@ -41,10 +43,10 @@ fn init_player(
         .entity(event.entity)
         .insert((
             Sidebar::new("SBScoreboard"),
-            ReadyStatus(false)
+            CurrentRoom::default(), // this handles inserting player into room already, so should be fine
+            ReadyStatus::default(),
         ));
 }
-
 
 fn add_items(event: On<Add, Player>, mut query: Query<&mut Inventory>) {
     let mut inventory = query.get_mut(event.entity).unwrap();
@@ -67,6 +69,7 @@ impl Plugin for DungeonPlayerPlugin {
             .add_observer(add_items)
             .add_observer(readying::on_player_ready)
             .add_systems(Update, (
+                update_room::update_room,
                 sidebar::update_sidebar,
                 use_aspect_of_the_void
             ));

@@ -5,21 +5,28 @@ use crate::dungeon::DungeonState;
 use bevy::prelude::{Entity, Query, Res, State};
 use indoc::{formatdoc, indoc};
 use std::time::{SystemTime, UNIX_EPOCH};
+use crate::dungeon::player::update_room::CurrentRoom;
+use crate::dungeon::rooms::room_data::RoomData;
 
 pub(super) fn update_sidebar(
-    mut sidebar_query: Query<(Entity, &mut Sidebar)>,
+    mut query: Query<(Entity, &mut Sidebar, &CurrentRoom)>,
     player_query: Query<(Entity, &Username, &ReadyStatus)>,
+    room_query: Query<&RoomData>,
     state: Res<State<DungeonState>>,
 ) {
-    for (client, mut sidebar) in sidebar_query.iter_mut() {
+    for (client, mut sidebar, current_room) in query.iter_mut() {
         sidebar.push("§e§lSKYBLOCK");
 
         let now = chrono::Local::now();
         let date = now.format("%m/%d/%y").to_string();
         let time = now.format("%-I:%M%P").to_string();
 
-        // todo:
-        let room_id = "";
+        let room_id = if let Some(entity) = **current_room && let Ok(data) = room_query.get(entity) {
+            data.id.as_str()
+        } else {
+            ""
+        };
+
         let (sb_month, sb_day, day_suffix) = get_sb_date();
 
         sidebar.push(&formatdoc! {r#"
@@ -66,13 +73,14 @@ pub(super) fn update_sidebar(
                 );
 
                 let clear_percent = 0;
+                let score = 0;
+                
                 sidebar.push(&formatdoc! {r#"
                         Keys: §c■ {has_blood_key} §8■ §a{wither_key_count}x
                         Time elapsed: §a§a{time}
                         Cleared: §c{clear_percent}% §r§8({score})
 
                     "#,
-                    score = "0",
                 });
 
                 if player_query.iter().len() == 1 {
