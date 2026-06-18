@@ -1,5 +1,5 @@
-use crate::entity::components::transform::Transform;
-use crate::player::Player;
+use crate::core::entity::components::transform::Transform;
+use crate::core::player::Player;
 use bevy::ecs::{component::Component, query::With, system::Query};
 use bevy::prelude::Without;
 

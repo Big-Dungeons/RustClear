@@ -1,4 +1,4 @@
-use crate::block::Block;
+use crate::core::block::Block;
 use crate::dungeon::rooms::RoomSegment;
 use bevy::prelude::{Component, Deref, Resource};
 use include_dir::include_dir;

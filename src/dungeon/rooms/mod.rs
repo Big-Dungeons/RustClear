@@ -1,6 +1,6 @@
-use crate::block::block_rotation::{Rotate, Rotation};
-use crate::block::Block;
-use crate::chunk::chunk_grid::ChunkGrid;
+use crate::core::block::block_rotation::{Rotate, Rotation};
+use crate::core::block::Block;
+use crate::core::chunk::chunk_grid::ChunkGrid;
 use crate::dungeon::rooms::room_data::RoomData;
 use crate::dungeon::DUNGEON_ORIGIN;
 use bevy::prelude::{Component, Entity, Query, ResMut, Resource};

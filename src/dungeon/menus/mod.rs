@@ -1,10 +1,10 @@
-use crate::dungeon::dungeon_player::{PlayerReadyEvent, ReadyStatus};
+use crate::core::network::protocol::nbt::{NBTNode, TAG_COMPOUND_ID};
+use crate::core::player::inventory::item_stack::ItemStack;
+use crate::core::player::inventory::menu::{CloseMenu, Menu, MenuClick, UpdateMenu};
+use crate::core::player::inventory::SyncInventory;
+use crate::core::player::{PlayerSkin, Username, Uuid};
+use crate::dungeon::player::readying::{PlayerReadyEvent, ReadyStatus};
 use crate::dungeon::DungeonState;
-use crate::network::protocol::nbt::{NBTNode, TAG_COMPOUND_ID};
-use crate::player::inventory::item_stack::ItemStack;
-use crate::player::inventory::menu::{Menu, MenuClick, UpdateMenu};
-use crate::player::inventory::{CloseMenu, SyncInventory};
-use crate::player::{PlayerSkin, Username, Uuid};
 use bevy::app::{App, Plugin};
 use bevy::prelude::{ChildOf, Commands, Component, On, OnEnter, Query, With};
 use std::collections::HashMap;

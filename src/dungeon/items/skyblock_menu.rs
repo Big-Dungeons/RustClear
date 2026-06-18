@@ -1,5 +1,5 @@
-use crate::player::inventory::item_stack::ItemStack;
-use crate::player::inventory::Item;
+use crate::core::player::inventory::item_stack::ItemStack;
+use crate::core::player::inventory::Item;
 use indoc::indoc;
 
 pub struct SkyblockMenu;

@@ -5,8 +5,8 @@ pub mod pickaxe;
 use crate::dungeon::items::etherwarp::AspectOfTheVoid;
 use crate::dungeon::items::pickaxe::Pickaxe;
 use crate::dungeon::items::skyblock_menu::SkyblockMenu;
-use crate::player::inventory::item_stack::ItemStack;
-use crate::player::inventory::Item;
+use crate::core::player::inventory::item_stack::ItemStack;
+use crate::core::player::inventory::Item;
 use enum_dispatch::enum_dispatch;
 
 #[enum_dispatch(Item)]

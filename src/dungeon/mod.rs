@@ -1,25 +1,27 @@
+use crate::core::network::packets::BytesMutExt;
+use crate::core::network::protocol::play::clientbound::Chat;
+use crate::core::player::GlobalPacketBuffer;
+use crate::core::types::chat_component::ChatComponent;
 use crate::dungeon::door::DoorLookup;
-use crate::dungeon::dungeon_player::DungeonPlayerPlugin;
 use crate::dungeon::entities::DungeonEntityPlugin;
 use crate::dungeon::menus::DungeonMenuPlugin;
+use crate::dungeon::player::DungeonPlayerPlugin;
 use crate::dungeon::rooms::room_data::RoomDataLookup;
 use crate::dungeon::rooms::RoomGridLookup;
-use crate::network::packets::BytesMutExt;
-use crate::network::protocol::play::clientbound::Chat;
-use crate::player::GlobalPacketBuffer;
-use crate::types::chat_component::ChatComponent;
 use crate::TEST_WORLD;
 use bevy::app::{App, PreUpdate};
 use bevy::prelude::{AppExtStates, Entity, NextState, OnEnter, Plugin, ResMut, Resource, State, States, Update};
+use door::door_opening;
 use glam::IVec2;
 
-mod door;
+
+mod player;
 mod entities;
-mod dungeon_player;
 pub mod items;
-pub mod rooms;
-mod loading;
 mod menus;
+pub mod rooms;
+mod door;
+mod loading;
 
 pub const DUNGEON_ORIGIN: IVec2 = IVec2::new(-200, -200);
 
@@ -90,9 +92,9 @@ impl Plugin for DungeonPlugin {
             .insert_resource(RoomDataLookup::default())
             .insert_resource(RoomGridLookup::default())
             .insert_resource(DoorLookup::default())
-            .add_observer(door::open_door)
+            .add_observer(door_opening::open_door)
             .add_systems(OnEnter(DungeonState::Started { ticks: 0 }), door::open_entrance_doors)
             .add_systems(PreUpdate, update_dungeon_state)
-            .add_systems(Update, door::handle_opening_door);
+            .add_systems(Update, door_opening::handle_opening_door);
     }
 }

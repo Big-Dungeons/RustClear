@@ -1,19 +1,16 @@
-use crate::block::block_parameters::BlockColor;
-use crate::block::block_rotation::{Rotate, Rotation};
-use crate::block::Block;
-use crate::chunk::chunk_grid::{iterate_blocks, ChunkGrid};
-use crate::entity::components::riding::Riding;
-use crate::entity::components::transform::Transform;
-use crate::entity::entity_metadata::BatMetadata;
-use crate::entity::object_metadata::ObjectMetadata;
-use crate::entity::Mob;
+use crate::core::block::block_parameters::BlockColor;
+use crate::core::block::block_rotation::{Rotate, Rotation};
+use crate::core::block::Block;
+use crate::core::chunk::chunk_grid::ChunkGrid;
+use crate::dungeon::door::door_opening::OpenDoorEvent;
 use bevy::prelude::*;
-use glam::{dvec3, ivec3, IVec2, IVec3};
+use glam::{ivec3, IVec2};
 use rand::prelude::IndexedRandom;
 use rand::rng;
 use std::collections::HashMap;
 
 pub mod door_positions;
+pub mod door_opening;
 
 #[derive(Default, Resource, Deref, DerefMut)]
 pub struct DoorLookup(HashMap<IVec2, Entity>);
@@ -47,95 +44,6 @@ impl Door {
             DoorType::Blood => Block::StainedHardenedClay { color: BlockColor::Red }
         }
     }
-}
-
-#[derive(EntityEvent)]
-pub struct OpenDoorEvent {
-    pub entity: Entity
-}
-
-#[derive(Component)]
-pub(super) struct OpeningDoor {
-    position: IVec2,
-    ticks_left: usize,
-}
-
-pub(super) fn handle_opening_door(
-    mut query: Query<(Entity, &mut OpeningDoor, &Children)>,
-    mut block_query: Query<&mut Transform>,
-    mut chunks: ResMut<ChunkGrid>,
-    mut commands: Commands,
-) {
-    for (entity, mut door, children) in query.iter_mut() {
-        door.ticks_left -= 1;
-
-        if door.ticks_left == 0 {
-            iterate_blocks(
-                ivec3(door.position.x - 1, 69, door.position.y - 1),
-                ivec3(door.position.x + 1, 72, door.position.y + 1),
-                |position| {
-                    chunks.set_block_at(Block::Air, position);
-                }
-            );
-            commands.entity(entity).despawn();
-        }
-
-        for entity in children.iter() {
-            let mut transform = block_query.get_mut(entity).unwrap();
-            transform.position.y -= 0.25;
-            transform.set_changed();
-        }
-    }
-}
-
-pub fn open_door(
-    event: On<OpenDoorEvent>,
-    door_query: Query<&Door>,
-    mut chunks: ResMut<ChunkGrid>,
-    mut commands: Commands,
-) {
-    let door = door_query
-        .get(event.entity)
-        .unwrap();
-
-    let opening_door = commands.spawn(OpeningDoor {
-        position: door.position,
-        ticks_left: 20,
-    }).id();
-
-    iterate_blocks(
-        ivec3(door.position.x - 1, 69, door.position.y - 1),
-        ivec3(door.position.x + 1, 72, door.position.y + 1),
-        |IVec3 { x, y, z}| {
-            let bat = commands.spawn((
-                Mob::new(BatMetadata {
-                    flags: 0,
-                    hanging: false,
-                }),
-                Transform {
-                    position: dvec3(x as f64 + 0.5, y as f64 - 0.655, z as f64 + 0.5),
-                    yaw: 0.0,
-                    pitch: 0.0,
-                },
-                ChildOf(opening_door),
-            )).id();
-
-            commands.spawn((
-                Mob::new_object(ObjectMetadata::FallingBlock {
-                    block: door.get_block(),
-                }),
-                Transform {
-                    position: dvec3(x as f64 + 0.5, y as f64, z as f64 + 0.5),
-                    yaw: 0.0,
-                    pitch: 0.0,
-                },
-                Riding(bat),
-                ChildOf(opening_door),
-            ));
-
-            chunks.set_block_at(Block::Barrier, (x, y, z))
-        }
-    );
 }
 
 pub fn open_entrance_doors(
