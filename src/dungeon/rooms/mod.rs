@@ -9,6 +9,7 @@ use std::cmp::{max, min};
 use bevy::ecs::entity::EntityHashSet;
 
 pub mod room_data;
+pub mod secrets;
 
 #[derive(Component)]
 pub struct Room {

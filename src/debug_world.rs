@@ -2,13 +2,15 @@ use crate::core::block::Block;
 use crate::core::chunk::chunk_grid::ChunkGrid;
 use crate::core::entity::components::transform::Transform;
 use crate::core::player::Player;
+use crate::core::types::aabb::AABB;
+use crate::dungeon::rooms::secrets::item_secret::{ItemSecret, ItemSecretType};
+use crate::dungeon::rooms::secrets::SecretSpawnArea;
 use bevy::app::{App, Startup};
-use bevy::prelude::{Add, DetectChangesMut, On, Plugin, Query, ResMut};
-use glam::dvec3;
+use bevy::prelude::{Add, Commands, DetectChangesMut, On, Plugin, Query, ResMut};
+use glam::{dvec3, ivec3};
 
 // purpose: flat world to test stuff without loading a dungeon
 pub struct DebugWorld;
-
 
 impl Plugin for DebugWorld {
     fn build(&self, app: &mut App) {
@@ -17,13 +19,24 @@ impl Plugin for DebugWorld {
 }
 
 fn load(
-    mut chunks: ResMut<ChunkGrid>
+    mut chunks: ResMut<ChunkGrid>,
+    mut commands: Commands,
 ) {
     for x in -100..0 {
         for z in -100..0 {
             chunks.set_block_at(Block::Stone, (x, 0, z))
         }
     }
+
+    commands.spawn((
+        ItemSecret {
+            spawn_location: ivec3(-15, 1, -15),
+            item_type: ItemSecretType::SpiritLeap,
+        },
+        SecretSpawnArea {
+            aabb: AABB::new(dvec3(-20.0, 0.0, -20.0), dvec3(-10.0, 20.0, -10.0)),
+        }
+    ));
 }
 
 fn spawn_player(

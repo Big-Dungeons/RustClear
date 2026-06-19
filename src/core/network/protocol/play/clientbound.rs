@@ -115,6 +115,13 @@ pub struct SpawnMob {
     pub metadata: EntityMetadata,
 }
 
+#[identified_packet(id=0x12)]
+#[derive(Debug, PacketSerializable)]
+pub struct EntityVelocity {
+    pub entity_id: VarInt,
+    pub velocity: I16Vec3
+}
+
 #[identified_packet(id=0x13)]
 #[derive(Debug)]
 pub struct DestroyEntity {
@@ -155,6 +162,13 @@ pub struct EntityAttach {
     pub entity_id: i32,
     pub vehicle_id: i32,
     pub leash: bool,
+}
+
+#[identified_packet(id=0x1c)]
+#[derive(Debug, PacketSerializable)]
+pub struct PacketEntityMetadata<T: PacketSerializable> {
+    pub entity_id: VarInt,
+    pub metadata: T,
 }
 
 #[identified_packet(id=0x21)]

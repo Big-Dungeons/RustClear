@@ -10,9 +10,10 @@ use crate::core::entity::entity_metadata::EntityMetadata;
 use crate::core::entity::object_metadata::ObjectMetadata;
 use crate::core::network::packets::BytesMutExt;
 use crate::core::network::protocol::packed::{packed_position, packed_rotation};
-use crate::core::network::protocol::play::clientbound::{DestroyEntity, EntityAttach, EntityTeleport, EntityYawRotate, SpawnMob, SpawnObject};
+use crate::core::network::protocol::play::clientbound::{DestroyEntity, EntityAttach, EntityTeleport, EntityYawRotate, PacketEntityMetadata, SpawnMob, SpawnObject};
 use crate::core::network::protocol::var_int::VarInt;
 use crate::core::player::PlayerPacketBuffer;
+use crate::core::types::aabb::AABB;
 use bevy::ecs::entity::{Entities, EntityIndex};
 use bevy::ecs::system::SystemParam;
 use bevy::prelude::*;
@@ -20,7 +21,7 @@ use bytes::BytesMut;
 use components::transform;
 use components::transform::OldTransform;
 use components::transform::Transform;
-use glam::I16Vec3;
+use glam::{dvec3, DVec3, I16Vec3};
 
 pub trait BevyEntityExt {
     fn mc_id(&self) -> i32;
@@ -36,6 +37,21 @@ impl BevyEntityExt for Entity {
         entities
             .resolve_from_index(EntityIndex::from_raw_u32(id as u32).unwrap())
             .entity()
+    }
+}
+
+#[derive(Component)]
+pub struct EntitySize {
+    pub half_width: f64,
+    pub height: f64,
+}
+
+impl EntitySize {
+    pub fn aabb(&self, position: DVec3) -> AABB {
+        AABB::new(
+            position - dvec3(self.half_width, 0.0, self.half_width),
+            position + dvec3(self.half_width, self.height, self.half_width),
+        )
     }
 }
 
@@ -63,7 +79,7 @@ impl Mob {
     }
 
     pub fn write_spawn_packet(&self, entity: Entity, transform: &Transform, buffer: &mut BytesMut) {
-        match self.mob_type {
+        match &self.mob_type {
             MobType::Entity(metadata) => {
                 buffer.write_packet(&SpawnMob {
                     entity_id: VarInt(entity.mc_id()),
@@ -73,7 +89,7 @@ impl Mob {
                     pitch: packed_rotation(transform.pitch),
                     head_yaw: packed_rotation(transform.yaw),
                     velocity: I16Vec3::ZERO,
-                    metadata,
+                    metadata: *metadata,
                 });
                 buffer.write_packet(&EntityYawRotate {
                     entity_id: VarInt(entity.mc_id()),
@@ -89,7 +105,13 @@ impl Mob {
                     yaw: packed_rotation(transform.yaw),
                     data: metadata.get_data(),
                     velocity: Default::default(),
-                })
+                });
+                if let Some(entity_metadata) = metadata.get_entity_metadata() {
+                    buffer.write_packet(&PacketEntityMetadata {
+                        entity_id: VarInt(entity.mc_id()),
+                        metadata: entity_metadata,
+                    })
+                }
             }
         }
     }
@@ -277,7 +299,8 @@ impl Plugin for MobPlugin {
             ))
             .add_systems(PostUpdate, (
                 components::riding::update_transform,
-                on_mob_move
+                on_mob_move,
+                components::velocity::write_velocity_packet,
             ).chain())
             .add_systems(Last, transform::set_old_transform);
     }

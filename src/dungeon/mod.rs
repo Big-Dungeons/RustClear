@@ -7,13 +7,13 @@ use crate::dungeon::entities::DungeonEntityPlugin;
 use crate::dungeon::menus::DungeonMenuPlugin;
 use crate::dungeon::player::DungeonPlayerPlugin;
 use crate::dungeon::rooms::room_data::RoomDataLookup;
+use crate::dungeon::rooms::secrets::DungeonSecretsPlugin;
 use crate::dungeon::rooms::RoomGridLookup;
 use crate::TEST_WORLD;
 use bevy::app::{App, PreUpdate};
 use bevy::prelude::{AppExtStates, Entity, NextState, OnEnter, Plugin, ResMut, Resource, State, States, Update};
 use door::door_opening;
 use glam::IVec2;
-
 
 mod player;
 mod entities;
@@ -88,6 +88,7 @@ impl Plugin for DungeonPlugin {
                 DungeonPlayerPlugin,
                 DungeonEntityPlugin,
                 DungeonMenuPlugin,
+                DungeonSecretsPlugin,
             ))
             .insert_resource(RoomDataLookup::default())
             .insert_resource(RoomGridLookup::default())

@@ -1,5 +1,5 @@
 use bevy::prelude::{Component, Deref, DerefMut, Query};
-use glam::{DVec3, Vec3};
+use glam::{dvec3, DVec3, IVec3, Vec3};
 use std::f32::consts::PI;
 
 #[derive(Debug, Default, Copy, Clone, PartialEq, Component)]
@@ -13,6 +13,14 @@ impl Transform {
     pub fn new(position: impl Into<DVec3>) -> Self {
         Self {
             position: position.into(),
+            yaw: 0.0,
+            pitch: 0.0,
+        }
+    }
+
+    pub fn new_centered(position: IVec3) -> Self {
+        Self {
+            position: position.as_dvec3() + dvec3(0.5, 0.0, 0.5),
             yaw: 0.0,
             pitch: 0.0,
         }
