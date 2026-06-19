@@ -46,7 +46,7 @@ pub fn open_door(
                 Mob::new_object(ObjectMetadata::FallingBlock {
                     block: door.get_block(),
                 }),
-                Transform::default(),
+                Transform::new(position.as_dvec3() + dvec3(0.5, 0.0, 0.5)),
                 ChildOf(bat),
                 Riding(bat),
             ));
