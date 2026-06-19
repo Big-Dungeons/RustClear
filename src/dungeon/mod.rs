@@ -90,9 +90,6 @@ impl Plugin for DungeonPlugin {
                 DungeonMenuPlugin,
                 DungeonSecretsPlugin,
             ))
-            .insert_resource(RoomDataLookup::default())
-            .insert_resource(RoomGridLookup::default())
-            .insert_resource(DoorLookup::default())
             .add_observer(door_opening::open_door)
             .add_systems(OnEnter(DungeonState::Started { ticks: 0 }), door::open_entrance_doors)
             .add_systems(PreUpdate, update_dungeon_state)
