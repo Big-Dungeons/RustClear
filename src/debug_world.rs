@@ -4,7 +4,7 @@ use crate::core::entity::components::transform::Transform;
 use crate::core::player::Player;
 use crate::core::types::aabb::AABB;
 use crate::dungeon::rooms::secrets::item_secret::{ItemSecret, ItemSecretType};
-use crate::dungeon::rooms::secrets::SecretSpawnArea;
+use crate::dungeon::rooms::secrets::{Secret, SecretSpawnArea};
 use bevy::app::{App, Startup};
 use bevy::prelude::{Add, Commands, DetectChangesMut, On, Plugin, Query, ResMut};
 use glam::{dvec3, ivec3};
@@ -29,12 +29,15 @@ fn load(
     }
 
     commands.spawn((
+        Secret {
+            collected: false,
+        },
         ItemSecret {
             spawn_location: ivec3(-15, 1, -15),
             item_type: ItemSecretType::SpiritLeap,
         },
         SecretSpawnArea {
-            aabb: AABB::new(dvec3(-20.0, 0.0, -20.0), dvec3(-10.0, 20.0, -10.0)),
+            aabb: AABB::new(dvec3(-23.0, 0.0, -23.0), dvec3(-7.0, 20.0, -7.0)),
         }
     ));
 }

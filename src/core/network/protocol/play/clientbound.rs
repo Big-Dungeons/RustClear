@@ -61,6 +61,13 @@ pub struct PositionLook {
     pub flags: EnumSet<Relative>,
 }
 
+#[identified_packet(id=0x0d)]
+#[derive(Debug, PacketSerializable)]
+pub struct CollectItem {
+    pub item_entity_id: VarInt,
+    pub player_entity_id: VarInt,
+}
+
 #[identified_packet(id=0x0e)]
 #[derive(Debug)]
 pub struct SpawnObject {

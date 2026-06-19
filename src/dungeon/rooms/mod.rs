@@ -17,8 +17,10 @@ pub struct Room {
     pub rotation: Rotation,
     pub corner: IVec3,
 
-    pub secrets: EntityHashSet,
     pub players: EntityHashSet,
+
+    pub secrets: EntityHashSet,
+    pub found_secrets: usize,
 }
 
 impl Room {
@@ -30,8 +32,9 @@ impl Room {
         Self {
             rotation,
             corner,
-            secrets: EntityHashSet::new(),
             players: EntityHashSet::new(),
+            secrets: EntityHashSet::new(),
+            found_secrets: 0,
         }
     }
 

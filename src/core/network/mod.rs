@@ -1,5 +1,5 @@
 use crate::core::entity::components::transform::Transform;
-use crate::core::entity::BevyEntityExt;
+use crate::core::entity::{BevyEntityExt, EntitySize};
 use crate::core::network::client::{run_client, ClientId, ConnectionState};
 use crate::core::network::packets::BytesMutExt;
 use crate::core::network::protocol::play::clientbound::JoinGame;
@@ -177,6 +177,10 @@ pub fn recv_network_messages(
                             InventoryState::default(),
                             KnownState::default(),
                             SentInteract(false),
+                            EntitySize {
+                                half_width: 0.3,
+                                height: 1.8,
+                            }
                         ));
 
                         lookup.insert(client_id, id);

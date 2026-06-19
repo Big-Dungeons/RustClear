@@ -1,17 +1,18 @@
 use crate::core::player::sidebar::Sidebar;
 use crate::core::player::Username;
 use crate::dungeon::player::readying::ReadyStatus;
+use crate::dungeon::player::update_room::CurrentRoom;
+use crate::dungeon::rooms::room_data::RoomData;
+use crate::dungeon::rooms::Room;
 use crate::dungeon::DungeonState;
 use bevy::prelude::{Entity, Query, Res, State};
 use indoc::{formatdoc, indoc};
 use std::time::{SystemTime, UNIX_EPOCH};
-use crate::dungeon::player::update_room::CurrentRoom;
-use crate::dungeon::rooms::room_data::RoomData;
 
 pub(super) fn update_sidebar(
     mut query: Query<(Entity, &mut Sidebar, &CurrentRoom)>,
     player_query: Query<(Entity, &Username, &ReadyStatus)>,
-    room_query: Query<&RoomData>,
+    room_query: Query<(&Room, &RoomData)>,
     state: Res<State<DungeonState>>,
 ) {
     for (client, mut sidebar, current_room) in query.iter_mut() {
@@ -21,7 +22,7 @@ pub(super) fn update_sidebar(
         let date = now.format("%m/%d/%y").to_string();
         let time = now.format("%-I:%M%P").to_string();
 
-        let room_id = if let Some(entity) = **current_room && let Ok(data) = room_query.get(entity) {
+        let room_id = if let Some(entity) = **current_room && let Ok((_, data)) = room_query.get(entity) {
             data.id.as_str()
         } else {
             ""
@@ -97,6 +98,11 @@ pub(super) fn update_sidebar(
                     sidebar.new_line();
                 }
             }
+        }
+
+        // todo: remove once, the display above hotbar is implemented
+        if let Some(entity) = **current_room && let Ok((room, _)) = room_query.get(entity) {
+            sidebar.push(&format!("secrets: {}/{}", room.found_secrets, room.secrets.len()));
         }
 
         sidebar.push("§emc.hypixel.net");

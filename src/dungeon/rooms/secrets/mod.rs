@@ -12,9 +12,10 @@ use crate::dungeon::rooms::Room;
 use bevy::prelude::*;
 use glam::dvec3;
 
-// marker
 #[derive(Component)]
-pub struct Secret;
+pub struct Secret {
+    pub collected: bool,
+}
 
 // marker
 #[derive(Component)]
@@ -62,25 +63,39 @@ fn on_player_enter_area(
     }
 }
 
-pub struct DungeonSecretsPlugin;
+#[derive(EntityEvent)]
+pub struct CollectSecretEvent {
+    pub entity: Entity
+}
 
-impl Plugin for DungeonSecretsPlugin {
-    fn build(&self, app: &mut App) {
-        app
-            .add_observer(item_secret::on_secret_spawn)
-            .add_observer(chest_secret::on_secret_spawn)
-            .add_observer(on_player_enter_room)
-            .add_systems(PostStartup, load_secrets)
-            .add_systems(Update, on_player_enter_area);
+pub fn update_room_secrets(
+    event: On<CollectSecretEvent>,
+    mut secret_query: Query<(&mut Secret, Option<&ChildOf>)>,
+    mut room_query: Query<&mut Room>,
+) {
+    let (mut secret, child_of) = secret_query
+        .get_mut(event.entity)
+        .expect("Used collect secret event on non-secret entity");
+
+    secret.collected = true;
+    if let Some(child_of) = child_of {
+        let mut room = room_query
+            .get_mut(child_of.parent())
+            .expect("secret's parent wasn't a room");
+
+        room.found_secrets += 1;
     }
 }
 
-pub fn load_secrets(mut room_query: Query<(&mut Room, &RoomData)>, mut commands: Commands) {
-    for (mut room, data) in room_query.iter_mut() {
+pub fn load_secrets(mut room_query: Query<(Entity, &mut Room, &RoomData)>, mut commands: Commands) {
+    for (entity, mut room, data) in room_query.iter_mut() {
         for secret in data.secrets.iter() {
-            let mut secret_entity = commands.spawn(
-                Secret,
-            );
+            let mut secret_entity = commands.spawn((
+                Secret {
+                    collected: false
+                },
+                ChildOf(entity)
+            ));
 
             let world_position = room.relative_to_world(secret.position);
 
@@ -122,5 +137,22 @@ pub fn load_secrets(mut room_query: Query<(&mut Room, &RoomData)>, mut commands:
 
             room.secrets.insert(secret_entity.id());
         }
+    }
+}
+
+pub struct DungeonSecretsPlugin;
+
+impl Plugin for DungeonSecretsPlugin {
+    fn build(&self, app: &mut App) {
+        app
+            .add_observer(item_secret::on_secret_spawn)
+            .add_observer(chest_secret::on_secret_spawn)
+            .add_observer(on_player_enter_room)
+            .add_observer(update_room_secrets)
+            .add_systems(PostStartup, load_secrets)
+            .add_systems(Update, (
+                on_player_enter_area,
+                item_secret::pickup_item_secret
+            ));
     }
 }
