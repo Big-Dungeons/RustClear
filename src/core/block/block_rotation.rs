@@ -14,6 +14,32 @@ pub trait Rotate {
     fn rotate(&self, rotation: Rotation) -> Self;
 }
 
+impl Rotate for Rotation {
+    fn rotate(&self, rotation: Rotation) -> Self {
+        match rotation {
+            Rotation::None => *self,
+            Rotation::Clockwise90 => match self {
+                Rotation::None => Rotation::Clockwise90,
+                Rotation::Clockwise90 => Rotation::Clockwise180,
+                Rotation::Clockwise180 => Rotation::CounterClockwise90,
+                Rotation::CounterClockwise90 => Rotation::None,
+            },
+            Rotation::Clockwise180 => match self {
+                Rotation::None => Rotation::Clockwise180,
+                Rotation::Clockwise90 => Rotation::CounterClockwise90,
+                Rotation::Clockwise180 => Rotation::None,
+                Rotation::CounterClockwise90 => Rotation::Clockwise90,
+            },
+            Rotation::CounterClockwise90 => match self {
+                Rotation::None => Rotation::CounterClockwise90,
+                Rotation::Clockwise90 => Rotation::None,
+                Rotation::Clockwise180 => Rotation::Clockwise90,
+                Rotation::CounterClockwise90 => Rotation::Clockwise180,
+            },
+        }
+    }
+}
+
 impl Rotate for f32 {
     fn rotate(&self, rotation: Rotation) -> f32 {
         let offset = match rotation {

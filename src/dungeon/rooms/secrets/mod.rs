@@ -1,8 +1,11 @@
 pub mod item_secret;
+mod chest_secret;
 
+use crate::core::block::block_rotation::Rotate;
 use crate::core::entity::components::transform::Transform;
 use crate::core::types::aabb::AABB;
 use crate::dungeon::rooms::room_data::{RoomData, SecretSpawnCondition, SecretType};
+use crate::dungeon::rooms::secrets::chest_secret::ChestSecret;
 use crate::dungeon::rooms::secrets::item_secret::{ItemSecret, ItemSecretType};
 use crate::dungeon::rooms::Room;
 use bevy::prelude::*;
@@ -47,6 +50,7 @@ impl Plugin for DungeonSecretsPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_observer(item_secret::on_secret_spawn)
+            .add_observer(chest_secret::on_secret_spawn)
             .add_systems(PostStartup, load_secrets)
             .add_systems(Update, on_player_enter_area);
     }
@@ -62,7 +66,13 @@ pub fn load_secrets(mut room_query: Query<(&mut Room, &RoomData)>, mut commands:
             let world_position = room.relative_to_world(secret.position);
 
             match secret.secret_type {
-                SecretType::Chest { .. } => {}
+                SecretType::Chest { rotation } => {
+                    let rotation = rotation.rotate(room.rotation);
+                    secret_entity.insert(ChestSecret {
+                        spawn_location: world_position,
+                        rotation,
+                    });
+                }
                 SecretType::Item => {
                     secret_entity.insert(ItemSecret {
                         spawn_location: world_position,
