@@ -10,6 +10,7 @@ use bevy::ecs::entity::EntityHashSet;
 
 pub mod room_data;
 pub mod secrets;
+pub mod room_enter;
 
 #[derive(Component)]
 pub struct Room {

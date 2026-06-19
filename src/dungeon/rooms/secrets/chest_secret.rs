@@ -20,7 +20,6 @@ pub(super) fn on_secret_spawn(
 ) {
     if let Ok(secret) = query.get(event.entity) {
         let direction = Direction::North.rotate(secret.rotation);
-        // add 
         chunks.set_block_at(Block::Chest { direction }, secret.spawn_location);
     }
 }

@@ -8,7 +8,7 @@ use crate::dungeon::player::DungeonPlayerPlugin;
 use crate::dungeon::rooms::secrets::DungeonSecretsPlugin;
 use crate::TEST_WORLD;
 use bevy::app::{App, PreUpdate};
-use bevy::prelude::{AppExtStates, Entity, NextState, OnEnter, Plugin, ResMut, Resource, State, States, Update};
+use bevy::prelude::{AppExtStates, Entity, IntoScheduleConfigs, NextState, OnEnter, Plugin, Res, ResMut, Resource, State, States, Update};
 use door::door_opening;
 use glam::IVec2;
 
@@ -90,6 +90,12 @@ impl Plugin for DungeonPlugin {
             .add_observer(door_opening::open_door)
             .add_systems(OnEnter(DungeonState::Started { ticks: 0 }), door::open_entrance_doors)
             .add_systems(PreUpdate, update_dungeon_state)
-            .add_systems(Update, door_opening::handle_opening_door);
+            .add_systems(Update, (
+                door_opening::handle_opening_door,
+                rooms::room_enter::update_room_entered.run_if(|state: Res<State<DungeonState>>| {
+                    // temp, need to make dungeon state not have the tick directly
+                    matches!(state.get(), DungeonState::Started { .. })
+                })
+            ));
     }
 }

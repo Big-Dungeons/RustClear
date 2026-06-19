@@ -5,6 +5,7 @@ use crate::core::block::block_rotation::Rotate;
 use crate::core::entity::components::transform::Transform;
 use crate::core::types::aabb::AABB;
 use crate::dungeon::rooms::room_data::{RoomData, SecretSpawnCondition, SecretType};
+use crate::dungeon::rooms::room_enter::RoomEntered;
 use crate::dungeon::rooms::secrets::chest_secret::ChestSecret;
 use crate::dungeon::rooms::secrets::item_secret::{ItemSecret, ItemSecretType};
 use crate::dungeon::rooms::Room;
@@ -26,6 +27,23 @@ pub struct SecretSpawnArea {
 
 #[derive(Component)]
 struct SecretSpawned;
+
+fn on_player_enter_room(
+    event: On<Insert, RoomEntered>,
+    room_query: Query<&Room>,
+    secret_query: Query<Entity, (With<SpawnOnRoomEnter>, Without<SecretSpawned>)>,
+    mut commands: Commands,
+) {
+    let room = room_query
+        .get(event.entity)
+        .unwrap();
+
+    for entity in secret_query.iter_many(&room.secrets) {
+        commands
+            .entity(entity)
+            .insert(SecretSpawned);
+    }
+}
 
 fn on_player_enter_area(
     player_query: Query<&Transform, Changed<Transform>>,
@@ -51,6 +69,7 @@ impl Plugin for DungeonSecretsPlugin {
         app
             .add_observer(item_secret::on_secret_spawn)
             .add_observer(chest_secret::on_secret_spawn)
+            .add_observer(on_player_enter_room)
             .add_systems(PostStartup, load_secrets)
             .add_systems(Update, on_player_enter_area);
     }
@@ -96,7 +115,9 @@ pub fn load_secrets(mut room_query: Query<(&mut Room, &RoomData)>, mut commands:
                         aabb,
                     });
                 }
-                SecretSpawnCondition::EnterRoom => {}
+                SecretSpawnCondition::EnterRoom => {
+                    secret_entity.insert(SpawnOnRoomEnter);
+                }
             }
 
             room.secrets.insert(secret_entity.id());

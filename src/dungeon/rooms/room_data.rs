@@ -23,12 +23,12 @@ pub struct RoomData {
     pub length: i32,
     pub height: i32,
 
+    #[serde(default, deserialize_with = "deserialize_secrets")]
+    pub secrets: Vec<SecretData>,
+
     // do we need to keep this once loaded into world?
     #[serde(deserialize_with = "deserialize_blocks")]
     pub block_data: Vec<Block>,
-
-    #[serde(default, deserialize_with = "deserialize_secrets")]
-    pub secrets: Vec<SecretData>
 }
 
 impl RoomData {
@@ -42,8 +42,8 @@ impl RoomData {
             width: 31,
             length: 31,
             height: 30,
+            secrets: Vec::new(),
             block_data: Vec::new(),
-            secrets: Vec::new()
         }
     }
 }
@@ -136,17 +136,6 @@ pub enum RoomType {
     Rare,
 }
 
-fn deserialize_blocks<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<Block>, D::Error> {
-    let hex_data = String::deserialize(d)?;
-    let mut block_data: Vec<Block> = Vec::new();
-    for index in (0..hex_data.len()).step_by(4) {
-        let hex_str = hex_data.get(index..index + 4).ok_or_else(|| Error::custom("invalid hex length"))?;
-        let num = u16::from_str_radix(hex_str, 16).map_err(Error::custom)?;
-        block_data.push(Block::from(num));
-    }
-    Ok(block_data)
-}
-
 #[derive(Debug, Copy, Clone)]
 pub enum SecretType {
     Chest {
@@ -237,6 +226,18 @@ fn deserialize_secrets<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<SecretData
     }
 
     Ok(secret_data)
+}
+
+
+fn deserialize_blocks<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<Block>, D::Error> {
+    let hex_data = String::deserialize(d)?;
+    let mut block_data: Vec<Block> = Vec::new();
+    for index in (0..hex_data.len()).step_by(4) {
+        let hex_str = hex_data.get(index..index + 4).ok_or_else(|| Error::custom("invalid hex length"))?;
+        let num = u16::from_str_radix(hex_str, 16).map_err(Error::custom)?;
+        block_data.push(Block::from(num));
+    }
+    Ok(block_data)
 }
 
 #[test]
