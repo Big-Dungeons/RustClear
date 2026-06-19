@@ -1,11 +1,14 @@
+use crate::core::block::block_rotation::Rotation;
 use crate::core::block::Block;
 use crate::dungeon::rooms::RoomSegment;
 use bevy::prelude::{Component, Deref, Resource};
+use glam::IVec3;
 use include_dir::include_dir;
 use rand::prelude::IteratorRandom;
 use rand::rng;
 use serde::de::Error;
 use serde::{Deserialize, Deserializer};
+use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 
 #[derive(Deserialize, Component, Clone)]
@@ -23,6 +26,9 @@ pub struct RoomData {
     // do we need to keep this once loaded into world?
     #[serde(deserialize_with = "deserialize_blocks")]
     pub block_data: Vec<Block>,
+
+    #[serde(default, deserialize_with = "deserialize_secrets")]
+    pub secrets: Vec<SecretData>
 }
 
 impl RoomData {
@@ -36,7 +42,8 @@ impl RoomData {
             width: 31,
             length: 31,
             height: 30,
-            block_data: vec![],
+            block_data: Vec::new(),
+            secrets: Vec::new()
         }
     }
 }
@@ -138,6 +145,98 @@ fn deserialize_blocks<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<Block>, D::
         block_data.push(Block::from(num));
     }
     Ok(block_data)
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum SecretType {
+    Chest {
+        rotation: Rotation,
+    },
+    Item,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum SecretSpawnCondition {
+    EnterArea {
+        width: i32,
+        height: i32,
+    },
+    EnterRoom,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct SecretData {
+    pub position: IVec3,
+    pub secret_type: SecretType,
+    pub spawn_condition: SecretSpawnCondition,
+}
+
+fn deserialize_secrets<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<SecretData>, D::Error> {
+    let input: Vec<Value> = Vec::deserialize(d)?;
+    let mut secret_data = Vec::with_capacity(input.len());
+
+    for item in input {
+        let obj = item.as_object().ok_or_else(|| Error::custom("not object"))?;
+        let position = {
+            let mut parts = obj["position"]
+                .as_str()
+                .ok_or_else(|| Error::custom("missing position"))?
+                .split(',');
+
+            IVec3::new(
+                parts.next().unwrap().parse().unwrap(),
+                parts.next().unwrap().parse().unwrap(),
+                parts.next().unwrap().parse().unwrap(),
+            )
+        };
+
+        let secret_type = match obj["type"].as_str().ok_or_else(|| Error::custom("no secret type"))? {
+            "chest" => {
+                let rotation = match obj["rotation"]
+                    .as_str()
+                    .ok_or_else(|| Error::custom("no rotation for chest"))?
+                {
+                    "None" => Rotation::None,
+                    "Clockwise90" => Rotation::Clockwise90,
+                    "Clockwise180" => Rotation::Clockwise180,
+                    "CounterClockwise90" => Rotation::CounterClockwise90,
+                    other => return Err(Error::custom(format!("unknown rotation {other}")))
+                };
+                SecretType::Chest {
+                    rotation,
+                }
+            }
+            "item" => {
+                SecretType::Item
+            }
+            other => return Err(Error::custom(format!("unknown secret {other}")))
+        };
+
+        let obj_spawn_condition = obj["spawn_condition"]
+            .as_object()
+            .ok_or_else(|| Error::custom("no spawn condition"))?;
+
+        let spawn_condition = match obj_spawn_condition["type"].as_str().unwrap() {
+            "enter_area" => {
+                let width = obj_spawn_condition["width"].as_i64().unwrap() as i32;
+                let height = obj_spawn_condition["height"].as_i64().unwrap() as i32;
+                SecretSpawnCondition::EnterArea {
+                    width,
+                    height,
+                }
+            }
+            "enter_room" => SecretSpawnCondition::EnterRoom,
+            other => return Err(Error::custom(format!("unknown spawn condition {other}")))
+        };
+
+        secret_data.push(SecretData {
+            position,
+            secret_type,
+            spawn_condition,
+        });
+    }
+
+    Ok(secret_data)
 }
 
 #[test]

@@ -2,7 +2,11 @@ pub mod item_secret;
 
 use crate::core::entity::components::transform::Transform;
 use crate::core::types::aabb::AABB;
+use crate::dungeon::rooms::room_data::{RoomData, SecretSpawnCondition, SecretType};
+use crate::dungeon::rooms::secrets::item_secret::{ItemSecret, ItemSecretType};
+use crate::dungeon::rooms::Room;
 use bevy::prelude::*;
+use glam::dvec3;
 
 // marker
 #[derive(Component)]
@@ -43,6 +47,49 @@ impl Plugin for DungeonSecretsPlugin {
     fn build(&self, app: &mut App) {
         app
             .add_observer(item_secret::on_secret_spawn)
+            .add_systems(PostStartup, load_secrets)
             .add_systems(Update, on_player_enter_area);
+    }
+}
+
+pub fn load_secrets(mut room_query: Query<(&mut Room, &RoomData)>, mut commands: Commands) {
+    for (mut room, data) in room_query.iter_mut() {
+        for secret in data.secrets.iter() {
+            let mut secret_entity = commands.spawn(
+                Secret,
+            );
+
+            let world_position = room.relative_to_world(secret.position);
+
+            match secret.secret_type {
+                SecretType::Chest { .. } => {}
+                SecretType::Item => {
+                    secret_entity.insert(ItemSecret {
+                        spawn_location: world_position,
+                        item_type: ItemSecretType::SpiritLeap,
+                    });
+                },
+            }
+
+            match secret.spawn_condition {
+                SecretSpawnCondition::EnterArea { width, height } => {
+                    let width = width as f64 / 2.0;
+                    let height = height as f64 / 2.0;
+                    let position = world_position.as_dvec3() + dvec3(0.5, 0.0, 0.5);
+
+                    let aabb = AABB::new(
+                        position - dvec3(width, height, width),
+                        position + dvec3(width, height, width),
+                    );
+
+                    secret_entity.insert(SecretSpawnArea {
+                        aabb,
+                    });
+                }
+                SecretSpawnCondition::EnterRoom => {}
+            }
+
+            room.secrets.insert(secret_entity.id());
+        }
     }
 }
