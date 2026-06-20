@@ -1,11 +1,12 @@
 use crate::core::player::sidebar::Sidebar;
 use crate::core::player::Username;
+use crate::dungeon;
 use crate::dungeon::player::readying::ReadyStatus;
 use crate::dungeon::player::update_room::CurrentRoom;
 use crate::dungeon::rooms::room_data::RoomData;
 use crate::dungeon::rooms::Room;
-use crate::dungeon::DungeonState;
-use bevy::prelude::{Entity, Query, Res, State};
+use crate::dungeon::{CurrentDungeonState, DungeonState, DungeonTimer};
+use bevy::prelude::{Entity, Query};
 use indoc::{formatdoc, indoc};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -13,7 +14,8 @@ pub(super) fn update_sidebar(
     mut query: Query<(Entity, &mut Sidebar, &CurrentRoom)>,
     player_query: Query<(Entity, &Username, &ReadyStatus)>,
     room_query: Query<(&Room, &RoomData)>,
-    state: Res<State<DungeonState>>,
+    state: CurrentDungeonState,
+    dungeon_timer: DungeonTimer,
 ) {
     for (client, mut sidebar, current_room) in query.iter_mut() {
         sidebar.push("§e§lSKYBLOCK");
@@ -40,19 +42,20 @@ pub(super) fn update_sidebar(
         "#});
 
         match state.get() {
-            DungeonState::NotStarted | DungeonState::Starting { .. } => {
+            DungeonState::NotStarted | DungeonState::Starting => {
                 for (_, username, ready) in player_query.iter() {
                     let color = if ready.0 { 'a' } else { 'c' };
                     sidebar.push(&format!("§{color}[M] §7{}", username.0));
                 }
                 sidebar.new_line();
-                if let DungeonState::Starting { starts_in_ticks } = state.get() {
+                if let DungeonState::Starting = state.get() {
+                    let starts_in_ticks = dungeon::STARTING_TIME - dungeon_timer.elapsed();
                     sidebar.push(&format!("Starting in: §a0§a:0{}", (starts_in_ticks / 20) + 1));
                     sidebar.new_line();
                 }
             }
-            DungeonState::Started { ticks } => {
-                let seconds = ticks / 20;
+            DungeonState::Started => {
+                let seconds = dungeon_timer.elapsed() / 20;
                 let time = if seconds >= 60 {
                     let minutes = seconds / 60;
                     let seconds = seconds % 60;
@@ -105,6 +108,7 @@ pub(super) fn update_sidebar(
             sidebar.push(&format!("secrets: {}/{}", room.found_secrets, room.secrets.len()));
         }
 
+        sidebar.new_line();
         sidebar.push("§emc.hypixel.net");
     }
 }
@@ -137,6 +141,5 @@ fn get_sb_date() -> (&'static str, u64, &'static str) {
             _ => "th",
         },
     };
-    // sb_month = SKYBLOCK_MONTHS[month], day = day_of_month, day_suffix = suffix
     (SKYBLOCK_MONTHS[month], day_of_month, suffix)
 }

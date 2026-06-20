@@ -14,7 +14,7 @@ pub struct DungeonMenuPlugin;
 impl Plugin for DungeonMenuPlugin {
     fn build(&self, app: &mut App) {
         app
-            .add_systems(OnEnter(DungeonState::Started { ticks: 0 }), on_dungeon_start)
+            .add_systems(OnEnter(DungeonState::Started), on_dungeon_start)
             .add_observer(on_menu_update)
             .add_observer(on_click);
     }

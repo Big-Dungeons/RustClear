@@ -13,11 +13,11 @@ use crate::dungeon::items::pickaxe::Pickaxe;
 use crate::dungeon::items::skyblock_menu::SkyblockMenu;
 use crate::dungeon::items::DungeonItem;
 use crate::dungeon::player::readying::ReadyStatus;
+use crate::dungeon::player::update_room::CurrentRoom;
 use crate::dungeon::rooms::Room;
 use crate::dungeon::EntranceRoom;
 use bevy::prelude::*;
 use glam::ivec3;
-use crate::dungeon::player::update_room::CurrentRoom;
 
 fn init_player(
     event: On<Add, Player>,

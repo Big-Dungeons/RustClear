@@ -19,6 +19,7 @@ pub struct CorePlugin {
 impl Plugin for CorePlugin {
     fn build(&self, app: &mut App) {
         app
+            .insert_resource(ServerTick(0))
             .insert_resource(ChunkGrid::new(self.chunk_bounds))
             .add_plugins((
                 NetworkPlugin {
@@ -26,6 +27,29 @@ impl Plugin for CorePlugin {
                 },
                 MobPlugin,
                 PlayerPlugin,
-            ));
+            ))
+            .add_systems(Last, increment_server_tick)
+        ;
     }
+}
+
+#[derive(Resource)]
+pub struct ServerTick(i64);
+
+pub fn run_every_ticks<const N: i64>(tick: Res<ServerTick>) -> bool {
+    tick.now() % N == 0
+}
+
+impl ServerTick {
+    pub fn now(&self) -> i64 {
+        self.0
+    }
+
+    pub fn elapsed_since(&self, tick: i64) -> i64 {
+        self.0.saturating_sub(tick)
+    }
+}
+
+fn increment_server_tick(mut ticks: ResMut<ServerTick>) {
+    *ticks = ServerTick(ticks.0 + 1)
 }

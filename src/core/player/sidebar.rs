@@ -62,6 +62,10 @@ impl Sidebar {
     }
 
     pub fn flush_packets(&mut self, packet_buffer: &mut BytesMut) {
+        if self.lines.is_empty() {
+            return;
+        }
+
         let old_length = self.previous_lines.len();
         let new_length = self.lines.len();
         let is_size_diff = new_length != old_length;
