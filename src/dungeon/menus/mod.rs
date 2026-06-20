@@ -4,10 +4,10 @@ use crate::core::player::inventory::menu::{CloseMenu, Menu, MenuClick, UpdateMen
 use crate::core::player::inventory::SyncInventory;
 use crate::core::player::{PlayerSkin, Username, Uuid};
 use crate::dungeon::player::readying::{PlayerReadyEvent, ReadyStatus};
+use crate::dungeon::rng::DHashMap;
 use crate::dungeon::DungeonState;
 use bevy::app::{App, Plugin};
 use bevy::prelude::{ChildOf, Commands, Component, On, OnEnter, Query, With};
-use std::collections::HashMap;
 
 pub struct DungeonMenuPlugin;
 
@@ -53,9 +53,13 @@ pub fn on_menu_update(
         .name(&format!("§7{}", username.0));
 
     player_head.nbt_get_or_insert().nodes.insert("SkullOwner".to_string(), NBTNode::Compound({
-        let mut map = HashMap::new();
+        let mut map = DHashMap::default();
         map.insert("Id".to_string(), NBTNode::String(uuid.hyphenated().to_string()));
-        let vec = vec![NBTNode::Compound(HashMap::from([("Value".to_string(), NBTNode::String(skin.texture.clone()))]))];
+
+        let mut textures = DHashMap::default();
+        textures.insert("Value".to_string(), NBTNode::String(skin.texture.clone()));
+        let vec = vec![NBTNode::Compound(textures)];
+
         map.insert("textures".to_string(), NBTNode::List { type_id: TAG_COMPOUND_ID, children: vec });
         map
     }));

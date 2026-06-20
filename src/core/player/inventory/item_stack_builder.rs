@@ -1,7 +1,7 @@
 use crate::core::network::protocol::nbt::{NBTNode, NBT, TAG_COMPOUND_ID, TAG_STRING_ID};
 use crate::core::player::inventory::item_stack::ItemStack;
+use crate::dungeon::rng::DHashMap;
 use bevy::utils::default;
-use std::collections::HashMap;
 
 impl ItemStack {
     pub fn item_id(mut self, item_id: usize) -> Self {
@@ -58,7 +58,7 @@ impl ItemStack {
 
         if let Some(NBTNode::List { children, .. }) = nbt.nodes.get_mut("ench") {
             children.push(NBTNode::Compound({
-                let mut map = HashMap::new();
+                let mut map = DHashMap::default();
                 map.insert("id".into(), NBTNode::Short(id));
                 map.insert("lvl".into(), NBTNode::Short(lvl));
                 map
@@ -88,9 +88,9 @@ impl ItemStack {
     }
 }
 
-fn with_compound<F>(nodes: &mut HashMap<String, NBTNode>, node: &str, func: F)
+fn with_compound<F>(nodes: &mut DHashMap<String, NBTNode>, node: &str, func: F)
 where
-    F: FnOnce(&mut HashMap<String, NBTNode>),
+    F: FnOnce(&mut DHashMap<String, NBTNode>),
 {
     nodes
         .entry(node.into())

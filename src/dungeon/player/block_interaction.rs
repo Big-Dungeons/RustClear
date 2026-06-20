@@ -1,7 +1,7 @@
-use std::collections::HashMap;
+use crate::core::player::interact::PlayerRightClick;
+use crate::dungeon::rng::DHashMap;
 use bevy::prelude::*;
 use glam::IVec3;
-use crate::core::player::interact::PlayerRightClick;
 
 #[derive(Component)]
 pub struct BlockInteractable {
@@ -49,7 +49,7 @@ pub(super) fn on_remove_block_interactable(
 }
 
 #[derive(Default, Resource, Deref, DerefMut)]
-pub(super) struct BlockInteractableLookup(HashMap<IVec3, Entity>);
+pub(super) struct BlockInteractableLookup(DHashMap<IVec3, Entity>);
 
 
 pub(super) fn on_player_interact(

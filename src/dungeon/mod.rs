@@ -19,6 +19,7 @@ mod menus;
 pub mod rooms;
 mod door;
 mod loading;
+pub mod rng;
 
 pub const DUNGEON_ORIGIN: IVec2 = IVec2::new(-200, -200);
 

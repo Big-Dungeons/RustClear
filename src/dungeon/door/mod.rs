@@ -3,17 +3,17 @@ use crate::core::block::block_rotation::{Rotate, Rotation};
 use crate::core::block::Block;
 use crate::core::chunk::chunk_grid::ChunkGrid;
 use crate::dungeon::door::door_opening::OpenDoorEvent;
+use crate::dungeon::rng::DHashMap;
 use bevy::prelude::*;
 use glam::{ivec3, IVec2};
 use rand::prelude::IndexedRandom;
 use rand::rng;
-use std::collections::HashMap;
 
 pub mod door_positions;
 pub mod door_opening;
 
 #[derive(Default, Resource, Deref, DerefMut)]
-pub struct DoorLookup(HashMap<IVec2, Entity>);
+pub struct DoorLookup(DHashMap<IVec2, Entity>);
 
 #[derive(Hash, Eq, PartialEq)]
 pub enum DoorType {
@@ -127,7 +127,7 @@ pub fn load_doors_into_world(
 
 // would be nice somehow better format so it's not hardcoded
 #[derive(Resource, Deref)]
-pub struct DoorBlocks(HashMap<DoorType, Vec<Vec<Block>>>);
+pub struct DoorBlocks(DHashMap<DoorType, Vec<Vec<Block>>>);
 
 impl Default for DoorBlocks {
     fn default() -> Self {
@@ -147,7 +147,7 @@ impl Default for DoorBlocks {
             })
             .collect();
 
-        DoorBlocks(HashMap::from_iter(
+        DoorBlocks(DHashMap::from_iter(
             vec![
                 (DoorType::Blood, vec![door_data[0].clone()]),
                 (DoorType::Entrance, vec![door_data[1].clone()]),

@@ -21,6 +21,7 @@ rand = "0.9.4"
 indoc = "2.0.7"
 enum_dispatch = "0.3.13"
 chrono = "0.4.45"
+rapidhash = "4.4.1"
 
 [lints.clippy]
 type_complexity = "allow"

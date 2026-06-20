@@ -2,9 +2,9 @@
 
 use crate::core::network::packets::packet_deserializable::{get_vec, PacketDeserializable};
 use crate::core::network::packets::packet_serializable::PacketSerializable;
+use crate::dungeon::rng::DHashMap;
 use anyhow::bail;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
-use std::collections::HashMap;
 
 pub const TAG_END_ID: u8 = 0;
 pub const TAG_BYTE_ID: u8 = 1;
@@ -27,7 +27,7 @@ pub const TAG_LONG_ARRAY_ID: u8 = 12;
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct NBT {
     pub root_name: String,
-    pub nodes: HashMap<String, NBTNode>,
+    pub nodes: DHashMap<String, NBTNode>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -41,7 +41,7 @@ pub enum NBTNode {
     ByteArray(Vec<u8>),
     String(String),
     List { type_id: u8, children: Vec<NBTNode> },
-    Compound(HashMap<String, NBTNode>),
+    Compound(DHashMap<String, NBTNode>),
     IntArray(Vec<i32>),
     LongArray(Vec<i64>),
 }
@@ -290,7 +290,7 @@ fn read_node(buffer: &mut Bytes, tag: u8) -> anyhow::Result<NBTNode> {
             NBTNode::List { type_id, children: nodes }
         }
         TAG_COMPOUND_ID => {
-            let mut nodes: HashMap<String, NBTNode> = HashMap::new();
+            let mut nodes: DHashMap<String, NBTNode> = DHashMap::default();
             loop {
                 let tag = u8::read(buffer)?;
                 if tag == TAG_END_ID {

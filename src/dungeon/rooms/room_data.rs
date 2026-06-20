@@ -1,5 +1,6 @@
 use crate::core::block::block_rotation::Rotation;
 use crate::core::block::Block;
+use crate::dungeon::rng::{DHashMap, DHashSet};
 use crate::dungeon::rooms::RoomSegment;
 use bevy::prelude::{Component, Deref, Resource};
 use glam::IVec3;
@@ -9,7 +10,7 @@ use rand::rng;
 use serde::de::Error;
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 #[derive(Deserialize, Component, Clone)]
 pub struct RoomData {
@@ -256,12 +257,12 @@ fn room_data_test() {
 
 // maybe have it static so roomdata can be singleton?, or drop once loaded
 #[derive(Resource, Deref)]
-pub struct RoomDataLookup(pub HashMap<usize, RoomData>);
+pub struct RoomDataLookup(pub DHashMap<usize, RoomData>);
 
 impl Default for RoomDataLookup {
     fn default() -> Self {
         let rooms_directory = include_dir!("DungeonData/room_data/");
-        let room_data: HashMap<usize, RoomData> = rooms_directory
+        let room_data: DHashMap<usize, RoomData> = rooms_directory
             .entries()
             .iter()
             .map(|file| {
@@ -285,7 +286,7 @@ pub fn random_room_data(
     room_lookup: &RoomDataLookup,
     room_type: RoomType,
     room_shape: RoomShape,
-    existing_room_ids: &HashSet<String>,
+    existing_room_ids: &DHashSet<String>,
 ) -> RoomData {
     room_lookup
         .values()
