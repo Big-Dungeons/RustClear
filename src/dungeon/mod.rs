@@ -85,7 +85,7 @@ fn update_dungeon_state(
             next_state.set(DungeonState::Started);
             dungeon_timer.update_to_now();
         } else if elapsed % 20 == 0 {
-            let seconds_remaining = (100 - elapsed) / 20;
+            let seconds_remaining = (STARTING_TIME - elapsed) / 20;
             let s = if seconds_remaining == 1 { "" } else { "s" };
             let str = format!("§aStarting in {} second{}.", seconds_remaining, s);
 

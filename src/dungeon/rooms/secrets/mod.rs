@@ -3,6 +3,7 @@ pub mod chest_secret;
 
 use crate::core::block::block_rotation::Rotate;
 use crate::core::entity::components::transform::Transform;
+use crate::core::run_every_ticks;
 use crate::core::types::aabb::AABB;
 use crate::dungeon::rooms::room_data::{RoomData, SecretSpawnCondition, SecretType};
 use crate::dungeon::rooms::room_enter::RoomEntered;
@@ -161,7 +162,7 @@ impl Plugin for DungeonSecretsPlugin {
             .add_observer(update_room_secrets)
             .add_systems(PostStartup, load_secrets)
             .add_systems(Update, (
-                on_player_enter_area,
+                on_player_enter_area.run_if(run_every_ticks::<20>),
                 item_secret::pickup_item_secret
             ));
     }
