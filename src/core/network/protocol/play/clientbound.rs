@@ -204,6 +204,26 @@ impl BlockChange {
     }
 }
 
+#[identified_packet(id=0x24)]
+#[derive(Debug, PacketSerializable)]
+pub struct BlockAction {
+    pub position: BlockPosition,
+    pub event_id: u8,
+    pub event_data: u8,
+    pub block_id: VarInt
+}
+
+impl BlockAction {
+    pub fn new(position: IVec3, event_id: u8, event_data: u8, block: Block) -> Self {
+        Self {
+            position: BlockPosition(position),
+            event_id,
+            event_data,
+            block_id: VarInt(((block.get_blockstate_id() >> 4) & 4095) as i32),
+        }
+    }
+}
+
 #[identified_packet(id=0x2d)]
 #[derive(Debug, PacketSerializable)]
 pub struct OpenWindow {

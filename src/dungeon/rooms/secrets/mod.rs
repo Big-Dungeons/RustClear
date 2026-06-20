@@ -1,12 +1,12 @@
 pub mod item_secret;
-mod chest_secret;
+pub mod chest_secret;
 
 use crate::core::block::block_rotation::Rotate;
 use crate::core::entity::components::transform::Transform;
 use crate::core::types::aabb::AABB;
 use crate::dungeon::rooms::room_data::{RoomData, SecretSpawnCondition, SecretType};
 use crate::dungeon::rooms::room_enter::RoomEntered;
-use crate::dungeon::rooms::secrets::chest_secret::ChestSecret;
+use crate::dungeon::rooms::secrets::chest_secret::{ChestSecret, ChestSecretType};
 use crate::dungeon::rooms::secrets::item_secret::{ItemSecret, ItemSecretType};
 use crate::dungeon::rooms::Room;
 use bevy::prelude::*;
@@ -77,6 +77,10 @@ pub fn update_room_secrets(
         .get_mut(event.entity)
         .expect("Used collect secret event on non-secret entity");
 
+    if secret.collected {
+        return;
+    }
+
     secret.collected = true;
     if let Some(child_of) = child_of {
         let mut room = room_query
@@ -103,6 +107,10 @@ pub fn load_secrets(mut room_query: Query<(Entity, &mut Room, &RoomData)>, mut c
                 SecretType::Chest { rotation } => {
                     let rotation = rotation.rotate(room.rotation);
                     secret_entity.insert(ChestSecret {
+                        // todo: rng choose, and if lever related set locked to true
+                        chest_type: ChestSecretType::Blessing {
+                            locked: false
+                        },
                         spawn_location: world_position,
                         rotation,
                     });
@@ -110,6 +118,7 @@ pub fn load_secrets(mut room_query: Query<(Entity, &mut Room, &RoomData)>, mut c
                 SecretType::Item => {
                     secret_entity.insert(ItemSecret {
                         spawn_location: world_position,
+                        // todo: rng choose
                         item_type: ItemSecretType::SpiritLeap,
                     });
                 },
@@ -147,6 +156,7 @@ impl Plugin for DungeonSecretsPlugin {
         app
             .add_observer(item_secret::on_secret_spawn)
             .add_observer(chest_secret::on_secret_spawn)
+            .add_observer(chest_secret::on_interact)
             .add_observer(on_player_enter_room)
             .add_observer(update_room_secrets)
             .add_systems(PostStartup, load_secrets)
