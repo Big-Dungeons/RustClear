@@ -3,11 +3,10 @@ use crate::core::block::block_rotation::{Rotate, Rotation};
 use crate::core::block::Block;
 use crate::core::chunk::chunk_grid::ChunkGrid;
 use crate::dungeon::door::door_opening::OpenDoorEvent;
-use crate::dungeon::rng::DHashMap;
+use crate::dungeon::rng::{DHashMap, SeededRng};
 use bevy::prelude::*;
 use glam::{ivec3, IVec2};
 use rand::prelude::IndexedRandom;
-use rand::rng;
 
 pub mod door_positions;
 pub mod door_opening;
@@ -60,7 +59,8 @@ pub fn open_entrance_doors(
 pub fn load_doors_into_world(
     query: Query<&Door>,
     mut chunks: ResMut<ChunkGrid>,
-    door_blocks: Local<DoorBlocks>
+    door_blocks: Local<DoorBlocks>,
+    mut rng: ResMut<SeededRng>,
 ) {
     for door in query.iter() {
         let IVec2 { x, y } = door.position;
@@ -99,8 +99,7 @@ pub fn load_doors_into_world(
         };
 
         let block_data = door_blocks.get(&door_type).unwrap();
-        // todo: seeded
-        let chosen = block_data.choose(&mut rng()).unwrap();
+        let chosen = block_data.choose(&mut rng).unwrap();
 
         let rotation = match door.axis {
             DoorAxis::Z => Rotation::None,

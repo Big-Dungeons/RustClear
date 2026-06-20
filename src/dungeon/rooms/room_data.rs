@@ -1,12 +1,11 @@
 use crate::core::block::block_rotation::Rotation;
 use crate::core::block::Block;
-use crate::dungeon::rng::{DHashMap, DHashSet};
+use crate::dungeon::rng::{DHashMap, DHashSet, SeededRng};
 use crate::dungeon::rooms::RoomSegment;
 use bevy::prelude::{Component, Deref, Resource};
 use glam::IVec3;
 use include_dir::include_dir;
 use rand::prelude::IteratorRandom;
-use rand::rng;
 use serde::de::Error;
 use serde::{Deserialize, Deserializer};
 use serde_json::Value;
@@ -287,6 +286,7 @@ pub fn random_room_data(
     room_type: RoomType,
     room_shape: RoomShape,
     existing_room_ids: &DHashSet<String>,
+    mut rng: &mut SeededRng
 ) -> RoomData {
     room_lookup
         .values()
@@ -295,9 +295,7 @@ pub fn random_room_data(
             && data.shape == room_shape
             && !existing_room_ids.contains(&data.name)
         })
-        .choose(&mut rng())
-        // todo:
-        // .choose(&mut seeded_rng())
+        .choose(&mut rng)
         .unwrap_or(&RoomData::dummy())
         .clone()
 }

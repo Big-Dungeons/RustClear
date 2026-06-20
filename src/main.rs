@@ -27,7 +27,9 @@ fn main() {
                 offset: IVec2::splat(13),
             },
         },
-        DungeonPlugin,
+        DungeonPlugin {
+            seed: rand::random(),
+        },
     ));
 
     if TEST_WORLD {

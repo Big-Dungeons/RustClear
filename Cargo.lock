@@ -2483,6 +2483,7 @@ version = "4.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b5e48930979c155e2f33aa36ab3119b5ee81332beb6482199a8ecd6029b80b59"
 dependencies = [
+ "rand_core",
  "rustversion",
 ]
 

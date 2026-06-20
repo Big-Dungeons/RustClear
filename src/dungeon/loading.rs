@@ -8,7 +8,7 @@ use crate::dungeon::door::door_positions::DOOR_POSITIONS;
 use crate::dungeon::door::{Door, DoorAxis, DoorLookup, DoorType};
 use crate::dungeon::entities::npc::NPCBehaviour;
 use crate::dungeon::menus::MortMenu;
-use crate::dungeon::rng::{DHashMap, DHashSet};
+use crate::dungeon::rng::{DHashMap, DHashSet, SeededRng};
 use crate::dungeon::rooms::room_data::{random_room_data, RoomData, RoomDataLookup, RoomShape, RoomType};
 use crate::dungeon::rooms::{Room, RoomGridLookup, RoomSegment};
 use crate::dungeon::{door, rooms, DungeonState, EntranceRoom, DUNGEON_ORIGIN};
@@ -16,7 +16,6 @@ use bevy::app::App;
 use bevy::prelude::{default, ChildOf, Commands, Deref, Entity, IntoScheduleConfigs, Plugin, PostStartup, Query, Res, ResMut, Resource, Startup, State};
 use glam::{ivec2, ivec3};
 use rand::prelude::IndexedRandom;
-use rand::rng;
 
 pub(super) struct DungeonLoadingPlugin;
 
@@ -26,7 +25,12 @@ impl Plugin for DungeonLoadingPlugin {
             .split("\n")
             .collect::<Vec<&str>>();
 
-        let layout = dungeon_layouts.choose(&mut rng()).unwrap().to_string();
+        let mut rng = app.world_mut().resource_mut::<SeededRng>();
+
+        let layout = dungeon_layouts
+            .choose(&mut rng)
+            .unwrap()
+            .to_string();
 
         app
             .insert_resource(Layout(layout))
@@ -59,7 +63,8 @@ fn create_rooms_and_doors(
     layout: Res<Layout>,
     mut commands: Commands,
     room_data_lookup: Res<RoomDataLookup>,
-    mut door_lookup: ResMut<DoorLookup>
+    mut door_lookup: ResMut<DoorLookup>,
+    mut rng: ResMut<SeededRng>
 ) {
     // rooms
     let mut room_segments: DHashMap<usize, Vec<(RoomSegment, u8)>> = default();
@@ -142,7 +147,7 @@ fn create_rooms_and_doors(
                 _ => RoomShape::OneByOneEnd,
             };
 
-            let mut room_data = random_room_data(&room_data_lookup, room_type, shape, &existing_rooms);
+            let mut room_data = random_room_data(&room_data_lookup, room_type, shape, &existing_rooms, &mut rng);
             room_data.room_type = room_type;
 
             existing_rooms.insert(room_data.name.clone());
@@ -162,7 +167,7 @@ fn create_rooms_and_doors(
 
     for segments in room_segments.into_values() {
         let shape = RoomShape::from_segments(&segments);
-        let data = random_room_data(&room_data_lookup, RoomType::Normal, shape, &existing_rooms);
+        let data = random_room_data(&room_data_lookup, RoomType::Normal, shape, &existing_rooms, &mut rng);
         existing_rooms.insert(data.name.clone());
         
         let mut sorted = segments;

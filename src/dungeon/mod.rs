@@ -5,6 +5,7 @@ use crate::core::types::chat_component::ChatComponent;
 use crate::dungeon::entities::DungeonEntityPlugin;
 use crate::dungeon::menus::DungeonMenuPlugin;
 use crate::dungeon::player::DungeonPlayerPlugin;
+use crate::dungeon::rng::SeededRng;
 use crate::dungeon::rooms::secrets::DungeonSecretsPlugin;
 use crate::TEST_WORLD;
 use bevy::app::{App, PreUpdate};
@@ -70,10 +71,15 @@ pub struct EntranceRoom {
     entity: Entity,
 }
 
-pub struct DungeonPlugin;
+pub struct DungeonPlugin {
+    pub seed: u64
+}
 
 impl Plugin for DungeonPlugin {
     fn build(&self, app: &mut App) {
+        println!("Loading dungeon with seed: {}", self.seed);
+        app.insert_resource(SeededRng::from_seed(self.seed));
+
         if !TEST_WORLD {
             app.add_plugins(
                 loading::DungeonLoadingPlugin,
