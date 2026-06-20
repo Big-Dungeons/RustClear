@@ -1,6 +1,7 @@
 pub mod readying;
 pub mod sidebar;
 pub mod update_room;
+pub mod block_interaction;
 
 use crate::core::block::block_rotation::Rotate;
 use crate::core::entity::components::transform::Transform;
@@ -43,7 +44,7 @@ fn init_player(
         .entity(event.entity)
         .insert((
             Sidebar::new("SBScoreboard"),
-            CurrentRoom::default(), // this handles inserting player into room already, so should be fine
+            CurrentRoom::default(),
             ReadyStatus::default(),
         ));
 }
@@ -67,9 +68,13 @@ impl Plugin for DungeonPlayerPlugin {
         }
 
         app
+            .insert_resource(block_interaction::BlockInteractableLookup::default())
+            .add_observer(block_interaction::on_add_block_interactable)
+            .add_observer(block_interaction::on_remove_block_interactable)
             .add_observer(add_items)
             .add_observer(readying::on_player_ready)
             .add_systems(Update, (
+                block_interaction::on_player_interact,
                 sidebar::update_sidebar,
                 use_aspect_of_the_void
             ));
