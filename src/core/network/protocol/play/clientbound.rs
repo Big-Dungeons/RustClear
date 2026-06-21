@@ -9,10 +9,11 @@ use crate::core::network::protocol::var_int::{var_int_size, write_var_int, VarIn
 use crate::core::player::inventory::item_stack::ItemStack;
 use crate::core::types::chat_component::ChatComponent;
 use crate::core::types::entity_variant::{EntityVariant, ObjectVariant};
+use crate::core::types::particles::Particle;
 use crate::core::types::sound::Sound;
 use bytes::BytesMut;
 use enumset::{EnumSet, EnumSetType};
-use glam::{DVec3, I16Vec3, IVec3};
+use glam::{DVec3, I16Vec3, IVec3, Vec3};
 use macros::{identified_packet, PacketSerializable};
 
 #[identified_packet(id=0x01)]
@@ -252,6 +253,18 @@ impl SoundEffect {
             pitch: (pitch * 63.0).clamp(0.0, 255.0) as u8,
         }
     }
+}
+
+#[identified_packet(id=0x2a)]
+#[derive(Debug, PacketSerializable)]
+pub struct Particles<'a> {
+    pub particle: Particle,
+    pub has_arguments: bool,
+    pub position: Vec3,
+    pub offset: Vec3,
+    pub speed: f32,
+    pub count: i32,
+    pub arguments: &'a [VarInt]
 }
 
 #[identified_packet(id=0x2d)]

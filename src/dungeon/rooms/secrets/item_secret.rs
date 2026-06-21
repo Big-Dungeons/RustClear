@@ -3,7 +3,7 @@ use crate::core::entity::components::velocity::Velocity;
 use crate::core::entity::object_metadata::ObjectMetadata;
 use crate::core::entity::{BevyEntityExt, EntitySize, Mob};
 use crate::core::network::packets::BytesMutExt;
-use crate::core::network::protocol::play::clientbound::CollectItem;
+use crate::core::network::protocol::play::clientbound::{CollectItem, SoundEffect};
 use crate::core::network::protocol::var_int::VarInt;
 use crate::core::player::inventory::item_stack::ItemStack;
 use crate::core::player::{Player, PlayerPacketBuffer};
@@ -11,6 +11,7 @@ use crate::core::types::aabb::AABB;
 use crate::dungeon::rooms::secrets::{CollectSecretEvent, SecretSpawned};
 use bevy::prelude::*;
 use glam::{dvec3, IVec3};
+use crate::core::types::sound::Sound;
 
 // todo: add rest
 pub enum ItemSecretType {
@@ -91,6 +92,12 @@ pub(super) fn pickup_item_secret(
                     item_entity_id: VarInt(entity.mc_id()),
                     player_entity_id: VarInt(player_entity.mc_id()),
                 });
+                packet_buffer.write_packet(&SoundEffect::new(
+                    Sound::RandomPop,
+                    player_transform.position,
+                    0.2,
+                    1.7,
+                ));
 
                 commands
                     .entity(entity)

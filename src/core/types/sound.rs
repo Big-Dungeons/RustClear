@@ -11,6 +11,7 @@ pub enum Sound {
     FireIgnite,
     DonkeyHit,
     RandomOrb,
+    RandomPop,
     NoteHarp,
     NoteHat,
 }
@@ -26,6 +27,7 @@ impl Sound {
             Sound::FireIgnite => "fire.ignite",
             Sound::DonkeyHit => "mob.horse.donkey.hit",
             Sound::RandomOrb => "random.orb",
+            Sound::RandomPop => "random.pop",
             Sound::NoteHarp => "note.harp",
             Sound::NoteHat => "note.hat",
         }

@@ -15,11 +15,15 @@ use crate::core::ServerTick;
 use crate::dungeon::player::block_interaction::{BlockInteractable, BlockInteractionEvent};
 use crate::dungeon::rooms::secrets::{CollectSecretEvent, SecretSpawned};
 use bevy::prelude::*;
-use glam::{dvec3, IVec3};
+use glam::{dvec3, IVec3, Vec3};
 use uuid::Uuid;
+use crate::core::player::particles::ParticleEvent;
+use crate::core::types::particles::Particle;
 // 0..=15
 // pub struct EssenceRotation {}
 
+
+const ESSENCE_UUID: Uuid = Uuid::from_u128(1);
 const ESSENCE_TEXTURE: &str = "ewogICJ0aW1lc3RhbXAiIDogMTYwMzYxMDQ0MzU4MywKICAicHJvZmlsZUlkIiA6ICIzM2ViZDMyYmIzMzk0YWQ5YWM2NzBjOTZjNTQ5YmE3ZSIsCiAgInByb2ZpbGVOYW1lIiA6ICJEYW5ub0JhbmFubm9YRCIsCiAgInNpZ25hdHVyZVJlcXVpcmVkIiA6IHRydWUsCiAgInRleHR1cmVzIiA6IHsKICAgICJTS0lOIiA6IHsKICAgICAgInVybCIgOiAiaHR0cDovL3RleHR1cmVzLm1pbmVjcmFmdC5uZXQvdGV4dHVyZS9lNDllYzdkODJiMTQxNWFjYWUyMDU5Zjc4Y2QxZDE3NTRiOWRlOWIxOGNhNTlmNjA5MDI0YzRhZjg0M2Q0ZDI0IgogICAgfQogIH0KfQ==";
 
 #[derive(Component)]
@@ -49,7 +53,7 @@ pub(super) fn on_secret_spawn(
                 BlockEntityType::Skull {
                     rotation: 0,
                     skull_type: 3,
-                    uuid: Default::default(),
+                    uuid: ESSENCE_UUID,
                     skin: PlayerSkin {
                         texture: ESSENCE_TEXTURE.to_string(),
                         _signature: None,
@@ -85,7 +89,7 @@ pub(super) fn on_interact(
             .item_id(397)
             .metadata(3)
             .skull_owner(
-                Uuid::max(),
+                ESSENCE_UUID,
                 PlayerSkin {
                     texture: ESSENCE_TEXTURE.to_string(),
                     _signature: None,
@@ -114,6 +118,7 @@ pub(super) struct EssenceSpinningThing;
 pub(super) fn update_essence_mob(
     mut query: Query<(&mut Transform, &SpawnedOnTick), With<EssenceSpinningThing>>,
     mut sounds: MessageWriter<LocalSound>,
+    mut particles: MessageWriter<ParticleEvent>,
     server_tick: Res<ServerTick>,
 ) {
     for (mut transform, spawned_on_tick) in query.iter_mut() {
@@ -123,11 +128,19 @@ pub(super) fn update_essence_mob(
         let ticks = server_tick.elapsed_since(**spawned_on_tick);
 
         if ticks % 5 == 0 {
+            let position = transform.position + dvec3(0.0, 1.5, 0.0);
             sounds.write(LocalSound {
                 sound: Sound::NoteHarp,
                 volume: 1.0,
                 pitch: 0.8 + ((ticks / 5) as f32 * 0.1),
-                position: transform.position + dvec3(0.0, 1.5, 0.0),
+                position,
+            });
+            particles.write(ParticleEvent {
+                particle: Particle::Cloud,
+                position: position.as_vec3(),
+                offset: Vec3::ZERO,
+                speed: 0.06,
+                count: 5,
             });
         }
         if ticks == 20 {

@@ -109,7 +109,7 @@ pub fn load_secrets(mut room_query: Query<(Entity, &mut Room, &RoomData)>, mut c
                 SecretType::Chest { rotation } => {
                     let rotation = rotation.rotate(room.rotation);
                     secret_entity.insert(ChestSecret {
-                        spawn_location: world_position,
+                        spawn_position: world_position,
                         // todo: rng choose, and if lever related set locked to true
                         chest_type: ChestSecretType::Blessing {
                             locked: false

@@ -4,6 +4,7 @@ pub mod movement;
 pub mod interact;
 pub mod sidebar;
 pub mod sound;
+pub mod particles;
 
 use crate::core::block::block_entity::BlockEntity;
 use crate::core::chunk::chunk_grid::ChunkGrid;
@@ -18,6 +19,7 @@ use crate::core::network::{recv_network_messages, NetworkSender};
 use crate::core::player::interact::{PlayerInteractEntity, PlayerRightClick};
 use crate::core::player::inventory::{InventoryPlugin, SyncInventory};
 use crate::core::player::movement::SetPosition;
+use crate::core::player::particles::ParticleEvent;
 use crate::core::player::sound::LocalSound;
 use bevy::app::{App, First, PostUpdate, PreUpdate};
 use bevy::prelude::{Commands, Component, Deref, DerefMut, Entity, IntoScheduleConfigs, Last, Message, MessageReader, Plugin, Query, Res, ResMut, Resource, Update, With, Without};
@@ -144,6 +146,7 @@ impl Plugin for PlayerPlugin {
             .add_message::<PlayerRightClick>()
             .add_message::<PlayerInteractEntity>()
             .add_message::<LocalSound>()
+            .add_message::<ParticleEvent>()
             .add_plugins(InventoryPlugin)
             .add_observer(sidebar::init_sidebar_packets)
 
@@ -176,6 +179,7 @@ impl Plugin for PlayerPlugin {
                     interact::clear_sent_interacts,
                     sidebar::flush_sidebar_packets,
                     sound::handle_local_sounds,
+                    particles::handle_particles,
                 ),
             )
             .add_systems(Last, (
