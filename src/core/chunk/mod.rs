@@ -1,13 +1,15 @@
 pub mod chunk_grid;
 
+use crate::core::block::block_entity::BlockEntity;
 use crate::core::block::Block;
 use crate::core::entity::{BevyEntityExt, MobSpawnQueries};
 use crate::core::network::packets::BytesMutExt;
 use crate::core::network::protocol::play::clientbound::{ChunkData, EntityAttach};
+use crate::dungeon::rng::DHashMap;
 use bevy::ecs::entity::EntityHashSet;
 use bevy::prelude::*;
 use bytes::BytesMut;
-use glam::{DVec3, IVec2};
+use glam::{DVec3, IVec2, IVec3};
 
 pub struct ChunkSection {
     solid_block_amount: u16,
@@ -23,6 +25,7 @@ pub struct Chunk {
 
     pub players: EntityHashSet,
     pub entities: EntityHashSet,
+    pub block_entities: DHashMap<IVec3, Entity>,
 }
 
 impl Default for Chunk {
@@ -35,6 +38,7 @@ impl Default for Chunk {
 
             players: EntityHashSet::new(),
             entities: EntityHashSet::new(),
+            block_entities: DHashMap::default(),
         }
     }
 }
@@ -162,6 +166,16 @@ impl Chunk {
         self.entities.remove(&entity);
     }
 
+    pub fn insert_block_entity(&mut self, entity: Entity, position: IVec3) {
+        debug_assert!(!self.block_entities.contains_key(&position), "block entity already in chunk");
+        self.block_entities.insert(position, entity);
+    }
+
+    pub fn remove_block_entity(&mut self, position: IVec3) {
+        debug_assert!(self.block_entities.contains_key(&position), "entity was never in this chunk");
+        self.block_entities.remove(&position);
+    }
+
     pub fn write_spawn_entities(&mut self, query: &MobSpawnQueries) {
         for (entity, mob, transform) in query.mob_query.iter_many(&self.entities) {
             mob.write_spawn_packet(entity, transform, &mut self.packet_buffer);
@@ -177,6 +191,13 @@ impl Chunk {
                 vehicle_id: riding.mc_id(),
                 leash: false,
             });
+        }
+    }
+
+    // should probably merge
+    pub fn write_spawn_block_entities(&mut self, query: &Query<&BlockEntity>) {
+        for block_entity in query.iter() {
+            block_entity.write_update_packet(&mut self.packet_buffer)
         }
     }
 

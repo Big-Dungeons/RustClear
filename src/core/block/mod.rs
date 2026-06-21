@@ -5,6 +5,7 @@ use crate::core::block::block_rotation::Rotation;
 pub mod block_metadata;
 pub mod block_parameters;
 pub mod block_rotation;
+pub mod block_entity;
 
 use crate::core::block::block_parameters::BlockColor;
 use crate::core::block::block_parameters::{

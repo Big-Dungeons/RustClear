@@ -1,3 +1,4 @@
+use crate::core::block::block_entity::BlockEntity;
 use crate::core::chunk::chunk_grid::{ChunkDiff, ChunkGrid};
 use crate::core::chunk::{get_chunk_position, Chunk};
 use crate::core::entity::components::transform::{OldTransform, Transform};
@@ -79,6 +80,7 @@ pub(super) fn transform_change(
     >,
     mut chunks: ResMut<ChunkGrid>,
     mob_spawn_queries: MobSpawnQueries,
+    block_entity_query: Query<&BlockEntity>,
 ) {
     for (entity, transform, old_transform, mut packet_buffer) in player_query.iter_mut() {
         let old = get_chunk_position(old_transform.position);
@@ -105,6 +107,7 @@ pub(super) fn transform_change(
                     if diff == ChunkDiff::New {
                         chunk.write_chunk_data(x, z, true, &mut packet_buffer);
                         chunk.write_spawn_entities(&mob_spawn_queries);
+                        chunk.write_spawn_block_entities(&block_entity_query);
                     } else {
                         packet_buffer.write_packet(&Chunk::unload_packet(x, z));
                         chunk.write_despawn_entities(&mob_spawn_queries);

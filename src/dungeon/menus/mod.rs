@@ -47,22 +47,11 @@ pub fn on_menu_update(
     };
 
 
-    let mut player_head = ItemStack::new()
+    let player_head = ItemStack::new()
         .item_id(397)
         .metadata(3)
-        .name(&format!("§7{}", username.0));
-
-    player_head.nbt_get_or_insert().nodes.insert("SkullOwner".to_string(), NBTNode::Compound({
-        let mut map = DHashMap::default();
-        map.insert("Id".to_string(), NBTNode::String(uuid.hyphenated().to_string()));
-
-        let mut textures = DHashMap::default();
-        textures.insert("Value".to_string(), NBTNode::String(skin.texture.clone()));
-        let vec = vec![NBTNode::Compound(textures)];
-
-        map.insert("textures".to_string(), NBTNode::List { type_id: TAG_COMPOUND_ID, children: vec });
-        map
-    }));
+        .name(&format!("§7{}", username.0))
+        .skull_owner(**uuid, skin.clone());
 
     menu.items[4] = Some(player_head);
     menu.items[13] = Some(ItemStack::new().item_id(95).metadata(color).name(item_name));

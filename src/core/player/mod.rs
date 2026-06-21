@@ -4,6 +4,7 @@ pub mod movement;
 pub mod interact;
 pub mod sidebar;
 
+use crate::core::block::block_entity::BlockEntity;
 use crate::core::chunk::chunk_grid::ChunkGrid;
 use crate::core::chunk::get_chunk_position;
 use crate::core::entity::components::transform::{OldTransform, Transform};
@@ -31,10 +32,10 @@ pub struct Initialized;
 #[derive(Component, Deref)]
 pub struct Username(pub String);
 
-#[derive(Component, Deref)]
+#[derive(Component, Deref, Copy, Clone)]
 pub struct Uuid(pub uuid::Uuid);
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct PlayerSkin {
     pub texture: String,
     pub _signature: Option<String>
@@ -55,6 +56,7 @@ fn process_player_join(
     mut events: MessageReader<'_, '_, PlayerJoinEvent>,
     mut player_query: Query<(&Transform, &mut PlayerPacketBuffer)>,
     mob_spawn_queries: MobSpawnQueries,
+    block_entity_query: Query<&BlockEntity>,
     mut chunks: ResMut<ChunkGrid>,
     mut commands: Commands,
 ) {
@@ -73,6 +75,7 @@ fn process_player_join(
         chunks.for_each_in_view(position, 8, |chunk, x, z| {
             chunk.write_chunk_data(x, z, true, &mut packet_buffer);
             chunk.write_spawn_entities(&mob_spawn_queries);
+            chunk.write_spawn_block_entities(&block_entity_query);
         });
 
         packet_buffer.write_packet(&PositionLook {

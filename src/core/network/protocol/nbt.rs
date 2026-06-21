@@ -6,6 +6,109 @@ use crate::dungeon::rng::DHashMap;
 use anyhow::bail;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
+#[derive(Default, Debug, Clone, PartialEq)]
+pub struct NBT {
+    pub root_name: String,
+    pub nodes: DHashMap<String, NBTNode>,
+}
+
+impl NBT {
+    pub fn new() -> Self {
+        Self {
+            root_name: String::new(),
+            nodes: DHashMap::default(),
+        }
+    }
+    
+    pub fn builder(&mut self) -> CompoundBuilder<'_> {
+        CompoundBuilder::new(&mut self.nodes)
+    }
+}
+
+pub struct CompoundBuilder<'a> {
+    map: &'a mut DHashMap<String, NBTNode>
+}
+
+impl<'a> CompoundBuilder<'a> {
+    pub fn new(map: &'a mut DHashMap<String, NBTNode>) -> Self {
+        Self {
+            map
+        }
+    }
+
+    pub fn insert(&mut self, arr: impl IntoIterator<Item=(String, NBTNode)>) {
+        for (id, node) in arr {
+            self.map.insert(id, node);
+        }
+    }
+
+    pub fn get_or_insert_compound(
+        &mut self,
+        id: impl Into<String>,
+        nodes: impl IntoIterator<Item = (String, NBTNode)>
+    ) {
+        let entry = self.map
+            .entry(id.into())
+            .or_insert(NBTNode::Compound(DHashMap::default()));
+
+        if let NBTNode::Compound(map) = entry {
+            map.extend(nodes);
+        }
+    }
+
+    pub fn get_or_insert_list<const TAG: u8>(
+        &mut self,
+        id: impl Into<String>,
+        nodes: impl IntoIterator<Item = NBTNode>
+    ) {
+        let entry = self.map
+            .entry(id.into())
+            .or_insert(NBTNode::List { type_id: TAG, children: Vec::new() });
+
+        if let NBTNode::List { children, .. } = entry {
+            children.extend(nodes);
+        }
+    }
+}
+
+
+pub fn compound(
+    id: impl Into<String>,
+    nodes: impl IntoIterator<Item = (String, NBTNode)>
+) -> (String, NBTNode) {
+    (id.into(), compound_node(nodes))
+}
+
+pub fn compound_node(
+    nodes: impl IntoIterator<Item = (String, NBTNode)>
+) -> NBTNode {
+    let map = nodes.into_iter().collect::<DHashMap<_, _>>();
+    NBTNode::Compound(map)
+}
+
+pub fn list<const TAG: u8>(
+    id: impl Into<String>,
+    nodes: impl IntoIterator<Item = NBTNode>
+) -> (String, NBTNode) {
+    (id.into(), NBTNode::List { type_id: TAG, children: nodes.into_iter().collect() })
+}
+
+pub fn byte(id: impl Into<String>, value: i8) -> (String, NBTNode) {
+    (id.into(), NBTNode::Byte(value))
+}
+
+pub fn short(id: impl Into<String>, value: i16) -> (String, NBTNode) {
+    (id.into(), NBTNode::Short(value))
+}
+
+pub fn int(id: impl Into<String>, value: i32) -> (String, NBTNode) {
+    (id.into(), NBTNode::Int(value))
+}
+
+pub fn string(id: impl Into<String>, value: impl Into<String>) -> (String, NBTNode) {
+    (id.into(), NBTNode::String(value.into()))
+}
+
 pub const TAG_END_ID: u8 = 0;
 pub const TAG_BYTE_ID: u8 = 1;
 pub const TAG_SHORT_ID: u8 = 2;
@@ -19,16 +122,6 @@ pub const TAG_LIST_ID: u8 = 9;
 pub const TAG_COMPOUND_ID: u8 = 10;
 pub const TAG_INT_ARRAY_ID: u8 = 11;
 pub const TAG_LONG_ARRAY_ID: u8 = 12;
-
-
-/// NBT
-///
-/// This struct represents the root NBT Tag Compound.
-#[derive(Default, Debug, Clone, PartialEq)]
-pub struct NBT {
-    pub root_name: String,
-    pub nodes: DHashMap<String, NBTNode>,
-}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum NBTNode {

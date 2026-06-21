@@ -12,7 +12,7 @@ mod debug_world;
 mod dungeon;
 
 // temp
-const TEST_WORLD: bool = true;
+const TEST_WORLD: bool = false;
 
 fn main() {
     let mut app = App::new();

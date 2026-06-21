@@ -1,18 +1,19 @@
-use bevy::prelude::*;
-use glam::IVec3;
-use uuid::Uuid;
-use crate::core::block::Block;
+use crate::core::block::block_entity::{BlockEntity, BlockEntityType};
 use crate::core::block::block_parameters::Direction;
+use crate::core::block::Block;
 use crate::core::chunk::chunk_grid::ChunkGrid;
 use crate::core::entity::components::despawn_after::DespawnAfter;
 use crate::core::entity::components::equipment::Equipment;
 use crate::core::entity::components::transform::Transform;
-use crate::core::entity::entity_metadata::{ArmorStandMetadata, ZombieMetadata};
+use crate::core::entity::entity_metadata::ArmorStandMetadata;
 use crate::core::entity::Mob;
 use crate::core::player::inventory::item_stack::ItemStack;
 use crate::core::player::PlayerSkin;
 use crate::dungeon::player::block_interaction::{BlockInteractable, BlockInteractionEvent};
 use crate::dungeon::rooms::secrets::{CollectSecretEvent, SecretSpawned};
+use bevy::prelude::*;
+use glam::IVec3;
+use uuid::Uuid;
 
 // 0..=15
 // pub struct EssenceRotation {}
@@ -34,12 +35,25 @@ pub(super) fn on_secret_spawn(
     if let Ok(secret) = query.get(event.entity) {
         let block = Block::Skull { direction: Direction::Up, no_drop: false };
         chunks.set_block_at(block, secret.spawn_position);
+
         commands.spawn((
             ChildOf(event.entity),
             EssenceBlock,
             BlockInteractable {
                 position: secret.spawn_position
-            }
+            },
+            BlockEntity::new(
+                secret.spawn_position,
+                BlockEntityType::Skull {
+                    rotation: 0,
+                    skull_type: 3,
+                    uuid: Default::default(),
+                    skin: PlayerSkin {
+                        texture: ESSENCE_TEXTURE.to_string(),
+                        _signature: None,
+                    },
+                }
+            ),
         ));
     }
 }

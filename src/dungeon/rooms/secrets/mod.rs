@@ -173,7 +173,7 @@ impl Plugin for DungeonSecretsPlugin {
                     .run_if(run_every_ticks::<20>),
 
                 item_secret::pickup_item_secret,
-                essence::update_essence_mob
+                essence::update_essence_mob,
             ));
     }
 }

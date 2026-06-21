@@ -29,6 +29,9 @@ impl Plugin for CorePlugin {
                 PlayerPlugin,
             ))
             .add_systems(Last, increment_server_tick)
+            .add_observer(block::block_entity::on_add_block_entity)
+            .add_observer(block::block_entity::on_remove_block_entity)
+            .add_systems(PostUpdate, block::block_entity::on_block_entity_change)
         ;
     }
 }

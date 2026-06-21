@@ -3,6 +3,7 @@ use crate::core::entity::entity_metadata::EntityMetadata;
 use crate::core::network::packets::packet_serializable::PacketSerializable;
 use crate::core::network::packets::IdentifiedPacket;
 use crate::core::network::protocol::block_position::BlockPosition;
+use crate::core::network::protocol::nbt::NBT;
 use crate::core::network::protocol::sized_string::SizedString;
 use crate::core::network::protocol::var_int::{var_int_size, write_var_int, VarInt};
 use crate::core::player::inventory::item_stack::ItemStack;
@@ -286,6 +287,14 @@ pub struct ConfirmTransaction {
     pub window_id: i8,
     pub action_number: i16,
     pub accepted: bool,
+}
+
+#[identified_packet(id=0x35)]
+#[derive(Debug, PacketSerializable)]
+pub struct UpdateBlockEntity {
+    pub position: BlockPosition,
+    pub block_entity_id: u8,
+    pub nbt: Option<NBT>,
 }
 
 #[identified_packet(id=0x3b)]
