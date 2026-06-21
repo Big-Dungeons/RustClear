@@ -1,9 +1,9 @@
 use crate::core::block::Block;
-use crate::core::chunk::Chunk;
+use crate::core::chunk::{get_chunk_position, Chunk};
 use crate::core::network::packets::BytesMutExt;
 use crate::core::network::protocol::play::clientbound::BlockChange;
 use bevy::prelude::Resource;
-use glam::{ivec3, IVec2, IVec3, Vec3Swizzles};
+use glam::{ivec3, DVec3, IVec2, IVec3, Vec3Swizzles};
 use std::cmp::{max, min};
 
 #[derive(PartialEq)]
@@ -91,6 +91,14 @@ impl ChunkGrid {
 
     pub fn get_mut_from_world(&mut self, position: IVec3) -> Option<&mut Chunk> {
         self.get_mut(position.xz() >> 4)
+    }
+
+    pub fn get_from_position(&self, position: DVec3) -> Option<&Chunk> {
+        self.get(get_chunk_position(position))
+    }
+
+    pub fn get_mut_from_position(&mut self, position: DVec3) -> Option<&mut Chunk> {
+        self.get_mut(get_chunk_position(position))
     }
 
     pub fn for_each_in_view<F>(&mut self, position: IVec2, view_distance: i32, mut callback: F)

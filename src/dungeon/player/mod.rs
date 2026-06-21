@@ -7,7 +7,7 @@ use crate::core::block::block_rotation::Rotate;
 use crate::core::entity::components::transform::Transform;
 use crate::core::player::inventory::Inventory;
 use crate::core::player::sidebar::Sidebar;
-use crate::core::player::Player;
+use crate::core::player::{interact, Player};
 use crate::dungeon::items::etherwarp::{use_aspect_of_the_void, AspectOfTheVoid};
 use crate::dungeon::items::pickaxe::Pickaxe;
 use crate::dungeon::items::skyblock_menu::SkyblockMenu;
@@ -73,10 +73,12 @@ impl Plugin for DungeonPlayerPlugin {
             .add_observer(block_interaction::on_remove_block_interactable)
             .add_observer(add_items)
             .add_observer(readying::on_player_ready)
+            .add_systems(PreUpdate, (
+                use_aspect_of_the_void.after(interact::handle_block_interact),
+                block_interaction::on_player_interact.after(interact::handle_block_interact)
+            ))
             .add_systems(Update, (
-                block_interaction::on_player_interact,
                 sidebar::update_sidebar,
-                use_aspect_of_the_void
             ));
     }
 }

@@ -36,7 +36,7 @@ pub struct BlockInteractResult {
 pub struct SentInteract(pub bool);
 
 // add anticheat stuff
-pub(super) fn handle_block_interact(
+pub fn handle_block_interact(
     mut packets: PacketReader<PlayerBlockPlacement>,
     mut output: MessageWriter<PlayerRightClick>,
     mut query: Query<(&mut SentInteract, &Inventory, &mut PlayerPacketBuffer)>,

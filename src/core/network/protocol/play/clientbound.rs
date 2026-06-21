@@ -9,9 +9,10 @@ use crate::core::network::protocol::var_int::{var_int_size, write_var_int, VarIn
 use crate::core::player::inventory::item_stack::ItemStack;
 use crate::core::types::chat_component::ChatComponent;
 use crate::core::types::entity_variant::{EntityVariant, ObjectVariant};
+use crate::core::types::sound::Sound;
 use bytes::BytesMut;
 use enumset::{EnumSet, EnumSetType};
-use glam::{I16Vec3, IVec3};
+use glam::{DVec3, I16Vec3, IVec3};
 use macros::{identified_packet, PacketSerializable};
 
 #[identified_packet(id=0x01)]
@@ -229,6 +230,26 @@ impl BlockAction {
             event_id,
             event_data,
             block_id: VarInt(((block.get_blockstate_id() >> 4) & 4095) as i32),
+        }
+    }
+}
+
+#[identified_packet(id=0x29)]
+#[derive(Debug, PacketSerializable)]
+pub struct SoundEffect {
+    sound: Sound,
+    position: IVec3, // (dvec3 * 8.0).as_ivec3()
+    volume: f32,
+    pitch: u8, //
+}
+
+impl SoundEffect {
+    pub fn new(sound: Sound, position: DVec3, volume: f32, pitch: f32) -> Self {
+        Self {
+            sound,
+            position: (position * 8.0).as_ivec3(),
+            volume,
+            pitch: (pitch * 63.0).clamp(0.0, 255.0) as u8,
         }
     }
 }

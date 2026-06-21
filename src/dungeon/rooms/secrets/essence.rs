@@ -6,15 +6,17 @@ use crate::core::entity::components::despawn_after::DespawnAfter;
 use crate::core::entity::components::equipment::Equipment;
 use crate::core::entity::components::transform::Transform;
 use crate::core::entity::entity_metadata::ArmorStandMetadata;
-use crate::core::entity::Mob;
+use crate::core::entity::{Mob, SpawnedOnTick};
 use crate::core::player::inventory::item_stack::ItemStack;
+use crate::core::player::sound::LocalSound;
 use crate::core::player::PlayerSkin;
+use crate::core::types::sound::Sound;
+use crate::core::ServerTick;
 use crate::dungeon::player::block_interaction::{BlockInteractable, BlockInteractionEvent};
 use crate::dungeon::rooms::secrets::{CollectSecretEvent, SecretSpawned};
 use bevy::prelude::*;
-use glam::IVec3;
+use glam::{dvec3, IVec3};
 use uuid::Uuid;
-
 // 0..=15
 // pub struct EssenceRotation {}
 
@@ -109,9 +111,35 @@ pub(super) fn on_interact(
 #[derive(Component)]
 pub(super) struct EssenceSpinningThing;
 
-pub(super) fn update_essence_mob(mut query: Query<&mut Transform, With<EssenceSpinningThing>>) {
-    for mut transform in query.iter_mut() {
+pub(super) fn update_essence_mob(
+    mut query: Query<(&mut Transform, &SpawnedOnTick), With<EssenceSpinningThing>>,
+    mut sounds: MessageWriter<LocalSound>,
+    server_tick: Res<ServerTick>,
+) {
+    for (mut transform, spawned_on_tick) in query.iter_mut() {
         transform.position.y += 0.04;
         transform.yaw += 15.0;
+
+        let ticks = server_tick.elapsed_since(**spawned_on_tick);
+
+        if ticks % 5 == 0 {
+            sounds.write(LocalSound {
+                sound: Sound::NoteHarp,
+                volume: 1.0,
+                pitch: 0.8 + ((ticks / 5) as f32 * 0.1),
+                position: transform.position + dvec3(0.0, 1.5, 0.0),
+            });
+        }
+        if ticks == 20 {
+            let sound = LocalSound {
+                sound: Sound::RandomOrb,
+                volume: 1.0,
+                pitch: 1.5,
+                position: transform.position,
+            };
+            // hypixel writes it twice
+            sounds.write(sound);
+            sounds.write(sound);
+        }
     }
 }
