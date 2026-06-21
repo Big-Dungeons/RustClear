@@ -1,10 +1,9 @@
-use crate::core::block::block_rotation::Rotation;
 use crate::core::block::Block;
 use crate::core::chunk::chunk_grid::ChunkGrid;
 use crate::core::entity::components::transform::Transform;
 use crate::core::player::Player;
 use crate::core::types::aabb::AABB;
-use crate::dungeon::rooms::secrets::chest_secret::{ChestSecret, ChestSecretType};
+use crate::dungeon::rooms::secrets::essence::EssenceSecret;
 use crate::dungeon::rooms::secrets::{Secret, SecretSpawnArea};
 use bevy::app::{App, Startup};
 use bevy::prelude::{Add, Commands, DetectChangesMut, On, Plugin, Query, ResMut};
@@ -33,13 +32,16 @@ fn load(
         Secret {
             collected: false,
         },
-        ChestSecret {
-            chest_type: ChestSecretType::Blessing {
-                locked: false
-            },
-            spawn_location: ivec3(-15, 1, -15),
-            rotation: Rotation::None,
+        EssenceSecret {
+            spawn_position: ivec3(-15, 1, -15),
         },
+        // ChestSecret {
+        //     chest_type: ChestSecretType::Blessing {
+        //         locked: false
+        //     },
+        //     spawn_location: ivec3(-15, 1, -15),
+        //     rotation: Rotation::None,
+        // },
         // ItemSecret {
         //     spawn_location: ivec3(-15, 1, -15),
         //     item_type: ItemSecretType::SpiritLeap,

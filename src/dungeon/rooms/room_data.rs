@@ -138,6 +138,9 @@ pub enum RoomType {
 
 #[derive(Debug, Copy, Clone)]
 pub enum SecretType {
+    Essence {
+        rotation: u8
+    },
     Chest {
         rotation: Rotation,
     },
@@ -197,6 +200,10 @@ fn deserialize_secrets<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<SecretData
             }
             "item" => {
                 SecretType::Item
+            }
+            "essence" => {
+                // todo: rotation
+                SecretType::Essence { rotation: 0 }
             }
             other => return Err(Error::custom(format!("unknown secret {other}")))
         };

@@ -50,6 +50,14 @@ pub enum Relative {
     Pitch
 }
 
+#[identified_packet(id=0x04)]
+#[derive(Debug, PacketSerializable)]
+pub struct EntityEquipment {
+    pub entity_id: VarInt,
+    pub item_slot: i16,
+    pub item_stack: Option<ItemStack>,
+}
+
 #[identified_packet(id=0x08)]
 #[derive(Debug, PacketSerializable)]
 pub struct PositionLook {

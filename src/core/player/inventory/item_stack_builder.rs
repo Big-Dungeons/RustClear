@@ -2,6 +2,7 @@ use crate::core::network::protocol::nbt::{NBTNode, NBT, TAG_COMPOUND_ID, TAG_STR
 use crate::core::player::inventory::item_stack::ItemStack;
 use crate::dungeon::rng::DHashMap;
 use bevy::utils::default;
+use crate::core::player::PlayerSkin;
 
 impl ItemStack {
     pub fn item_id(mut self, item_id: usize) -> Self {
@@ -83,6 +84,32 @@ impl ItemStack {
         let nbt = self.nbt_get_or_insert();
         with_compound(&mut nbt.nodes, "ExtraAttributes", |nodes| {
             nodes.insert("id".into(), NBTNode::String(id.into()));
+        });
+        self
+    }
+
+    pub fn skull_owner(
+        mut self,
+        uuid: uuid::Uuid,
+        skin: PlayerSkin,
+    ) -> Self {
+        let nbt = self.nbt_get_or_insert();
+        // this sucks
+        with_compound(&mut nbt.nodes, "SkullOwner", |nodes| {
+            nodes.insert("Id".into(), NBTNode::String(uuid.hyphenated().to_string()));
+            let mut map = DHashMap::default();
+            map.insert("textures".into(), NBTNode::List {
+                type_id: TAG_COMPOUND_ID,
+                children: vec![
+                    NBTNode::Compound({
+                        let mut map = DHashMap::default();
+                        map.insert("Value".into(), NBTNode::String(skin.texture));
+                        map.insert("Signature".into(), NBTNode::String(skin._signature.unwrap_or_default()));
+                        map
+                    })
+                ]
+            });
+            nodes.insert("Properties".into(), NBTNode::Compound(map));
         });
         self
     }

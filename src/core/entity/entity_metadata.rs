@@ -22,6 +22,9 @@ entity_metadata! {
         Player {
             10 => pub layers: EnumSet<SkinLayers> = EnumSet::all(),
         },
+        ArmorStand {
+            0 => pub flags: u8 = 0,
+        },
         Zombie {
             12 => pub is_baby: bool = false,
             13 => pub is_villager: bool = false,
@@ -37,6 +40,7 @@ impl EntityMetadata {
     pub fn get_variant(&self) -> EntityVariant {
         match self {
             EntityMetadata::Player(_) => unreachable!(),
+            EntityMetadata::ArmorStand(_) => EntityVariant::ArmorStand,
             EntityMetadata::Zombie(_) => EntityVariant::Zombie,
             EntityMetadata::Bat(_) => EntityVariant::Bat,
         }

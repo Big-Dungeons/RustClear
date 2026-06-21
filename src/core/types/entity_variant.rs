@@ -4,6 +4,7 @@ use bytes::BytesMut;
 #[repr(i8)]
 #[derive(Debug, Copy, Clone)]
 pub enum EntityVariant {
+    ArmorStand = 30,
     Zombie = 54,
     Bat = 65,
 }

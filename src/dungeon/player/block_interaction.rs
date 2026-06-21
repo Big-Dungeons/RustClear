@@ -41,7 +41,7 @@ pub(super) fn on_remove_block_interactable(
         .unwrap();
 
     debug_assert!(
-        !lookup.contains_key(&interactable.position),
+        lookup.contains_key(&interactable.position),
         "removed block interactable, but it's position wasn't in the lookup"
     );
 

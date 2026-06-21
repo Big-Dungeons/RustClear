@@ -12,7 +12,7 @@ mod debug_world;
 mod dungeon;
 
 // temp
-const TEST_WORLD: bool = false;
+const TEST_WORLD: bool = true;
 
 fn main() {
     let mut app = App::new();
@@ -28,7 +28,8 @@ fn main() {
             },
         },
         DungeonPlugin {
-            seed: rand::random(),
+            seed: 13687989479541743623
+            // seed: rand::random(),
         },
     ));
 

@@ -27,7 +27,7 @@ impl ItemSecretType {
 
 #[derive(Component)]
 pub struct ItemSecret {
-    pub spawn_location: IVec3,
+    pub spawn_position: IVec3,
     pub item_type: ItemSecretType,
 }
 
@@ -52,7 +52,7 @@ pub(super) fn on_secret_spawn(
                 half_width: 0.125,
                 height: 2.5,
             },
-            Transform::new_centered(secret.spawn_location),
+            Transform::new_centered(secret.spawn_position),
             Velocity(dvec3(0.0, 0.1, 0.0)),
             ItemPickupRadius {
                 // might not be correct

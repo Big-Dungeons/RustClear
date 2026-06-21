@@ -19,8 +19,8 @@ pub enum ChestSecretType {
 
 #[derive(Component)]
 pub struct ChestSecret {
-    pub chest_type: ChestSecretType,
     pub spawn_location: IVec3,
+    pub chest_type: ChestSecretType,
     pub rotation: Rotation,
 }
 
@@ -35,11 +35,11 @@ pub(super) fn on_secret_spawn(
         chunks.set_block_at(Block::Chest { direction }, secret.spawn_location);
 
         commands.spawn((
+            ChildOf(event.entity),
             ChestSecretBlock,
             BlockInteractable {
                 position: secret.spawn_location
             },
-            ChildOf(event.entity),
         ));
     }
 }
@@ -68,10 +68,9 @@ pub(super) fn on_interact(
         if let ChestSecretType::Blessing { locked } = chest.chest_type {
             if locked {
                 packet_buffer.write_packet(&Chat::new("§cThat chest is locked!"));
-                // That chest is locked!
                 return;
             }
-            
+
             // spawn the blessing for like some amount of ticks
         } else if secret.collected {
             packet_buffer.write_packet(&Chat::new("§cThis chest has already been searched!"));

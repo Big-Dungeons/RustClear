@@ -1,5 +1,6 @@
 pub mod item_secret;
 pub mod chest_secret;
+pub mod essence;
 
 use crate::core::block::block_rotation::Rotate;
 use crate::core::entity::components::transform::Transform;
@@ -108,21 +109,24 @@ pub fn load_secrets(mut room_query: Query<(Entity, &mut Room, &RoomData)>, mut c
                 SecretType::Chest { rotation } => {
                     let rotation = rotation.rotate(room.rotation);
                     secret_entity.insert(ChestSecret {
+                        spawn_location: world_position,
                         // todo: rng choose, and if lever related set locked to true
                         chest_type: ChestSecretType::Blessing {
                             locked: false
                         },
-                        spawn_location: world_position,
                         rotation,
                     });
                 }
                 SecretType::Item => {
                     secret_entity.insert(ItemSecret {
-                        spawn_location: world_position,
+                        spawn_position: world_position,
                         // todo: rng choose
                         item_type: ItemSecretType::SpiritLeap,
                     });
                 },
+                SecretType::Essence { rotation } => {
+
+                }
             }
 
             match secret.spawn_condition {
@@ -158,12 +162,18 @@ impl Plugin for DungeonSecretsPlugin {
             .add_observer(item_secret::on_secret_spawn)
             .add_observer(chest_secret::on_secret_spawn)
             .add_observer(chest_secret::on_interact)
+            .add_observer(essence::on_secret_spawn)
+            .add_observer(essence::on_interact)
             .add_observer(on_player_enter_room)
             .add_observer(update_room_secrets)
             .add_systems(PostStartup, load_secrets)
             .add_systems(Update, (
-                on_player_enter_area.run_if(run_every_ticks::<20>),
-                item_secret::pickup_item_secret
+                on_player_enter_area
+                    // .run_if(in_state(DungeonState::Started))
+                    .run_if(run_every_ticks::<20>),
+
+                item_secret::pickup_item_secret,
+                essence::update_essence_mob
             ));
     }
 }

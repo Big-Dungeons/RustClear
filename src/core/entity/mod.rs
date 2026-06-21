@@ -22,6 +22,8 @@ use components::transform;
 use components::transform::OldTransform;
 use components::transform::Transform;
 use glam::{dvec3, DVec3, I16Vec3};
+use crate::core::entity::components::equipment::Equipment;
+use crate::core::ServerTick;
 
 pub trait BevyEntityExt {
     fn mc_id(&self) -> i32;
@@ -39,6 +41,9 @@ impl BevyEntityExt for Entity {
             .entity()
     }
 }
+
+#[derive(Component, Deref)]
+pub struct SpawnedOnTick(pub i64);
 
 #[derive(Component)]
 pub struct EntitySize {
@@ -140,23 +145,28 @@ impl Mob {
 #[derive(SystemParam)]
 pub struct MobSpawnQueries<'w, 's> {
     pub mob_query: Query<'w, 's, (Entity, &'static Mob, &'static Transform)>,
+    pub equipment_query: Query<'w, 's, (Entity, &'static Equipment)>,
     pub riding_query: Query<'w, 's, (Entity, &'static Riding)>
 }
 
 fn on_mob_add(
     event: On<Add, Mob>,
-    mob_query: Query<(&Mob, &Transform, Option<&Riding>)>,
+    mob_query: Query<(&Mob, &Transform, Option<&Equipment>, Option<&Riding>)>,
     mut player_query: Query<&mut PlayerPacketBuffer>,
+    ticks: ResMut<ServerTick>,
     mut chunks: ResMut<ChunkGrid>,
     mut commands: Commands,
 ) {
-    let (mob, transform, riding) = mob_query
+    let (mob, transform, equipment, riding) = mob_query
         .get(event.entity)
         .expect("mob must be added with transform");
 
     commands
         .entity(event.entity)
-        .insert(OldTransform(*transform));
+        .insert((
+            OldTransform(*transform),
+            SpawnedOnTick(ticks.now()),
+        ));
 
     let chunk_position = get_chunk_position(transform.position);
 
@@ -174,6 +184,9 @@ fn on_mob_add(
                     .unwrap();
 
                 mob.write_spawn_packet(event.entity, transform, &mut buffer);
+                if let Some(equipment) = equipment {
+                    equipment.write_packets(event.entity, &mut buffer);
+                }
                 if let Some(riding) = riding {
                     buffer.write_packet(&EntityAttach {
                         entity_id: event.entity.mc_id(),
@@ -212,11 +225,11 @@ fn on_mob_remove(
 }
 
 fn on_mob_move(
-    mob_query: Query<(Entity, &Mob, &Transform, &OldTransform, Option<&Riding>)>,
+    mob_query: Query<(Entity, &Mob, &Transform, &OldTransform, Option<&Equipment>, Option<&Riding>)>,
     mut player_query: Query<&mut PlayerPacketBuffer>,
     mut chunks: ResMut<ChunkGrid>,
 ) {
-    for (entity, mob, transform, old_transform, riding) in mob_query.iter() {
+    for (entity, mob, transform, old_transform, equipment, riding) in mob_query.iter() {
         if *transform == old_transform.0 {
             continue
         }
@@ -254,6 +267,9 @@ fn on_mob_move(
                         ChunkDiff::New => {
                             for mut buffer in player_query.iter_many_unique_mut(&chunk.players) {
                                 mob.write_spawn_packet(entity, transform, &mut buffer);
+                                if let Some(equipment) = equipment {
+                                    equipment.write_packets(entity, &mut buffer);
+                                }
                                 // might be issues, because of ordering,
                                 // however there isn't plans for riding entities to move I think
                                 if let Some(riding) = riding {
@@ -302,6 +318,9 @@ impl Plugin for MobPlugin {
                 on_mob_move,
                 components::velocity::write_velocity_packet,
             ).chain())
-            .add_systems(Last, transform::set_old_transform);
+            .add_systems(Last, (
+                components::despawn_after::handle_despawn_after,
+                transform::set_old_transform,
+            ));
     }
 }

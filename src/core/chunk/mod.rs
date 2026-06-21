@@ -164,7 +164,10 @@ impl Chunk {
 
     pub fn write_spawn_entities(&mut self, query: &MobSpawnQueries) {
         for (entity, mob, transform) in query.mob_query.iter_many(&self.entities) {
-            mob.write_spawn_packet(entity, transform, &mut self.packet_buffer)
+            mob.write_spawn_packet(entity, transform, &mut self.packet_buffer);
+        }
+        for (entity, equipment) in query.equipment_query.iter_many(&self.entities) {
+            equipment.write_packets(entity, &mut self.packet_buffer);
         }
         // order might not be correct due to nature of systems,
         // so 2nd pass it is
@@ -173,7 +176,7 @@ impl Chunk {
                 entity_id: entity.mc_id(),
                 vehicle_id: riding.mc_id(),
                 leash: false,
-            })
+            });
         }
     }
 

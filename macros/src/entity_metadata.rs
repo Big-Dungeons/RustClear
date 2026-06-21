@@ -117,13 +117,8 @@ pub fn entity_metadata_serializable_macro(input: proc_macro::TokenStream) -> pro
         let mut defaults: TokenStream = Default::default();
 
         for MetadataField { metadata_index, ident, ty, default_expr, .. } in &fields {
-            if !variant_write_size.is_empty() {
-                variant_write_size.extend(quote! {
-                    +
-                })
-            }
             variant_write_size.extend(quote! {
-                1 + self.#ident.write_size()
+                + 1 + self.#ident.write_size()
             });
 
             let index = *metadata_index as u8;
@@ -150,7 +145,7 @@ pub fn entity_metadata_serializable_macro(input: proc_macro::TokenStream) -> pro
 
             impl PacketSerializable for #metadata_ident {
                 fn write_size(&self) -> usize {
-                    1 + #variant_write_size
+                    1 #variant_write_size
                 }
                 fn write(&self, buf: &mut bytes::BytesMut) {
                     #variant_write
