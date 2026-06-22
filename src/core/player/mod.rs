@@ -22,7 +22,7 @@ use crate::core::player::movement::SetPosition;
 use crate::core::player::particles::ParticleEvent;
 use crate::core::player::sound::LocalSound;
 use bevy::app::{App, First, PostUpdate, PreUpdate};
-use bevy::prelude::{Commands, Component, Deref, DerefMut, Entity, IntoScheduleConfigs, Last, Message, MessageReader, Plugin, Query, Res, ResMut, Resource, Update, With, Without};
+use bevy::prelude::{Commands, Component, Deref, DerefMut, Entity, IntoScheduleConfigs, Last, Message, MessageReader, On, Plugin, Query, Remove, Res, ResMut, Resource, Update, With, Without};
 use bytes::BytesMut;
 
 // marker
@@ -102,6 +102,20 @@ fn process_player_join(
     }
 }
 
+fn on_player_remove(
+    event: On<Remove, Player>,
+    query: Query<&Transform>,
+    mut chunks: ResMut<ChunkGrid>,
+) {
+    let transform = query
+        .get(event.entity)
+        .expect("player missing transform when leaving");
+
+    if let Some(chunk) = chunks.get_mut_from_position(transform.position) {
+        chunk.remove_player(event.entity)
+    }
+}
+
 fn copy_chunk_packet_buffers(
     mut player_query: Query<(&Transform, &mut PlayerPacketBuffer)>,
     mut chunks: ResMut<ChunkGrid>,
@@ -148,6 +162,7 @@ impl Plugin for PlayerPlugin {
             .add_message::<LocalSound>()
             .add_message::<ParticleEvent>()
             .add_plugins(InventoryPlugin)
+            .add_observer(on_player_remove)
             .add_observer(sidebar::init_sidebar_packets)
 
             // give that systems in bevy do not have an order based on insertion (unless using .chain() etc)

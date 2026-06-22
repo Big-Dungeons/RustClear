@@ -64,6 +64,7 @@ impl Plugin for DungeonPlayerPlugin {
         // no crash trying to access entrance despite it not existing
         if !crate::TEST_WORLD {
             app.add_observer(init_player);
+            app.add_observer(update_room::on_player_remove);
             app.add_systems(Update, update_room::update_room);
         }
 
