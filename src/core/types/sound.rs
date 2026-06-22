@@ -3,6 +3,7 @@ use bytes::BytesMut;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Sound {
+    RandomChestOpen,
     RandomWoodClick,
     EnderDragonHit,
     RandomExplode,
@@ -19,6 +20,7 @@ pub enum Sound {
 impl Sound {
     fn get_sound(&self) -> &'static str {
         match self {
+            Sound::RandomChestOpen => "random.chestopen",
             Sound::RandomWoodClick => "random.wood_click",
             Sound::EnderDragonHit => "mob.enderdragon.hit",
             Sound::RandomExplode => "random.explode",

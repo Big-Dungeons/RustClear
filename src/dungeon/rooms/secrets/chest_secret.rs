@@ -1,20 +1,21 @@
-use crate::core::block::Block;
 use crate::core::block::block_parameters::Direction;
 use crate::core::block::block_rotation::{Rotate, Rotation};
+use crate::core::block::Block;
 use crate::core::chunk::chunk_grid::ChunkGrid;
-use crate::core::entity::Mob;
 use crate::core::entity::components::despawn_after::DespawnAfter;
 use crate::core::entity::components::equipment::Equipment;
 use crate::core::entity::components::transform::Transform;
 use crate::core::entity::entity_metadata::ArmorStandMetadata;
+use crate::core::entity::Mob;
 use crate::core::network::packets::BytesMutExt;
-use crate::core::network::protocol::play::clientbound::{BlockAction, Chat};
+use crate::core::network::protocol::play::clientbound::{BlockAction, Chat, SoundEffect};
 use crate::core::player::inventory::item_stack::ItemStack;
 use crate::core::player::{PlayerPacketBuffer, PlayerSkin};
+use crate::core::types::sound::Sound;
 use crate::dungeon::player::block_interaction::{BlockInteractable, BlockInteractionEvent};
 use crate::dungeon::rooms::secrets::{essence, CollectSecretEvent, Secret, SecretSpawned};
 use bevy::prelude::*;
-use glam::IVec3;
+use glam::{DVec3, IVec3};
 use uuid::Uuid;
 
 const BLESSING_UUID: Uuid = Uuid::from_u128(2);
@@ -102,7 +103,17 @@ pub(super) fn on_interact(
                 ));
             }
         } else if secret.collected {
+            // this message only appears on non blessing chest
             packet_buffer.write_packet(&Chat::new("§cThis chest has already been searched!"));
+        }
+
+        if !secret.collected {
+            packet_buffer.write_packet(&SoundEffect::new(
+                Sound::RandomChestOpen,
+                block.position.as_dvec3() + DVec3::splat(0.5),
+                1.0,
+                0.975,
+            ));
         }
 
         if let Some(chunk) = chunks.get_mut_from_world(block.position) {
