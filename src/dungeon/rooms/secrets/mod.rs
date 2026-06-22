@@ -9,6 +9,7 @@ use crate::core::types::aabb::AABB;
 use crate::dungeon::rooms::room_data::{RoomData, SecretSpawnCondition, SecretType};
 use crate::dungeon::rooms::room_enter::RoomEntered;
 use crate::dungeon::rooms::secrets::chest_secret::{ChestSecret, ChestSecretType};
+use crate::dungeon::rooms::secrets::essence::EssenceSecret;
 use crate::dungeon::rooms::secrets::item_secret::{ItemSecret, ItemSecretType};
 use crate::dungeon::rooms::Room;
 use bevy::prelude::*;
@@ -125,7 +126,10 @@ pub fn load_secrets(mut room_query: Query<(Entity, &mut Room, &RoomData)>, mut c
                     });
                 },
                 SecretType::Essence { rotation } => {
-
+                    // todo: rotation
+                    secret_entity.insert(EssenceSecret {
+                        spawn_position: world_position,
+                    });
                 }
             }
 
