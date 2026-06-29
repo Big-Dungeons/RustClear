@@ -31,46 +31,53 @@ fn load(
         }
     }
 
-    commands.spawn((
-        Secret {
-            collected: false,
-        },
-        EssenceSecret {
-            spawn_position: ivec3(-15, 1, -15),
-        },
-        SecretSpawnArea {
-            aabb: AABB::new(dvec3(-23.0, 0.0, -23.0), dvec3(-7.0, 20.0, -7.0)),
-        }
-    ));
+    for index in 0..16 {
+        chunks.set_block_at(
+            Block::FlowerPot { flower: index },
+            (-3 * index as i32, 1, -3)
+        )
+    }
 
-    commands.spawn((
-        Secret {
-            collected: false,
-        },
-        ChestSecret {
-            chest_type: ChestSecretType::Blessing {
-                locked: false
-            },
-            spawn_position: ivec3(-17, 1, -15),
-            rotation: Rotation::None,
-        },
-        SecretSpawnArea {
-            aabb: AABB::new(dvec3(-25.0, 0.0, -23.0), dvec3(-9.0, 20.0, -7.0)),
-        }
-    ));
-
-    commands.spawn((
-        Secret {
-            collected: false,
-        },
-        ItemSecret {
-            spawn_position: ivec3(-19, 1, -15),
-            item_type: ItemSecretType::SpiritLeap,
-        },
-        SecretSpawnArea {
-            aabb: AABB::new(dvec3(-27.0, 0.0, -23.0), dvec3(-11.0, 20.0, -7.0)),
-        }
-    ));
+    // commands.spawn((
+    //     Secret {
+    //         collected: false,
+    //     },
+    //     EssenceSecret {
+    //         spawn_position: ivec3(-15, 1, -15),
+    //     },
+    //     SecretSpawnArea {
+    //         aabb: AABB::new(dvec3(-23.0, 0.0, -23.0), dvec3(-7.0, 20.0, -7.0)),
+    //     }
+    // ));
+    //
+    // commands.spawn((
+    //     Secret {
+    //         collected: false,
+    //     },
+    //     ChestSecret {
+    //         chest_type: ChestSecretType::Blessing {
+    //             locked: false
+    //         },
+    //         spawn_position: ivec3(-17, 1, -15),
+    //         rotation: Rotation::None,
+    //     },
+    //     SecretSpawnArea {
+    //         aabb: AABB::new(dvec3(-25.0, 0.0, -23.0), dvec3(-9.0, 20.0, -7.0)),
+    //     }
+    // ));
+    //
+    // commands.spawn((
+    //     Secret {
+    //         collected: false,
+    //     },
+    //     ItemSecret {
+    //         spawn_position: ivec3(-19, 1, -15),
+    //         item_type: ItemSecretType::SpiritLeap,
+    //     },
+    //     SecretSpawnArea {
+    //         aabb: AABB::new(dvec3(-27.0, 0.0, -23.0), dvec3(-11.0, 20.0, -7.0)),
+    //     }
+    // ));
 }
 
 fn spawn_player(

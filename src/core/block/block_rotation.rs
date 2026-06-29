@@ -1,13 +1,25 @@
 use crate::core::block::block_metadata::BlockFieldMetadata;
 use crate::core::block::block_parameters::{BlockAxis, ButtonDirection, Direction, HorizontalDirection, LeverOrientation, RailShape, StairDirection, TorchDirection, TrapdoorDirection, VineMetadata};
 use glam::IVec3;
+use serde::Deserialize;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Deserialize, Debug, Copy, Clone)]
 pub enum Rotation {
     None,
     Clockwise90,
     Clockwise180,
     CounterClockwise90,
+}
+
+impl Rotation {
+    pub fn inverse(&self) -> Rotation {
+        match self {
+            Rotation::None => Rotation::None,
+            Rotation::Clockwise90 => Rotation::CounterClockwise90,
+            Rotation::Clockwise180 => Rotation::Clockwise180,
+            Rotation::CounterClockwise90 => Rotation::Clockwise90,
+        }
+    }
 }
 
 pub trait Rotate {
@@ -57,9 +69,9 @@ impl Rotate for IVec3 {
         match rotation {
             Rotation::None => *self,
             Rotation::Clockwise90 => Self {
-                x: -self.z,
+                x: self.z,
                 y: self.y,
-                z: self.x,
+                z: -self.x,
             },
             Rotation::Clockwise180 => Self {
                 x: -self.x,
@@ -67,9 +79,9 @@ impl Rotate for IVec3 {
                 z: -self.z,
             },
             Rotation::CounterClockwise90 => Self {
-                x: self.z,
+                x: -self.z,
                 y: self.y,
-                z: -self.x,
+                z: self.x,
             },
         }
     }

@@ -1,3 +1,4 @@
+use crate::core::block::block_entity::SkullRotation;
 use crate::core::block::block_rotation::Rotation;
 use crate::core::block::Block;
 use crate::dungeon::rng::{DHashMap, DHashSet, SeededRng};
@@ -8,7 +9,6 @@ use include_dir::include_dir;
 use rand::prelude::IteratorRandom;
 use serde::de::Error;
 use serde::{Deserialize, Deserializer};
-use serde_json::Value;
 use std::collections::HashSet;
 
 #[derive(Deserialize, Component, Clone)]
@@ -23,8 +23,10 @@ pub struct RoomData {
     pub length: i32,
     pub height: i32,
 
-    #[serde(default, deserialize_with = "deserialize_secrets")]
+    #[serde(default)]
     pub secrets: Vec<SecretData>,
+    #[serde(default, deserialize_with = "deserialize_block_entities")]
+    pub block_entities: DHashMap<IVec3, BlockEntityData>,
 
     // do we need to keep this once loaded into world?
     #[serde(deserialize_with = "deserialize_blocks")]
@@ -43,6 +45,7 @@ impl RoomData {
             length: 31,
             height: 30,
             secrets: Vec::new(),
+            block_entities: DHashMap::default(),
             block_data: Vec::new(),
         }
     }
@@ -136,7 +139,8 @@ pub enum RoomType {
     Rare,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Deserialize, Debug, Copy, Clone)]
+#[serde(rename_all = "snake_case", tag = "type")]
 pub enum SecretType {
     Essence {
         rotation: u8
@@ -147,7 +151,8 @@ pub enum SecretType {
     Item,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Deserialize, Debug, Copy, Clone)]
+#[serde(rename_all = "snake_case", tag = "type")]
 pub enum SecretSpawnCondition {
     EnterArea {
         width: i32,
@@ -156,83 +161,42 @@ pub enum SecretSpawnCondition {
     EnterRoom,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Deserialize, Debug, Copy, Clone)]
 pub struct SecretData {
+    pub secret: SecretType,
     pub position: IVec3,
-    pub secret_type: SecretType,
     pub spawn_condition: SecretSpawnCondition,
 }
 
-fn deserialize_secrets<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<SecretData>, D::Error> {
-    let input: Vec<Value> = Vec::deserialize(d)?;
-    let mut secret_data = Vec::with_capacity(input.len());
-
-    for item in input {
-        let obj = item.as_object().ok_or_else(|| Error::custom("not object"))?;
-        let position = {
-            let mut parts = obj["position"]
-                .as_str()
-                .ok_or_else(|| Error::custom("missing position"))?
-                .split(',');
-
-            IVec3::new(
-                parts.next().unwrap().parse().unwrap(),
-                parts.next().unwrap().parse().unwrap(),
-                parts.next().unwrap().parse().unwrap(),
-            )
-        };
-
-        let secret_type = match obj["type"].as_str().ok_or_else(|| Error::custom("no secret type"))? {
-            "chest" => {
-                let rotation = match obj["rotation"]
-                    .as_str()
-                    .ok_or_else(|| Error::custom("no rotation for chest"))?
-                {
-                    "None" => Rotation::None,
-                    "Clockwise90" => Rotation::Clockwise90,
-                    "Clockwise180" => Rotation::Clockwise180,
-                    "CounterClockwise90" => Rotation::CounterClockwise90,
-                    other => return Err(Error::custom(format!("unknown rotation {other}")))
-                };
-                SecretType::Chest {
-                    rotation,
-                }
-            }
-            "item" => {
-                SecretType::Item
-            }
-            "essence" => {
-                // todo: rotation
-                SecretType::Essence { rotation: 0 }
-            }
-            other => return Err(Error::custom(format!("unknown secret {other}")))
-        };
-
-        let obj_spawn_condition = obj["spawn_condition"]
-            .as_object()
-            .ok_or_else(|| Error::custom("no spawn condition"))?;
-
-        let spawn_condition = match obj_spawn_condition["type"].as_str().unwrap() {
-            "enter_area" => {
-                let width = obj_spawn_condition["width"].as_i64().unwrap() as i32;
-                let height = obj_spawn_condition["height"].as_i64().unwrap() as i32;
-                SecretSpawnCondition::EnterArea {
-                    width,
-                    height,
-                }
-            }
-            "enter_room" => SecretSpawnCondition::EnterRoom,
-            other => return Err(Error::custom(format!("unknown spawn condition {other}")))
-        };
-
-        secret_data.push(SecretData {
-            position,
-            secret_type,
-            spawn_condition,
-        });
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "snake_case", tag = "type")]
+pub enum BlockEntityData {
+    Skull {
+        #[serde(default)]
+        skull_type: u8,
+        #[serde(default)]
+        texture: Option<String>,
+        #[serde(default)]
+        rotation: SkullRotation
+    },
+    Sign {
+        lines: Vec<String>
+    },
+    Banner {
+        patterns: Vec<String>
     }
+}
 
-    Ok(secret_data)
+// reason: glam serializes IVec3 as json array, but it needs to be string as key,
+#[derive(Deserialize)]
+struct BlockEntityEntry<V> {
+    position: IVec3,
+    block_entity: V,
+}
+
+fn deserialize_block_entities<'de, D: Deserializer<'de>>(d: D) -> Result<DHashMap<IVec3, BlockEntityData>, D::Error> {
+    let entries = Vec::<BlockEntityEntry<BlockEntityData>>::deserialize(d)?;
+    Ok(entries.into_iter().map(|e| (e.position, e.block_entity)).collect())
 }
 
 
@@ -248,7 +212,6 @@ fn deserialize_blocks<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<Block>, D::
 }
 
 #[test]
-
 fn room_data_test() {
     let rooms_directory = include_dir!("DungeonData/room_data/");
     rooms_directory
@@ -263,25 +226,19 @@ fn room_data_test() {
 
 // maybe have it static so roomdata can be singleton?, or drop once loaded
 #[derive(Resource, Deref)]
-pub struct RoomDataLookup(pub DHashMap<usize, RoomData>);
+pub struct RoomDataLookup(pub DHashMap<String, RoomData>);
 
 impl Default for RoomDataLookup {
     fn default() -> Self {
         let rooms_directory = include_dir!("DungeonData/room_data/");
-        let room_data: DHashMap<usize, RoomData> = rooms_directory
+        let room_data: DHashMap<String, RoomData> = rooms_directory
             .entries()
             .iter()
             .map(|file| {
                 let file = file.as_file().unwrap();
-
-                let name = file.path().file_name().unwrap().to_str().unwrap();
-                let name_parts: Vec<&str> = name.split(",").collect();
-                let room_id = name_parts.first().unwrap().parse::<usize>().unwrap();
-
                 let contents = file.contents_utf8().unwrap();
                 let room_data: RoomData = serde_json::from_str(contents).unwrap();
-
-                (room_id, room_data)
+                (room_data.id.clone(), room_data)
             }).collect();
         
         Self(room_data)

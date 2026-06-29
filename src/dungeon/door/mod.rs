@@ -103,7 +103,7 @@ pub fn load_doors_into_world(
 
         let rotation = match door.axis {
             DoorAxis::Z => Rotation::None,
-            DoorAxis::X => Rotation::CounterClockwise90,
+            DoorAxis::X => Rotation::Clockwise90,
         };
 
         for (index, block) in chosen.iter().enumerate() {
@@ -112,7 +112,7 @@ pub fn load_doors_into_world(
             let z = ((index / 5) % 5) as i32;
             let bp = ivec3(x - 2, y, z - 2).rotate(rotation);
 
-            let block_to_place = block.rotate(rotation);
+            let block_to_place = block.rotate(rotation.inverse());
             chunks.set_block_at(block_to_place, (door.position.x + bp.x, 69 + bp.y, door.position.y + bp.z));
         }
 

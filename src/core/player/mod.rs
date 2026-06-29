@@ -45,6 +45,15 @@ pub struct PlayerSkin {
     pub _signature: Option<String>
 }
 
+impl PlayerSkin {
+    pub fn new(texture: String) -> Self {
+        Self {
+            texture,
+            _signature: None,
+        }
+    }
+}
+
 #[derive(Component, Deref, DerefMut)]
 pub struct PlayerPacketBuffer(pub BytesMut);
 

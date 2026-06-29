@@ -28,8 +28,8 @@ fn main() {
             },
         },
         DungeonPlugin {
-            seed: 13687989479541743623
-            // seed: rand::random(),
+            // seed: 14689613159094141968
+            seed: rand::random(),
         },
     ));
 

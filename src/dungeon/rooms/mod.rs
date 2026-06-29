@@ -1,12 +1,16 @@
+use crate::core::block::block_entity::{BlockEntity, BlockEntityType, SkullType};
 use crate::core::block::block_rotation::{Rotate, Rotation};
 use crate::core::block::Block;
 use crate::core::chunk::chunk_grid::ChunkGrid;
-use crate::dungeon::rooms::room_data::RoomData;
+use crate::core::player::PlayerSkin;
+use crate::dungeon::rng::DHashMap;
+use crate::dungeon::rooms::room_data::{BlockEntityData, RoomData};
 use crate::dungeon::DUNGEON_ORIGIN;
-use bevy::prelude::{Component, Entity, Query, ResMut, Resource};
+use bevy::ecs::entity::EntityHashSet;
+use bevy::prelude::{Commands, Component, Entity, Query, ResMut, Resource};
 use glam::{ivec3, DVec3, IVec3, USizeVec2, Vec3Swizzles};
 use std::cmp::{max, min};
-use bevy::ecs::entity::EntityHashSet;
+use uuid::Uuid;
 
 pub mod room_data;
 pub mod secrets;
@@ -39,7 +43,7 @@ impl Room {
     }
 
     pub fn relative_to_world(&self, position: IVec3) -> IVec3 {
-        let mut position = position.rotate(self.rotation);
+        let mut position = position.rotate(self.rotation.inverse());
         position.x += self.corner.x;
         position.z += self.corner.z;
         position
@@ -129,8 +133,8 @@ pub fn rotation_from_segments(segments: &[(RoomSegment, u8)]) -> Rotation {
                 // Doors on all sides, never changes
                 0b1111 => Rotation::None,
                 // Opposite doors
-                0b0101 => Rotation::None,
-                0b1010 => Rotation::Clockwise90,
+                0b1010 => Rotation::None,
+                0b0101 => Rotation::CounterClockwise90,
                 // Dead end | L Bend | Triple Door
                 0b1000 | 0b0011 | 0b1011 => Rotation::None,
                 0b0100 | 0b1001 | 0b1101 => Rotation::Clockwise90,
@@ -139,9 +143,9 @@ pub fn rotation_from_segments(segments: &[(RoomSegment, u8)]) -> Rotation {
                 _ => Rotation::None,
             }
         }
-        2 => match length == 1 {
+        2 => match width == 1 {
             true => Rotation::None,
-            false => Rotation::Clockwise90,
+            false => Rotation::CounterClockwise90,
         },
         3 => {
             // L room
@@ -159,9 +163,9 @@ pub fn rotation_from_segments(segments: &[(RoomSegment, u8)]) -> Rotation {
                     _ => Rotation::None,
                 }
             } else {
-                match length == 1 {
+                match width == 1 {
                     true => Rotation::None,
-                    false => Rotation::Clockwise90,
+                    false => Rotation::CounterClockwise90,
                 }
             }
         },
@@ -169,9 +173,9 @@ pub fn rotation_from_segments(segments: &[(RoomSegment, u8)]) -> Rotation {
             if width == 2 && length == 2 {
                 Rotation::None
             } else {
-                match length == 1 {
+                match width == 1 {
                     true => Rotation::None,
-                    false => Rotation::Clockwise90,
+                    false => Rotation::CounterClockwise90,
                 }
             }
         },
@@ -180,7 +184,6 @@ pub fn rotation_from_segments(segments: &[(RoomSegment, u8)]) -> Rotation {
 }
 
 fn corner_position(segments: &[&RoomSegment], data: &RoomData, rotation: Rotation) -> IVec3 {
-    // due to segments being flipped
     let min_x = segments.iter().min_by(|a, b| a.x.cmp(&b.x)).unwrap().x;
     let min_z = segments.iter().min_by(|a, b| a.z.cmp(&b.z)).unwrap().z;
     let x = min_x as i32 * 32 + DUNGEON_ORIGIN.x;
@@ -197,8 +200,12 @@ fn corner_position(segments: &[&RoomSegment], data: &RoomData, rotation: Rotatio
 // might have issue where rooms overlap, but im pretty sure its fixed
 pub fn load_rooms_into_world(
     query: Query<(&Room, &RoomData)>,
-    mut chunks: ResMut<ChunkGrid>
+    mut chunks: ResMut<ChunkGrid>,
+    mut commands: Commands
 ) {
+    // maybe make this a global resource
+    let mut uuid_map: DHashMap<String, Uuid> = DHashMap::default();
+
     for (room, data) in query.iter() {
         for (index, block) in data.block_data.iter().enumerate() {
             if *block == Block::Air {
@@ -210,10 +217,51 @@ pub fn load_rooms_into_world(
             let z = (index / data.width) % data.length;
             let y = data.bottom + index / (data.width * data.length);
 
-            let bp = ivec3(x, y, z).rotate(room.rotation);
+            let position = ivec3(x, y, z).rotate(room.rotation.inverse());
             let block = block.rotate(room.rotation);
+            chunks.set_block_at(block, (room.corner.x + position.x, y, room.corner.z + position.z));
+        }
 
-            chunks.set_block_at(block, (room.corner.x + bp.x, y, room.corner.z + bp.z));
+        for (position, block) in data.block_entities.iter() {
+            let mut position = position.rotate(room.rotation.inverse());
+            position.y += data.bottom;
+            position.x += room.corner.x;
+            position.z += room.corner.z;
+
+            match block {
+                BlockEntityData::Skull { skull_type, texture, rotation } => {
+                    let rotation = rotation.rotate(room.rotation);
+
+                    let skull_type = match skull_type {
+                        0 => SkullType::Skeleton,
+                        1 => SkullType::WitherSkeleton,
+                        2 => SkullType::Zombie,
+                        3 => {
+                            let Some(texture) = texture else {
+                                continue;
+                            };
+
+                            let uuid = *uuid_map
+                                .entry(texture.clone())
+                                .or_insert(Uuid::new_v4());
+
+                            SkullType::PlayerHead {
+                                uuid,
+                                skin: PlayerSkin::new(texture.clone()),
+                            }
+                        },
+                        4 => SkullType::Creeper,
+                        _ => unreachable!()
+                    };
+
+                    commands.spawn(BlockEntity::new(
+                        position, BlockEntityType::Skull { rotation, skull_type })
+                    );
+                }
+                BlockEntityData::Banner { .. } => {}
+                _ => {}
+            }
         }
     }
+    println!("Done loading")
 }

@@ -1,4 +1,4 @@
-use crate::core::block::block_entity::{BlockEntity, BlockEntityType};
+use crate::core::block::block_entity::{BlockEntity, BlockEntityType, SkullRotation, SkullType};
 use crate::core::block::block_parameters::Direction;
 use crate::core::block::Block;
 use crate::core::chunk::chunk_grid::ChunkGrid;
@@ -8,8 +8,10 @@ use crate::core::entity::components::transform::Transform;
 use crate::core::entity::entity_metadata::ArmorStandMetadata;
 use crate::core::entity::{Mob, SpawnedOnTick};
 use crate::core::player::inventory::item_stack::ItemStack;
+use crate::core::player::particles::ParticleEvent;
 use crate::core::player::sound::LocalSound;
 use crate::core::player::PlayerSkin;
+use crate::core::types::particles::Particle;
 use crate::core::types::sound::Sound;
 use crate::core::ServerTick;
 use crate::dungeon::player::block_interaction::{BlockInteractable, BlockInteractionEvent};
@@ -17,11 +19,6 @@ use crate::dungeon::rooms::secrets::{CollectSecretEvent, SecretSpawned};
 use bevy::prelude::*;
 use glam::{dvec3, IVec3, Vec3};
 use uuid::Uuid;
-use crate::core::player::particles::ParticleEvent;
-use crate::core::types::particles::Particle;
-// 0..=15
-// pub struct EssenceRotation {}
-
 
 const ESSENCE_UUID: Uuid = Uuid::from_u128(1);
 const ESSENCE_TEXTURE: &str = "ewogICJ0aW1lc3RhbXAiIDogMTYwMzYxMDQ0MzU4MywKICAicHJvZmlsZUlkIiA6ICIzM2ViZDMyYmIzMzk0YWQ5YWM2NzBjOTZjNTQ5YmE3ZSIsCiAgInByb2ZpbGVOYW1lIiA6ICJEYW5ub0JhbmFubm9YRCIsCiAgInNpZ25hdHVyZVJlcXVpcmVkIiA6IHRydWUsCiAgInRleHR1cmVzIiA6IHsKICAgICJTS0lOIiA6IHsKICAgICAgInVybCIgOiAiaHR0cDovL3RleHR1cmVzLm1pbmVjcmFmdC5uZXQvdGV4dHVyZS9lNDllYzdkODJiMTQxNWFjYWUyMDU5Zjc4Y2QxZDE3NTRiOWRlOWIxOGNhNTlmNjA5MDI0YzRhZjg0M2Q0ZDI0IgogICAgfQogIH0KfQ==";
@@ -51,12 +48,10 @@ pub(super) fn on_secret_spawn(
             BlockEntity::new(
                 secret.spawn_position,
                 BlockEntityType::Skull {
-                    rotation: 0,
-                    skull_type: 3,
-                    uuid: ESSENCE_UUID,
-                    skin: PlayerSkin {
-                        texture: ESSENCE_TEXTURE.to_string(),
-                        _signature: None,
+                    rotation: SkullRotation::default(),
+                    skull_type: SkullType::PlayerHead {
+                        uuid: ESSENCE_UUID,
+                        skin: PlayerSkin::new(ESSENCE_TEXTURE.to_string()),
                     },
                 }
             ),
