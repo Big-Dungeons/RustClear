@@ -257,6 +257,7 @@ pub fn deserialize_item_stack<'de, D: Deserializer<'de>>(deserializer: D) -> Res
     Ok(Some(stack))
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "snake_case", tag = "type")]
 pub enum PropEntity {
@@ -281,6 +282,16 @@ pub enum PropEntity {
         leggings: Option<ItemStack>,
         #[serde(default, deserialize_with = "deserialize_item_stack")]
         boots: Option<ItemStack>,
+    },
+    Painting {
+        position: IVec3,
+        rotation: Rotation,
+        variant: String,
+    },
+    Minecart {
+        position: DVec3,
+        yaw: f32,
+        pitch: f32,
     }
 }
 

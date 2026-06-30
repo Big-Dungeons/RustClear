@@ -1,21 +1,45 @@
 use crate::core::block::Block;
+use crate::core::block::block_rotation::Rotation;
 use crate::core::entity::entity_metadata::MobFlags;
 use crate::core::entity::entity_metadata_serializable::EntityMetadataSerializable;
 use crate::core::network::packets::packet_serializable::PacketSerializable;
+use crate::core::network::protocol::sized_string::SizedString;
 use crate::core::player::inventory::item_stack::ItemStack;
 use crate::core::types::entity_variant::ObjectVariant;
 use enumset::EnumSet;
 use macros::entity_metadata;
 
+// add more if they become needed
+#[derive(Debug, Clone)]
+pub enum PaintingVariant {
+    Wanderer,
+    Graham,
+}
+
+impl PaintingVariant {
+    pub fn get_string(&self) -> SizedString<16> {
+        match self {
+            PaintingVariant::Wanderer => SizedString::new("Wanderer"),
+            PaintingVariant::Graham => SizedString::new("Graham"),
+        }
+    }
+}
+
+// objects are super scuffed compared to normal entities, cuz of 1.8.9 code... :(
 #[derive(Debug, Clone)]
 pub enum ObjectMetadata {
+    Painting {
+        painting: PaintingVariant,
+        rotation: Rotation,
+    },
     DroppedItem {
         item: ItemStack,
     },
-     FallingBlock {
-        block: Block
+    Minecart,
+    FallingBlock {
+        block: Block,
     },
-    EnderPearl
+    EnderPearl,
 }
 
 entity_metadata! {
@@ -31,7 +55,9 @@ entity_metadata! {
 impl ObjectMetadata {
     pub fn get_variant(&self) -> ObjectVariant {
         match self {
+            Self::Painting { .. } => unreachable!(), // painting has its own packet
             Self::DroppedItem { .. } => ObjectVariant::DroppedItem,
+            Self::Minecart => ObjectVariant::Minecart,
             Self::FallingBlock { .. } => ObjectVariant::FallingBlock,
             Self::EnderPearl => ObjectVariant::EnderPearl,
         }
@@ -45,13 +71,15 @@ impl ObjectMetadata {
                 let metadata = block_state_id & 0b1111;
                 block_id | (metadata << 12)
             }
-            _ => 0
+            _ => 0,
         }
     }
 
     pub fn get_entity_metadata(&self) -> Option<ObjectEntityMetadata> {
         match self {
-            Self::DroppedItem { item } => Some(DroppedItemMetadata::new().item(item.clone()).into()),
+            Self::DroppedItem { item } => {
+                Some(DroppedItemMetadata::new().item(item.clone()).into())
+            }
             _ => None,
         }
     }

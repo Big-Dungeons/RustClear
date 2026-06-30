@@ -10,7 +10,7 @@ use crate::core::entity::entity_metadata::EntityMetadata;
 use crate::core::entity::object_metadata::ObjectMetadata;
 use crate::core::network::packets::BytesMutExt;
 use crate::core::network::protocol::packed::{packed_position, packed_rotation};
-use crate::core::network::protocol::play::clientbound::{DestroyEntity, EntityAttach, EntityTeleport, EntityYawRotate, PacketEntityMetadata, SpawnMob, SpawnObject};
+use crate::core::network::protocol::play::clientbound::{DestroyEntity, EntityAttach, EntityTeleport, EntityYawRotate, PacketEntityMetadata, SpawnMob, SpawnObject, SpawnPainting};
 use crate::core::network::protocol::var_int::VarInt;
 use crate::core::player::PlayerPacketBuffer;
 use crate::core::types::aabb::AABB;
@@ -22,7 +22,9 @@ use components::transform;
 use components::transform::OldTransform;
 use components::transform::Transform;
 use glam::{dvec3, DVec3, I16Vec3};
+use crate::core::block::block_rotation::Rotation;
 use crate::core::entity::components::equipment::Equipment;
+use crate::core::network::protocol::block_position::BlockPosition;
 use crate::core::ServerTick;
 
 pub trait BevyEntityExt {
@@ -102,15 +104,32 @@ impl Mob {
                 });
             }
             MobType::Object(metadata) => {
-                buffer.write_packet(&SpawnObject {
-                    entity_id: VarInt(entity.mc_id()),
-                    variant: metadata.get_variant(),
-                    position: packed_position(transform.position),
-                    pitch: packed_rotation(transform.pitch),
-                    yaw: packed_rotation(transform.yaw),
-                    data: metadata.get_data(),
-                    velocity: Default::default(),
-                });
+                match metadata {
+                    ObjectMetadata::Painting { painting, rotation } => {
+                        buffer.write_packet(&SpawnPainting {
+                            entity_id: VarInt(entity.mc_id()),
+                            painting: painting.get_string(),
+                            position: BlockPosition(transform.position.floor().as_ivec3()),
+                            facing: match rotation {
+                                Rotation::None => 2,
+                                Rotation::Clockwise90 => 3,
+                                Rotation::Clockwise180 => 0,
+                                Rotation::CounterClockwise90 => 1,
+                            },
+                        });
+                    }
+                    _ => {
+                        buffer.write_packet(&SpawnObject {
+                            entity_id: VarInt(entity.mc_id()),
+                            variant: metadata.get_variant(),
+                            position: packed_position(transform.position),
+                            pitch: packed_rotation(transform.pitch),
+                            yaw: packed_rotation(transform.yaw),
+                            data: metadata.get_data(),
+                            velocity: Default::default(),
+                        });
+                    }
+                }
                 if let Some(entity_metadata) = metadata.get_entity_metadata() {
                     buffer.write_packet(&PacketEntityMetadata {
                         entity_id: VarInt(entity.mc_id()),

@@ -5,6 +5,7 @@ use crate::core::chunk::chunk_grid::ChunkGrid;
 use crate::core::entity::components::equipment::Equipment;
 use crate::core::entity::components::transform::Transform;
 use crate::core::entity::entity_metadata::ArmorStandMetadata;
+use crate::core::entity::object_metadata::{ObjectMetadata, PaintingVariant};
 use crate::core::entity::Mob;
 use crate::core::player::PlayerSkin;
 use crate::dungeon::rng::DHashMap;
@@ -50,6 +51,13 @@ impl Room {
         let mut position = position.rotate(self.rotation.inverse());
         position.x += self.corner.x;
         position.z += self.corner.z;
+        position
+    }
+
+    pub fn relative_dvec_to_world(&self, position: DVec3) -> DVec3 {
+        let mut position = position.rotate(self.rotation.inverse());
+        position.x += self.corner.x as f64;
+        position.z += self.corner.z as f64;
         position
     }
 
@@ -272,10 +280,7 @@ pub fn load_rooms_into_world(
                     pose,
                     hand, helmet, chestplate, leggings, boots,
                 } => {
-                    let mut position = position.rotate(room.rotation.inverse());
-                    position.x += room.corner.x as f64;
-                    position.z += room.corner.z as f64;
-
+                    let position = room.relative_dvec_to_world(*position);
                     let yaw = yaw.rotate(room.rotation);
 
                     let mut equipment = Equipment::new();
@@ -303,6 +308,29 @@ pub fn load_rooms_into_world(
                             pitch: 0.0,
                         },
                         equipment
+                    ));
+                }
+                // if more paintings are somehow needed, this will need to be adjusted
+                PropEntity::Painting { position, rotation, variant } => {
+                    commands.spawn((
+                        Mob::new_object(ObjectMetadata::Painting {
+                            painting: match variant.as_str() {
+                                "Wanderer" => PaintingVariant::Wanderer,
+                                _ => PaintingVariant::Graham,
+                            },
+                            rotation: rotation.rotate(room.rotation),
+                        }),
+                        Transform::new(room.relative_to_world(*position))
+                    ));
+                }
+                PropEntity::Minecart { position, yaw, pitch } => {
+                    commands.spawn((
+                        Mob::new_object(ObjectMetadata::Minecart),
+                        Transform {
+                            position: room.relative_dvec_to_world(*position),
+                            yaw: *yaw,
+                            pitch: *pitch,
+                        }
                     ));
                 }
             }

@@ -133,6 +133,15 @@ pub struct SpawnMob {
     pub metadata: EntityMetadata,
 }
 
+#[identified_packet(id=0x10)]
+#[derive(Debug, PacketSerializable)]
+pub struct SpawnPainting {
+    pub entity_id: VarInt,
+    pub painting: SizedString<16>,
+    pub position: BlockPosition,
+    pub facing: u8,
+}
+
 #[identified_packet(id=0x12)]
 #[derive(Debug, PacketSerializable)]
 pub struct EntityVelocity {
