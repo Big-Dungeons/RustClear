@@ -95,8 +95,10 @@ pub(super) fn on_interact(
                         },
                     );
                 commands.spawn((
-                    DespawnAfter { ticks: 20 },
-                    Mob::new(ArmorStandMetadata { flags: 0x20 }),
+                    DespawnAfter {
+                        ticks: 20
+                    },
+                    Mob::new(ArmorStandMetadata::new().invisible(true)),
                     transform,
                     Equipment::new().helmet(player_head),
                     essence::EssenceSpinningThing,

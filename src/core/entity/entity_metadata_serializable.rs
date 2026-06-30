@@ -1,9 +1,9 @@
 use crate::core::network::packets::packet_serializable::PacketSerializable;
 use crate::core::player::inventory::item_stack::ItemStack;
 use enumset::{EnumSet, EnumSetType};
-use glam::IVec3;
+use glam::{IVec3, Vec3};
 
-pub(crate) trait EntityMetadataSerializable: PacketSerializable {
+pub trait EntityMetadataSerializable: PacketSerializable {
     const ID: u8;
 }
 
@@ -49,6 +49,10 @@ impl EntityMetadataSerializable for Option<ItemStack> {
 
 impl EntityMetadataSerializable for IVec3 {
     const ID: u8 = 6;
+}
+
+impl EntityMetadataSerializable for Vec3 {
+    const ID: u8 = 7;
 }
 
 impl<E : EnumSetType> EntityMetadataSerializable for EnumSet<E> {

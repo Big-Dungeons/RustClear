@@ -95,9 +95,7 @@ pub(super) fn on_interact(
             DespawnAfter {
                 ticks: 20
             },
-            Mob::new(ArmorStandMetadata {
-                flags: 0x20
-            }),
+            Mob::new(ArmorStandMetadata::new().invisible(true)),
             transform,
             Equipment::new().helmet(skull),
             EssenceSpinningThing,

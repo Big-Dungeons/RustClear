@@ -1,16 +1,10 @@
-use crate::core::block::block_rotation::Rotation;
 use crate::core::block::Block;
 use crate::core::chunk::chunk_grid::ChunkGrid;
 use crate::core::entity::components::transform::Transform;
 use crate::core::player::Player;
-use crate::core::types::aabb::AABB;
-use crate::dungeon::rooms::secrets::chest_secret::{ChestSecret, ChestSecretType};
-use crate::dungeon::rooms::secrets::essence::EssenceSecret;
-use crate::dungeon::rooms::secrets::item_secret::{ItemSecret, ItemSecretType};
-use crate::dungeon::rooms::secrets::{Secret, SecretSpawnArea};
 use bevy::app::{App, Startup};
 use bevy::prelude::{Add, Commands, DetectChangesMut, On, Plugin, Query, ResMut};
-use glam::{dvec3, ivec3};
+use glam::dvec3;
 
 // purpose: flat world to test stuff without loading a dungeon
 pub struct DebugWorld;
@@ -31,12 +25,21 @@ fn load(
         }
     }
 
-    for index in 0..16 {
-        chunks.set_block_at(
-            Block::FlowerPot { flower: index },
-            (-3 * index as i32, 1, -3)
-        )
-    }
+    chunks.set_block_at(
+        Block::DoubleSandstoneSlab {
+            seamless: false,
+        },
+        (-3, 1, -3)
+    );
+    chunks.set_block_at(
+        Block::DoubleRedSandstoneSlab {
+            _placeholder0: false,
+            _placeholder1: false,
+            _placeholder2: false,
+            seamless: true,
+        },
+        (-5, 1, -3)
+    );
 
     // commands.spawn((
     //     Secret {

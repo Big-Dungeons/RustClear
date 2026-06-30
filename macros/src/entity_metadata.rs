@@ -112,11 +112,28 @@ pub fn entity_metadata_serializable_macro(input: proc_macro::TokenStream) -> pro
             #variant_ident(#metadata_ident),
         });
 
+        let mut builder_functions: TokenStream = Default::default();
         let mut variant_write_size: TokenStream = Default::default();
         let mut variant_write: TokenStream = Default::default();
         let mut defaults: TokenStream = Default::default();
 
+        // for default mob flag field, ide
+        variant_write_size.extend(quote! {
+            + 2
+        });
+        variant_write.extend(quote! {
+            u8::write(&(<u8 as EntityMetadataSerializable>::ID << 5 | 0 & 31), buf);
+            self.mob_flags.write(buf);
+        });
+
         for MetadataField { metadata_index, ident, ty, default_expr, .. } in &fields {
+            builder_functions.extend(quote! {
+                #vis fn #ident(mut self, value: #ty) -> Self {
+                    self.#ident = value;
+                    self
+                }
+            });
+
             variant_write_size.extend(quote! {
                 + 1 + self.#ident.write_size()
             });
@@ -132,12 +149,29 @@ pub fn entity_metadata_serializable_macro(input: proc_macro::TokenStream) -> pro
         metadata_structs.extend(quote! {
             #(#attrs)*
             #vis struct #metadata_ident {
+                #vis mob_flags: EnumSet<MobFlags>,
                 #(#fields),*
+            }
+
+            impl #metadata_ident {
+                #vis fn new() -> Self {
+                    Self::default()
+                }
+                #vis fn invisible(mut self, value: bool) -> Self {
+                    if value {
+                        self.mob_flags.insert(MobFlags::Invisible);
+                    } else {
+                        self.mob_flags.remove(MobFlags::Invisible);
+                    }
+                    self
+                }
+                #builder_functions
             }
 
             impl Default for #metadata_ident {
                 fn default() -> Self {
                     Self {
+                        mob_flags: EnumSet::default(),
                         #defaults
                     }
                 }

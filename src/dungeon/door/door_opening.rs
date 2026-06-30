@@ -34,10 +34,7 @@ pub fn open_door(
         ivec3(door.position.x + 1, 72, door.position.y + 1),
         |position| {
             let bat = commands.spawn((
-                Mob::new(BatMetadata {
-                    flags: 0,
-                    hanging: false,
-                }),
+                Mob::new(BatMetadata::new().invisible(true)),
                 Transform::new(position.as_dvec3() + dvec3(0.5, -0.65, 0.5)),
                 ChildOf(opening_door),
             )).id();

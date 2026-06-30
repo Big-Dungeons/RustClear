@@ -1,8 +1,10 @@
 use crate::core::block::Block;
+use crate::core::entity::entity_metadata::MobFlags;
 use crate::core::entity::entity_metadata_serializable::EntityMetadataSerializable;
 use crate::core::network::packets::packet_serializable::PacketSerializable;
 use crate::core::player::inventory::item_stack::ItemStack;
 use crate::core::types::entity_variant::ObjectVariant;
+use enumset::EnumSet;
 use macros::entity_metadata;
 
 #[derive(Debug, Clone)]
@@ -49,7 +51,7 @@ impl ObjectMetadata {
 
     pub fn get_entity_metadata(&self) -> Option<ObjectEntityMetadata> {
         match self {
-            Self::DroppedItem { item } => Some(DroppedItemMetadata { item: item.clone() }.into()),
+            Self::DroppedItem { item } => Some(DroppedItemMetadata::new().item(item.clone()).into()),
             _ => None,
         }
     }

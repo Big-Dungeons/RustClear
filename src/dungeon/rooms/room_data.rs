@@ -1,15 +1,21 @@
 use crate::core::block::block_entity::SkullRotation;
 use crate::core::block::block_rotation::Rotation;
 use crate::core::block::Block;
+use crate::core::entity::entity_metadata::ArmorStandFlags;
+use crate::core::network::protocol::nbt::int;
+use crate::core::player::inventory::item_stack::ItemStack;
+use crate::core::player::PlayerSkin;
 use crate::dungeon::rng::{DHashMap, DHashSet, SeededRng};
 use crate::dungeon::rooms::RoomSegment;
 use bevy::prelude::{Component, Deref, Resource};
-use glam::IVec3;
+use enumset::EnumSet;
+use glam::{DVec3, IVec3, Vec3};
 use include_dir::include_dir;
 use rand::prelude::IteratorRandom;
 use serde::de::Error;
 use serde::{Deserialize, Deserializer};
 use std::collections::HashSet;
+use uuid::Uuid;
 
 #[derive(Deserialize, Component, Clone)]
 pub struct RoomData {
@@ -27,6 +33,8 @@ pub struct RoomData {
     pub secrets: Vec<SecretData>,
     #[serde(default, deserialize_with = "deserialize_block_entities")]
     pub block_entities: DHashMap<IVec3, BlockEntityData>,
+    #[serde(default)]
+    pub prop_entities: Vec<PropEntity>,
 
     // do we need to keep this once loaded into world?
     #[serde(deserialize_with = "deserialize_blocks")]
@@ -46,6 +54,7 @@ impl RoomData {
             height: 30,
             secrets: Vec::new(),
             block_entities: DHashMap::default(),
+            prop_entities: Vec::new(),
             block_data: Vec::new(),
         }
     }
@@ -53,7 +62,7 @@ impl RoomData {
 
 #[derive(Deserialize, Debug, Eq, PartialEq, Copy, Clone)]
 pub enum RoomShape {
-    #[serde(rename = "1x1")]   OneByOne,           // Varying doors (fairy room)
+    #[serde(rename = "1x1")]   OneByOne,         // Varying doors (fairy room)
     #[serde(rename = "1x1_E")] OneByOneEnd,      // A dead end, only one door
     #[serde(rename = "1x1_X")] OneByOneCross,    // Four doors
     #[serde(rename = "1x1_I")] OneByOneStraight, // Two doors opposite each other
@@ -184,6 +193,94 @@ pub enum BlockEntityData {
     },
     Banner {
         patterns: Vec<String>
+    }
+}
+
+#[derive(Deserialize, Debug, Copy, Clone)]
+pub struct ArmorStandPose {
+    #[serde(default)]
+    pub head: Vec3,
+    #[serde(default)]
+    pub body: Vec3,
+    #[serde(default = "left_arm")]
+    pub left_arm: Vec3,
+    #[serde(default = "right_arm")]
+    pub right_arm: Vec3,
+    #[serde(default = "left_leg")]
+    pub left_leg: Vec3,
+    #[serde(default = "right_leg")]
+    pub right_leg: Vec3,
+}
+
+// scuffed ngl but whatever
+const fn left_arm() -> Vec3 {
+    Vec3 { x: -10.0, y: 0.0, z: -10.0 }
+}
+
+const fn right_arm() -> Vec3 {
+    Vec3 { x: -15.0, y: 0.0, z: 10.0 }
+}
+
+const fn left_leg() -> Vec3 {
+    Vec3 { x: -1.0, y: 0.0, z: -1.0 }
+}
+
+const fn right_leg() -> Vec3 {
+    Vec3 { x: 1.0, y: 0.0, z: 1.0 }
+}
+
+#[derive(Deserialize)]
+struct Item {
+    item_id: usize,
+    item_metadata: usize,
+    leather_color: Option<i32>,
+    skull_texture: Option<String>,
+}
+
+pub fn deserialize_item_stack<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<ItemStack>, D::Error> {
+    let Item { item_id, item_metadata, leather_color, skull_texture } = Item::deserialize(deserializer)?;
+    let mut stack = ItemStack::new()
+        .item_id(item_id)
+        .metadata(item_metadata);
+
+    if let Some(color) = leather_color {
+        stack.nbt_builder().get_or_insert_compound("display", [
+            int("color", color)
+        ]);
+    }
+    if let Some(texture) = skull_texture {
+        stack = stack.skull_owner(
+            Uuid::new_v4(),
+            PlayerSkin::new(texture)
+        );
+    }
+    Ok(Some(stack))
+}
+
+#[derive(Deserialize, Debug, Clone)]
+#[serde(rename_all = "snake_case", tag = "type")]
+pub enum PropEntity {
+    ArmorStand {
+        position: DVec3,
+        yaw: f32,
+
+        is_invisible: bool,
+        #[serde(default)]
+        flags: EnumSet<ArmorStandFlags>,
+
+        #[serde(flatten)]
+        pose: ArmorStandPose,
+
+        #[serde(default, deserialize_with = "deserialize_item_stack")]
+        hand: Option<ItemStack>,
+        #[serde(default, deserialize_with = "deserialize_item_stack")]
+        helmet: Option<ItemStack>,
+        #[serde(default, deserialize_with = "deserialize_item_stack")]
+        chestplate: Option<ItemStack>,
+        #[serde(default, deserialize_with = "deserialize_item_stack")]
+        leggings: Option<ItemStack>,
+        #[serde(default, deserialize_with = "deserialize_item_stack")]
+        boots: Option<ItemStack>,
     }
 }
 

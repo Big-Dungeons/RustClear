@@ -70,7 +70,7 @@ fn create_rooms_and_doors(
     let mut room_segments: DHashMap<usize, Vec<(RoomSegment, u8)>> = default();
     let mut existing_rooms: DHashSet<String> = default();
 
-    // maybe have a neighbour bitmask lookup, that is filled here
+    // maybe have a neighbor bitmask lookup, that is filled here
     for (index, position) in DOOR_POSITIONS.into_iter().enumerate() {
         let Some(type_string) = layout.get(index + 72..index + 73) else {
             panic!("Failed to parse door type.");
@@ -207,10 +207,7 @@ fn set_entrance_room_resource(
             let yaw = 0.0.rotate(room.rotation);
 
             commands.spawn((
-                Mob::new(ZombieMetadata {
-                    is_baby: false,
-                    is_villager: false,
-                }),
+                Mob::new(ZombieMetadata::new()),
                 Transform {
                     position,
                     yaw,
@@ -221,7 +218,7 @@ fn set_entrance_room_resource(
                     default_pitch: 0.0,
                 },
                 Interactable::new(|world, player, _| {
-                    if let DungeonState::Started { .. } = world.resource::<State<DungeonState>>().get() {
+                    if let DungeonState::Started = world.resource::<State<DungeonState>>().get() {
                         return;
                     }
                     let menu_entity = world.spawn((

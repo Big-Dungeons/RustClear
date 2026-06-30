@@ -1,6 +1,6 @@
 use crate::core::block::block_metadata::BlockFieldMetadata;
 use crate::core::block::block_parameters::{BlockAxis, ButtonDirection, Direction, HorizontalDirection, LeverOrientation, RailShape, StairDirection, TorchDirection, TrapdoorDirection, VineMetadata};
-use glam::IVec3;
+use glam::{DVec3, IVec3};
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug, Copy, Clone)]
@@ -80,6 +80,29 @@ impl Rotate for IVec3 {
             },
             Rotation::CounterClockwise90 => Self {
                 x: -self.z,
+                y: self.y,
+                z: self.x,
+            },
+        }
+    }
+}
+
+impl Rotate for DVec3 {
+    fn rotate(&self, rotation: Rotation) -> Self {
+        match rotation {
+            Rotation::None => *self,
+            Rotation::Clockwise90 => Self {
+                x: self.z,
+                y: self.y,
+                z: -self.x + 1.0,
+            },
+            Rotation::Clockwise180 => Self {
+                x: -self.x + 1.0,
+                y: self.y,
+                z: -self.z + 1.0,
+            },
+            Rotation::CounterClockwise90 => Self {
+                x: -self.z + 1.0,
                 y: self.y,
                 z: self.x,
             },

@@ -2,9 +2,13 @@ use crate::core::block::block_entity::{BlockEntity, BlockEntityType, SkullType};
 use crate::core::block::block_rotation::{Rotate, Rotation};
 use crate::core::block::Block;
 use crate::core::chunk::chunk_grid::ChunkGrid;
+use crate::core::entity::components::equipment::Equipment;
+use crate::core::entity::components::transform::Transform;
+use crate::core::entity::entity_metadata::ArmorStandMetadata;
+use crate::core::entity::Mob;
 use crate::core::player::PlayerSkin;
 use crate::dungeon::rng::DHashMap;
-use crate::dungeon::rooms::room_data::{BlockEntityData, RoomData};
+use crate::dungeon::rooms::room_data::{BlockEntityData, PropEntity, RoomData};
 use crate::dungeon::DUNGEON_ORIGIN;
 use bevy::ecs::entity::EntityHashSet;
 use bevy::prelude::{Commands, Component, Entity, Query, ResMut, Resource};
@@ -241,10 +245,7 @@ pub fn load_rooms_into_world(
                                 continue;
                             };
 
-                            let uuid = *uuid_map
-                                .entry(texture.clone())
-                                .or_insert(Uuid::new_v4());
-
+                            let uuid = *uuid_map.entry(texture.clone()).or_insert(Uuid::new_v4());
                             SkullType::PlayerHead {
                                 uuid,
                                 skin: PlayerSkin::new(texture.clone()),
@@ -260,6 +261,50 @@ pub fn load_rooms_into_world(
                 }
                 BlockEntityData::Banner { .. } => {}
                 _ => {}
+            }
+        }
+
+        for prop in data.prop_entities.iter() {
+            match prop {
+                PropEntity::ArmorStand {
+                    position, yaw,
+                    is_invisible, flags,
+                    pose,
+                    hand, helmet, chestplate, leggings, boots,
+                } => {
+                    let mut position = position.rotate(room.rotation.inverse());
+                    position.x += room.corner.x as f64;
+                    position.z += room.corner.z as f64;
+
+                    let yaw = yaw.rotate(room.rotation);
+
+                    let mut equipment = Equipment::new();
+                    equipment.hand = hand.clone();
+                    equipment.armor[3] = helmet.clone();
+                    equipment.armor[2] = chestplate.clone();
+                    equipment.armor[1] = leggings.clone();
+                    equipment.armor[0] = boots.clone();
+
+                    commands.spawn((
+                        Mob::new(
+                            ArmorStandMetadata::new()
+                                .invisible(*is_invisible)
+                                .armor_stand_flags(*flags)
+                                .head(pose.head)
+                                .body(pose.body)
+                                .left_arm(pose.left_arm)
+                                .right_arm(pose.right_arm)
+                                .left_leg(pose.left_leg)
+                                .right_leg(pose.right_leg)
+                        ),
+                        Transform {
+                            position,
+                            yaw,
+                            pitch: 0.0,
+                        },
+                        equipment
+                    ));
+                }
             }
         }
     }
